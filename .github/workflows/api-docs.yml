@@ -198,16 +198,14 @@ jobs:
         </html>
         EOF
 
-    - name: Prepare deploy token
-      run: |
-        echo "CLEAN_TOKEN=$(echo '${{ secrets.FAXBOT_NET_DEPLOY_TOKEN }}' | tr -d '\n\r')" >> $GITHUB_ENV
+    - name: Setup SSH key
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.FAXBOT_NET_DEPLOY_KEY }}
 
     - name: Checkout faxbot.net repo
-      uses: actions/checkout@v4
-      with:
-        repository: dmontgomery40/faxbot.net
-        token: ${{ env.CLEAN_TOKEN }}
-        path: faxbot-net-repo
+      run: |
+        git clone git@github.com:dmontgomery40/faxbot.net.git faxbot-net-repo
 
     - name: Deploy to faxbot.net
       run: |
