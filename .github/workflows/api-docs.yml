@@ -30,6 +30,7 @@ jobs:
 
     - name: Generate OpenAPI spec
       run: |
+        mkdir -p docs-build
         cd api
         python -c "
         import os, json, sys
