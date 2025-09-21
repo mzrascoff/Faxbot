@@ -182,9 +182,10 @@ async def enforce_local_admin(request: Request, call_next):
         # Feature flag gate
         if os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() != "true":
             return Response(content="Admin console disabled", status_code=404)
-        # Block proxied access by default (defensive)
+        # Block proxied access by default (defensive), unless explicitly allowed for demo/testing
         h = request.headers
-        if "x-forwarded-for" in h or "x-real-ip" in h:
+        allow_tunnel_ui = os.getenv("ADMIN_UI_ALLOW_TUNNEL", "false").lower() in {"1","true","yes"}
+        if ("x-forwarded-for" in h or "x-real-ip" in h) and not allow_tunnel_ui:
             return Response(content="Admin console not available through proxy", status_code=403)
         # Local access policy
         # Allow loopback; when running inside a container, also allow private bridge IPs (RFC1918)
@@ -195,7 +196,7 @@ async def enforce_local_admin(request: Request, call_next):
         except Exception:
             return Response(content="Forbidden", status_code=403)
         in_container = os.path.exists("/.dockerenv")
-        allow = ip.is_loopback or (in_container and ip.is_private)
+        allow = ip.is_loopback or (in_container and ip.is_private) or allow_tunnel_ui
         if not allow:
             return Response(content="Forbidden", status_code=403)
     response = await call_next(request)
@@ -289,6 +290,16 @@ async def on_startup():
     if not settings.fax_disabled and providerHasTrait("any", "requires_ami"):
         asyncio.create_task(ami_client.connect())
         ami_client.on_fax_result(_handle_fax_result)
+
+    # Auto‑tunnel: Cloudflare URL discovery (dev/non‑HIPAA only)
+    try:
+        auto_enabled = (os.getenv("AUTO_TUNNEL_ENABLED", "false").lower() in {"1","true","yes"})
+        provider_env = (os.getenv("TUNNEL_PROVIDER", "").lower())
+        # Run when explicitly enabled or provider=cloudflare
+        if auto_enabled or provider_env == "cloudflare":
+            asyncio.create_task(_auto_tunnel_cloudflare_watcher())
+    except Exception:
+        pass
 
 
 def _handle_fax_result(event):
@@ -689,6 +700,9 @@ def get_admin_settings():
             "inbound_list_rpm": settings.inbound_list_rpm,
             "inbound_get_rpm": settings.inbound_get_rpm,
         },
+        "tunnel": {
+            "provider": (os.getenv("TUNNEL_PROVIDER") or str(_TUNNEL_STATE.get("provider") or "none")).lower(),
+        },
     }
 
 
@@ -840,6 +854,9 @@ class UpdateSettingsRequest(BaseModel):
     inbound_list_rpm: Optional[int] = None
     inbound_get_rpm: Optional[int] = None
 
+    # Tunnel
+    tunnel_provider: Optional[str] = None  # none|cloudflare|wireguard|tailscale
+
 
 def _set_env_bool(key: str, value: Optional[bool]):
     if value is None:
@@ -888,6 +905,12 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     _set_env_opt("OAUTH_JWKS_URL", payload.oauth_jwks_url)
     _set_env_bool("ENABLE_MCP_HTTP", payload.enable_mcp_http)
     _set_env_opt("MAX_FILE_SIZE_MB", payload.max_file_size_mb)
+    # Tunnel
+    if payload.tunnel_provider is not None:
+        prov = str(payload.tunnel_provider or "none").lower()
+        if prov not in {"none", "cloudflare", "wireguard", "tailscale"}:
+            raise HTTPException(400, detail="Invalid tunnel provider")
+        _set_env_opt("TUNNEL_PROVIDER", prov)
 
     # Phaxio
     _set_env_opt("PHAXIO_API_KEY", payload.phaxio_api_key)
@@ -1352,56 +1375,7 @@ _ACTIONS_REGISTRY: Dict[str, Dict[str, Any]] = {
         "timeout": 5,
         "backend": ["*"]
     },
-    # Tunnel helpers (local-only admin actions)
-    "tunnel_status_cloudflared_logs_tail": {
-        "label": "Cloudflared logs (tail 50)",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker logs faxbot-cloudflared 2>&1 | tail -n 50"],
-        "timeout": 5,
-        "backend": ["*"]
-    },
-    "tunnel_start_cloudflared": {
-        "label": "Start Cloudflared (compose profile)",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose --profile cloudflare up -d cloudflared"],
-        "timeout": 20,
-        "backend": ["*"]
-    },
-    "tunnel_stop_cloudflared": {
-        "label": "Stop Cloudflared",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose stop cloudflared || true"],
-        "timeout": 15,
-        "backend": ["*"]
-    },
-    "tunnel_start_wireguard": {
-        "label": "Start WireGuard client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose --profile wireguard up -d wireguard"],
-        "timeout": 20,
-        "backend": ["*"]
-    },
-    "tunnel_stop_wireguard": {
-        "label": "Stop WireGuard client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose stop wireguard || true"],
-        "timeout": 15,
-        "backend": ["*"]
-    },
-    "tunnel_start_tailscale": {
-        "label": "Start Tailscale client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose --profile tailscale up -d tailscale"],
-        "timeout": 20,
-        "backend": ["*"]
-    },
-    "tunnel_stop_tailscale": {
-        "label": "Stop Tailscale client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose stop tailscale || true"],
-        "timeout": 15,
-        "backend": ["*"]
-    },
+    # Tunnel helpers (local-only admin actions) — keep only safe file reads
 }
 
 
@@ -1543,6 +1517,25 @@ def admin_tunnel_status() -> TunnelStatusOut:
         local_ip = socket.gethostbyname(socket.gethostname())
     except Exception:
         pass
+    # Dev-only Cloudflare URL discovery (optional): parse a known log path if HIPAA off
+    discovered_url = None
+    if not _hipaa_posture_enabled() and not public_url:
+        try:
+            log_path = os.getenv("CLOUDFLARE_LOG_PATH", os.getenv("CLOUDFLARED_LOG_PATH", "/faxdata/cloudflared/cloudflared.log"))
+            if os.path.exists(log_path):
+                with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                import re as _re
+                m = _re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", content)
+                if m:
+                    discovered_url = m.group(0)
+                    _TUNNEL_STATE.update({"public_url": discovered_url, "provider": "cloudflare", "enabled": True, "last_checked": datetime.utcnow(), "error": None})
+                    public_url = discovered_url
+                    provider = "cloudflare"
+                    status = "connected"
+        except Exception:
+            pass
+
     return TunnelStatusOut(
         enabled=enabled,
         provider=provider,
@@ -1586,11 +1579,11 @@ def admin_tunnel_config(payload: TunnelConfigIn) -> TunnelStatusOut:
 
 @app.post("/admin/tunnel/test", dependencies=[Depends(require_admin)])
 def admin_tunnel_test() -> TunnelTestOut:
-    # Perform a bounded local probe; do not reach out to public endpoints from here
+    # Prefer testing the public tunnel URL when available; else test local/public_api_url
     try:
         import http.client
         from urllib.parse import urlparse as _up
-        url = settings.public_api_url or "http://localhost:8080"
+        url = (_TUNNEL_STATE.get("public_url") or settings.public_api_url or "http://localhost:8080").rstrip("/")
         p = _up(url)
         host = p.hostname or "localhost"
         port = p.port or (443 if p.scheme == "https" else 80)
@@ -1616,6 +1609,83 @@ def admin_tunnel_pair() -> PairOut:
     expires = datetime.utcnow() + timedelta(minutes=5)
     _PAIR_CODES[code] = {"expires_at": expires, "created_at": datetime.utcnow()}
     return PairOut(code=code, expires_at=expires)
+
+
+class RegisterSinchOut(BaseModel):
+    success: bool
+    webhook_url: Optional[str] = None
+    provider_response: Optional[dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+@app.post("/admin/tunnel/register-sinch", dependencies=[Depends(require_admin)])
+def admin_tunnel_register_sinch() -> RegisterSinchOut:
+    """Programmatically register the current public webhook URL with Sinch Fax.
+
+    Non-HIPAA users may rely on Cloudflare Quick Tunnels; HIPAA users typically
+    configure a stable PUBLIC_API_URL. This endpoint prefers the active tunnel
+    URL when available and otherwise falls back to PUBLIC_API_URL.
+    """
+    # Determine webhook base
+    public_url = _TUNNEL_STATE.get("public_url") or (settings.public_api_url or "").rstrip("/")
+    if not public_url:
+        return RegisterSinchOut(success=False, error="No public URL available (tunnel inactive and PUBLIC_API_URL unset)")
+
+    webhook_url = f"{public_url}/sinch-inbound"
+
+    # Validate backend and credentials
+    if active_inbound() != "sinch":
+        return RegisterSinchOut(success=False, error="Inbound backend is not Sinch; switch inbound to Sinch to register its webhook")
+    project_id = (settings.sinch_project_id or "").strip()
+    api_key = (settings.sinch_api_key or "").strip()
+    api_secret = (settings.sinch_api_secret or "").strip()
+    if not (project_id and api_key and api_secret):
+        return RegisterSinchOut(success=False, error="Missing Sinch credentials (project_id/api_key/api_secret)")
+
+    # Resolve base URL
+    base_url = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com/v3").rstrip("/")
+    api_url = f"{base_url}/projects/{project_id}/services/default"
+
+    payload = {
+        "incomingFaxWebhook": {
+            "url": webhook_url,
+            "eventTypes": ["INCOMING_FAX", "FAX_COMPLETED"],
+        }
+    }
+
+    try:
+        import httpx  # local import to avoid startup penalty
+        with httpx.Client(timeout=15.0, headers={"Content-Type": "application/json"}) as client:
+            resp = client.patch(api_url, json=payload, auth=(api_key, api_secret))
+            if resp.status_code in (200, 201):
+                data = {}
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {"status_code": resp.status_code}
+                return RegisterSinchOut(success=True, webhook_url=webhook_url, provider_response=data)
+            return RegisterSinchOut(success=False, webhook_url=webhook_url, error=f"Sinch API error {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        return RegisterSinchOut(success=False, webhook_url=webhook_url, error=str(e)[:200])
+
+
+@app.get("/admin/tunnel/cloudflared/logs", dependencies=[Depends(require_admin)])
+def admin_tunnel_cloudflared_logs(lines: int = Query(default=50, ge=1, le=500)):
+    """Read last N lines from the Cloudflared log file on disk.
+    This avoids shelling out and works with the sidecar volume mount.
+    """
+    log_path = os.getenv("CLOUDFLARE_LOG_PATH", os.getenv("CLOUDFLARED_LOG_PATH", "/faxdata/cloudflared/cloudflared.log"))
+    try:
+        from collections import deque
+        dq = deque(maxlen=int(lines))
+        with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+            for line in f:
+                dq.append(line.rstrip('\n'))
+        return {"items": list(dq), "path": log_path}
+    except FileNotFoundError:
+        raise HTTPException(404, detail="Cloudflared log file not found")
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
 
 
 @app.get("/admin/inbound/callbacks", dependencies=[Depends(require_admin)])
@@ -1649,7 +1719,7 @@ def admin_inbound_callbacks():
     elif backend == "sip":
         out["callbacks"].append({
             "name": "Asterisk Internal",
-            "url": f"/_internal/asterisk/inbound",
+            "url": "/_internal/asterisk/inbound",
             "header": "X-Internal-Secret",
             "secret_configured": bool(settings.asterisk_inbound_secret),
             "notes": "Call from dialplan/AGI on the private network only.",
@@ -2185,6 +2255,8 @@ def _export_settings_full_env() -> str:
     kv["ENFORCE_PUBLIC_HTTPS"] = "true" if settings.enforce_public_https else "false"
     kv["FAX_DISABLED"] = "true" if settings.fax_disabled else "false"
     kv["PUBLIC_API_URL"] = settings.public_api_url
+    if os.getenv("TUNNEL_PROVIDER"):
+        kv["TUNNEL_PROVIDER"] = os.getenv("TUNNEL_PROVIDER", "none").lower()
     kv["MAX_FILE_SIZE_MB"] = str(settings.max_file_size_mb)
     # Security / audit
     kv["AUDIT_LOG_ENABLED"] = "true" if settings.audit_log_enabled else "false"
@@ -2480,6 +2552,212 @@ def admin_revoke_api_key(key_id: str):
     if not ok:
         raise HTTPException(404, detail="Key not found")
     return {"status": "ok"}
+
+# ===== WireGuard configuration & QR (admin-only) =====
+
+def _wg_conf_path() -> str:
+    # Ensure parent directory exists
+    path = settings.wireguard_conf_path or "/faxdata/wireguard/wg.conf"
+    try:
+        ensure_dir(os.path.dirname(path))
+    except Exception:
+        pass
+    return path
+
+
+def _wg_validate_conf_text(text: str) -> None:
+    # Basic sanity checks for a WireGuard config file
+    t = (text or "").strip()
+    if not t:
+        raise HTTPException(400, detail="Empty configuration")
+    # Require [Interface] section and at least one key
+    if "[Interface]" not in t:
+        raise HTTPException(400, detail="Missing [Interface] section")
+    if "PrivateKey" not in t:
+        raise HTTPException(400, detail="Missing PrivateKey in [Interface]")
+    if "[Peer]" not in t:
+        raise HTTPException(400, detail="Missing [Peer] section")
+
+
+class WGImportOut(BaseModel):
+    ok: bool
+
+
+@app.post("/admin/tunnel/wg/import", dependencies=[Depends(require_admin)])
+async def admin_wg_import_conf(request: Request, file: Optional[UploadFile] = File(default=None), content: Optional[str] = Form(default=None)) -> WGImportOut:  # type: ignore
+    # Accept either multipart file upload or raw text via 'content' field
+    try:
+        conf_text: Optional[str] = None
+        # Size cap for incoming conf (bytes)
+        try:
+            max_bytes = int(os.getenv("MAX_WG_CONF_BYTES", "65536"))
+        except Exception:
+            max_bytes = 65536
+        if file is not None:
+            raw = await file.read()
+            if raw and len(raw) > max_bytes:
+                raise HTTPException(413, detail="WireGuard configuration too large")
+            conf_text = raw.decode("utf-8", errors="replace")
+        elif content is not None:
+            conf_text = str(content)
+            if len(conf_text.encode("utf-8")) > max_bytes:
+                raise HTTPException(413, detail="WireGuard configuration too large")
+        else:
+            # Try JSON payload with {"content": "..."}
+            try:
+                data = await request.json()
+                conf_text = str(data.get("content", ""))
+                if len(conf_text.encode("utf-8")) > max_bytes:
+                    raise HTTPException(413, detail="WireGuard configuration too large")
+            except Exception:
+                conf_text = None
+        if conf_text is None:
+            raise HTTPException(400, detail="No configuration provided")
+        _wg_validate_conf_text(conf_text)
+        path = _wg_conf_path()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(conf_text)
+        try:
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
+        return WGImportOut(ok=True)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@app.get("/admin/tunnel/wg/conf", dependencies=[Depends(require_admin)])
+def admin_wg_get_conf():
+    path = _wg_conf_path()
+    if not os.path.exists(path):
+        raise HTTPException(404, detail="WireGuard configuration not found")
+    # Download as text file
+    filename = os.path.basename(path) or "wg.conf"
+    return FileResponse(path, media_type="text/plain", filename=filename)
+
+
+class WgDeleteOut(BaseModel):
+    ok: bool
+
+
+@app.delete("/admin/tunnel/wg/conf", dependencies=[Depends(require_admin)])
+def admin_wg_delete_conf() -> WgDeleteOut:
+    path = _wg_conf_path()
+    if not os.path.exists(path):
+        return WgDeleteOut(ok=True)
+    try:
+        os.remove(path)
+        return WgDeleteOut(ok=True)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+class WgQrOut(BaseModel):
+    png_base64: Optional[str] = None
+    svg_base64: Optional[str] = None
+
+
+@app.post("/admin/tunnel/wg/qr", dependencies=[Depends(require_admin)])
+def admin_wg_qr() -> WgQrOut:
+    """Render the stored WireGuard configuration as a QR (SVG base64)."""
+    path = _wg_conf_path()
+    if not os.path.exists(path):
+        raise HTTPException(404, detail="WireGuard configuration not found")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        _wg_validate_conf_text(content)
+        # Preferred: SVG (no native deps)
+        try:
+            import io
+            import segno  # type: ignore
+            qr = segno.make(content, error='M')
+            buf = io.BytesIO()
+            qr.save(buf, kind='svg')
+            svg_bytes = buf.getvalue()
+            import base64 as _b64
+            b64 = _b64.b64encode(svg_bytes).decode("ascii")
+            return WgQrOut(svg_base64=b64)
+        except Exception as e2:
+            raise HTTPException(500, detail=f"Failed to render QR: {str(e2)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Provide actionable note if renderPM is unavailable
+        raise HTTPException(500, detail=f"Failed to render QR: {str(e)}")
+
+
+# ===== Auto‑tunnel helpers (Cloudflare) =====
+_CF_URL_RE = re.compile(r"https://[a-z0-9.-]+\.trycloudflare\.com", re.IGNORECASE)
+
+
+async def _auto_tunnel_cloudflare_watcher():
+    """Dev/non‑HIPAA: discover Cloudflare Quick Tunnel URL from a mounted log file
+    and auto‑inject into runtime settings (no persistence) so the Admin Console and
+    webhooks "just work" without manual pasting. Never runs under HIPAA posture.
+    """
+    # Lazy import to avoid circulars at import time
+    global _TUNNEL_STATE  # type: ignore
+    try:
+        while True:
+            try:
+                # Respect HIPAA posture strictly
+                if settings.enforce_public_https:
+                    await asyncio.sleep(15)
+                    continue
+                provider = (os.getenv("TUNNEL_PROVIDER", "") or "").lower()
+                if provider and provider != "cloudflare" and not (os.getenv("AUTO_TUNNEL_ENABLED", "false").lower() in {"1","true","yes"}):
+                    await asyncio.sleep(10)
+                    continue
+
+                log_path = os.getenv("CLOUDFLARE_LOG_PATH", "/faxdata/cloudflared/cloudflared.log")
+                url_found = None
+                try:
+                    with open(log_path, "rb") as f:
+                        # Read last ~64KB to keep bounded
+                        try:
+                            f.seek(-65536, os.SEEK_END)
+                        except Exception:
+                            pass
+                        chunk = f.read().decode("utf-8", errors="replace")
+                        m = None
+                        for m in _CF_URL_RE.finditer(chunk):
+                            url_found = m.group(0)
+                        # url_found will be last match if any
+                except FileNotFoundError:
+                    url_found = None
+                except Exception:
+                    url_found = None
+
+                # Update in‑memory state and optionally runtime settings
+                if url_found and (not _TUNNEL_STATE.get("public_url") or _TUNNEL_STATE.get("public_url") != url_found):
+                    _TUNNEL_STATE.update({
+                        "enabled": True,
+                        "provider": "cloudflare",
+                        "public_url": url_found,
+                        "error": None,
+                        "last_checked": datetime.utcnow(),
+                    })
+                    # Auto‑load into runtime settings when PUBLIC_API_URL is local/default or override is allowed
+                    current = (settings.public_api_url or "").strip()
+                    allow_override = os.getenv("AUTO_TUNNEL_OVERRIDE", "true").lower() in {"1","true","yes"}
+                    is_local = current.startswith("http://localhost") or current.startswith("http://127.0.0.1") or current == ""
+                    if allow_override and is_local:
+                        os.environ["PUBLIC_API_URL"] = url_found
+                        try:
+                            reload_settings()
+                        except Exception:
+                            pass
+                        audit_event("auto_tunnel_public_url_set", provider="cloudflare")
+                await asyncio.sleep(5)
+            except Exception:
+                # Never crash the watcher; back off
+                await asyncio.sleep(10)
+    except Exception:
+        # Fail closed silently
+        return
 
 
 class RotateAPIKeyOut(BaseModel):

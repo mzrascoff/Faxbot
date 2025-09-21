@@ -151,6 +151,9 @@ class Settings(BaseModel):
     # Admin console options
     admin_allow_restart: bool = Field(default_factory=lambda: os.getenv("ADMIN_ALLOW_RESTART", "false").lower() in {"1","true","yes"})
 
+    # Tunnels / WireGuard helpers
+    wireguard_conf_path: str = Field(default_factory=lambda: os.getenv("WIREGUARD_CONF_PATH", "/faxdata/wireguard/wg.conf"))
+
     # MCP (embedded) settings
     enable_mcp_sse: bool = Field(default_factory=lambda: os.getenv("ENABLE_MCP_SSE", "false").lower() in {"1","true","yes"})
     mcp_sse_path: str = Field(default_factory=lambda: os.getenv("MCP_SSE_PATH", "/mcp/sse"))

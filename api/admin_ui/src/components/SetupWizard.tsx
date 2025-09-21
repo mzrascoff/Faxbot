@@ -68,7 +68,6 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   const [verifyFound, setVerifyFound] = useState<any | null>(null);
   const [callbacks, setCallbacks] = useState<any | null>(null);
   const ob = config.outbound_backend || config.backend;
-  const ib = config.inbound_backend;
 
   const steps = ['Choose Providers', 'Configure Credentials', 'Security Settings', 'Apply & Export'];
 
@@ -83,6 +82,37 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   const handleConfigChange = (field: string, value: any) => {
     setConfig(prev => ({ ...prev, [field]: value }));
   };
+
+  // Load current server settings to avoid defaulting to Phaxio every time
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await client.getSettings();
+        const effectiveOutbound = (s?.hybrid?.outbound_backend || s?.backend?.type || 'phaxio').toLowerCase();
+        const effectiveInbound = (s?.hybrid?.inbound_backend || '').toLowerCase();
+        const next: WizardConfig = {
+          backend: effectiveOutbound,
+          outbound_backend: effectiveOutbound,
+          inbound_backend: effectiveInbound || undefined,
+          require_api_key: Boolean(s?.security?.require_api_key ?? true),
+          enforce_public_https: Boolean((s as any)?.security?.enforce_https ?? true),
+          audit_log_enabled: Boolean((s as any)?.audit_log_enabled ?? false),
+          pdf_token_ttl_minutes: Number((s?.limits?.pdf_token_ttl_minutes ?? 60)),
+        };
+        // Provider-specific hints
+        if (effectiveOutbound === 'phaxio') {
+          next.phaxio_api_key = s?.phaxio?.api_key ? '' : '';
+          next.phaxio_api_secret = s?.phaxio?.api_secret ? '' : '';
+          next.public_api_url = s?.phaxio?.callback_url ? String(s?.phaxio?.callback_url).replace(/\/phaxio-callback$/, '') : s?.public_api_url;
+        } else if (effectiveOutbound === 'sinch') {
+          next.sinch_project_id = s?.sinch?.project_id || '';
+        }
+        setConfig(prev => ({ ...prev, ...next }));
+      } catch {
+        // keep defaults
+      }
+    })();
+  }, [client]);
 
   const handleValidate = async () => {
     setValidating(true);
@@ -195,9 +225,10 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     setEnvContent('');
     setValidationResults(null);
     try {
+      const effectiveBackend = (config.outbound_backend || config.backend);
       const payload: any = {
-        backend: config.backend,
-        outbound_backend: config.outbound_backend || config.backend,
+        backend: effectiveBackend,
+        outbound_backend: effectiveBackend,
         require_api_key: config.require_api_key,
         enforce_public_https: config.enforce_public_https,
         pdf_token_ttl_minutes: config.pdf_token_ttl_minutes,

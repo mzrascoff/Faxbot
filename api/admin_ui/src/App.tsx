@@ -41,6 +41,7 @@ import ScienceIcon from '@mui/icons-material/Science';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HelpIcon from '@mui/icons-material/Help';
 import { Tooltip } from '@mui/material';
+import VpnLockIcon from '@mui/icons-material/VpnLock';
 import AdminAPIClient from './api/client';
 import Dashboard from './components/Dashboard';
 import SetupWizard from './components/SetupWizard';
@@ -55,6 +56,7 @@ import SendFax from './components/SendFax';
 import Inbound from './components/Inbound';
 import Terminal from './components/Terminal';
 import ScriptsTests from './components/ScriptsTests';
+import TunnelSettings from './components/TunnelSettings';
 import { ThemeProvider } from './theme/ThemeContext';
 import { ThemeToggle } from './components/ThemeToggle';
 
@@ -176,6 +178,7 @@ function AppContent() {
     { label: 'Logs', icon: <DescriptionIcon /> },
     ...(adminConfig?.v3_plugins?.enabled ? [{ label: 'Plugins', icon: <ExtensionIcon /> }] : []),
     { label: 'Scripts & Tests', icon: <ScienceIcon /> },
+    { label: 'Tunnels', icon: <VpnLockIcon /> },
   ];
 
   if (!authenticated) {
@@ -648,6 +651,15 @@ function AppContent() {
               {toolsTab === 2 && <Logs client={client!} />}
               {toolsTab === 3 && adminConfig?.v3_plugins?.enabled && <Plugins client={client!} />}
               {(toolsTab === 4 || (toolsTab === 3 && !adminConfig?.v3_plugins?.enabled)) && <ScriptsTests client={client!} docsBase={adminConfig?.branding?.docs_base} />}
+              {toolsTab === (adminConfig?.v3_plugins?.enabled ? 5 : 4) && (
+                <TunnelSettings
+                  client={client!}
+                  docsBase={adminConfig?.branding?.docs_base}
+                  hipaaMode={Boolean(adminConfig?.security?.enforce_https)}
+                  inboundBackend={adminConfig?.hybrid?.inbound_backend}
+                  sinchConfigured={Boolean(adminConfig?.backend_configured?.sinch)}
+                />
+              )}
             </Box>
           </Paper>
         </TabPanel>
