@@ -198,11 +198,15 @@ jobs:
         </html>
         EOF
 
+    - name: Prepare deploy token
+      run: |
+        echo "CLEAN_TOKEN=$(echo '${{ secrets.FAXBOT_NET_DEPLOY_TOKEN }}' | tr -d '\n\r')" >> $GITHUB_ENV
+
     - name: Checkout faxbot.net repo
       uses: actions/checkout@v4
       with:
         repository: dmontgomery40/faxbot.net
-        token: ${{ secrets.FAXBOT_NET_DEPLOY_TOKEN }}
+        token: ${{ env.CLEAN_TOKEN }}
         path: faxbot-net-repo
 
     - name: Deploy to faxbot.net
