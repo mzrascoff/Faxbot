@@ -136,6 +136,87 @@ function Settings({ client }: SettingsProps) {
     );
   };
 
+  const handleApplySettings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setRestartHint(false);
+      
+      const p: any = {};
+      
+      // Core settings
+      if (form.outbound_backend) p.outbound_backend = form.outbound_backend;
+      else if (form.backend) p.backend = form.backend;
+      if (form.inbound_backend) {
+        p.inbound_backend = form.inbound_backend;
+        p.inbound_enabled = true;
+      }
+      if (form.require_api_key !== undefined) p.require_api_key = !!form.require_api_key;
+      if (form.enforce_public_https !== undefined) p.enforce_public_https = !!form.enforce_public_https;
+      if (form.audit_log_enabled !== undefined) p.audit_log_enabled = !!form.audit_log_enabled;
+      if (form.public_api_url) p.public_api_url = String(form.public_api_url);
+      if (form.enable_persisted_settings !== undefined) p.enable_persisted_settings = !!form.enable_persisted_settings;
+      if (form.feature_v3_plugins !== undefined) p.feature_v3_plugins = !!form.feature_v3_plugins;
+      if (form.feature_plugin_install !== undefined) p.feature_plugin_install = !!form.feature_plugin_install;
+
+      // Provider-specific settings (traits-aware)
+      const activeOutbound = active?.outbound;
+      if (activeOutbound === 'phaxio') {
+        if (form.phaxio_api_key) p.phaxio_api_key = form.phaxio_api_key;
+        if (form.phaxio_api_secret) p.phaxio_api_secret = form.phaxio_api_secret;
+      }
+      if (activeOutbound === 'sinch') {
+        if (form.sinch_project_id) p.sinch_project_id = form.sinch_project_id;
+        if (form.sinch_api_key) p.sinch_api_key = form.sinch_api_key;
+        if (form.sinch_api_secret) p.sinch_api_secret = form.sinch_api_secret;
+        if (form.sinch_base_url) p.sinch_base_url = form.sinch_base_url;
+        if (form.sinch_auth_method) p.sinch_auth_method = form.sinch_auth_method;
+        if (form.sinch_auth_base_url) p.sinch_auth_base_url = form.sinch_auth_base_url;
+      }
+      if (hasTrait('outbound', 'requires_ami')) {
+        if (form.ami_host) p.ami_host = form.ami_host;
+        if (form.ami_port) p.ami_port = Number(form.ami_port);
+        if (form.ami_username) p.ami_username = form.ami_username;
+        if (form.ami_password) p.ami_password = form.ami_password;
+        if (form.fax_station_id) p.fax_station_id = form.fax_station_id;
+      }
+
+      // Inbound settings
+      if (form.inbound_retention_days !== undefined) p.inbound_retention_days = Number(form.inbound_retention_days);
+      if (form.inbound_token_ttl_minutes !== undefined) p.inbound_token_ttl_minutes = Number(form.inbound_token_ttl_minutes);
+      if (form.asterisk_inbound_secret) p.asterisk_inbound_secret = form.asterisk_inbound_secret;
+      if (form.phaxio_inbound_verify_signature !== undefined) p.phaxio_inbound_verify_signature = !!form.phaxio_inbound_verify_signature;
+      if (form.sinch_inbound_basic_user) p.sinch_inbound_basic_user = form.sinch_inbound_basic_user;
+      if (form.sinch_inbound_basic_pass) p.sinch_inbound_basic_pass = form.sinch_inbound_basic_pass;
+
+      // Storage settings
+      if (form.storage_backend) p.storage_backend = form.storage_backend;
+      if (form.s3_bucket) p.s3_bucket = form.s3_bucket;
+      if (form.s3_region) p.s3_region = form.s3_region;
+      if (form.s3_prefix) p.s3_prefix = form.s3_prefix;
+      if (form.s3_endpoint_url) p.s3_endpoint_url = form.s3_endpoint_url;
+      if (form.s3_kms_key_id) p.s3_kms_key_id = form.s3_kms_key_id;
+
+      // Rate limiting
+      if (form.max_file_size_mb !== undefined) p.max_file_size_mb = Number(form.max_file_size_mb);
+      if (form.max_requests_per_minute !== undefined) p.max_requests_per_minute = Number(form.max_requests_per_minute);
+      if (form.inbound_list_rpm !== undefined) p.inbound_list_rpm = Number(form.inbound_list_rpm);
+      if (form.inbound_get_rpm !== undefined) p.inbound_get_rpm = Number(form.inbound_get_rpm);
+
+      const res = await client.updateSettings(p);
+      await client.reloadSettings();
+      await fetchSettings();
+      setSnack('Settings applied and reloaded');
+      
+      if (res && res._meta && res._meta.restart_recommended) setRestartHint(true);
+      if (p.enable_persisted_settings !== undefined) setPersistedEnabled(!!p.enable_persisted_settings);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to apply settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -938,7 +1019,7 @@ function Settings({ client }: SettingsProps) {
             icon={<StorageIcon />}
           >
             <ResponsiveSettingItem
-              icon={getStatusIcon(hasTrait('inbound', 'needs_storage') && settings.storage?.backend === 's3')}
+              icon={getStatusIcon(hasTrait('inbound', 'needs_storage') && (form.storage_backend === 's3' || settings.storage?.backend === 's3'))}
               label="Storage Backend"
               value={(form.storage_backend || settings.storage?.backend || 'local')}
               helperText="Local for development only. Use S3 with KMS for PHI in production."
@@ -951,7 +1032,7 @@ function Settings({ client }: SettingsProps) {
               showCurrentValue={true}
             />
             
-            {(form.storage_backend === 's3' || settings.storage?.backend === 's3') && hasTrait('inbound', 'needs_storage') && (
+            {hasTrait('inbound', 'needs_storage') && (form.storage_backend === 's3' || settings.storage?.backend === 's3') && (
               <Box sx={{ mt: 2 }}>
                 <ResponsiveSettingItem
                   icon={<StorageIcon />}
@@ -1163,7 +1244,7 @@ function Settings({ client }: SettingsProps) {
             </ResponsiveFormSection>
         </Stack>
         <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-          <Button variant="contained" onClick={async () => { try { setLoading(true); setError(null); setRestartHint(false); const p:any={}; if (form.outbound_backend) p.outbound_backend=form.outbound_backend; else if (form.backend) p.backend=form.backend; if (form.inbound_backend) { p.inbound_backend=form.inbound_backend; p.inbound_enabled=true; } if (form.require_api_key!==undefined) p.require_api_key=!!form.require_api_key; if (form.enforce_public_https!==undefined) p.enforce_public_https=!!form.enforce_public_https; if (form.audit_log_enabled!==undefined) p.audit_log_enabled=!!form.audit_log_enabled; if (form.public_api_url) p.public_api_url=String(form.public_api_url); if (form.enable_persisted_settings!==undefined) p.enable_persisted_settings=!!form.enable_persisted_settings; if (form.feature_v3_plugins!==undefined) p.feature_v3_plugins=!!form.feature_v3_plugins; if (form.feature_plugin_install!==undefined) p.feature_plugin_install=!!form.feature_plugin_install; if ((form.outbound_backend||form.backend)==='phaxio' && form.phaxio_api_key) p.phaxio_api_key=form.phaxio_api_key; if ((form.outbound_backend||form.backend)==='phaxio' && form.phaxio_api_secret) p.phaxio_api_secret=form.phaxio_api_secret; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_project_id) p.sinch_project_id=form.sinch_project_id; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_api_key) p.sinch_api_key=form.sinch_api_key; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_api_secret) p.sinch_api_secret=form.sinch_api_secret; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_base_url) p.sinch_base_url=form.sinch_base_url; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_auth_method) p.sinch_auth_method=form.sinch_auth_method; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_auth_base_url) p.sinch_auth_base_url=form.sinch_auth_base_url; if ((form.outbound_backend||form.backend)==='sip'){ if (form.ami_host) p.ami_host=form.ami_host; if (form.ami_port) p.ami_port=Number(form.ami_port); if (form.ami_username) p.ami_username=form.ami_username; if (form.ami_password) p.ami_password=form.ami_password; if (form.fax_station_id) p.fax_station_id=form.fax_station_id; } if (form.inbound_retention_days!==undefined) p.inbound_retention_days=Number(form.inbound_retention_days); if (form.inbound_token_ttl_minutes!==undefined) p.inbound_token_ttl_minutes=Number(form.inbound_token_ttl_minutes); if (form.asterisk_inbound_secret) p.asterisk_inbound_secret=form.asterisk_inbound_secret; if (form.phaxio_inbound_verify_signature!==undefined) p.phaxio_inbound_verify_signature=!!form.phaxio_inbound_verify_signature; if (form.sinch_inbound_basic_user) p.sinch_inbound_basic_user=form.sinch_inbound_basic_user; if (form.sinch_inbound_basic_pass) p.sinch_inbound_basic_pass=form.sinch_inbound_basic_pass; if (form.storage_backend) p.storage_backend=form.storage_backend; if (form.s3_bucket) p.s3_bucket=form.s3_bucket; if (form.s3_region) p.s3_region=form.s3_region; if (form.s3_prefix) p.s3_prefix=form.s3_prefix; if (form.s3_endpoint_url) p.s3_endpoint_url=form.s3_endpoint_url; if (form.s3_kms_key_id) p.s3_kms_key_id=form.s3_kms_key_id; if (form.max_file_size_mb!==undefined) p.max_file_size_mb=Number(form.max_file_size_mb); if (form.max_requests_per_minute!==undefined) p.max_requests_per_minute=Number(form.max_requests_per_minute); if (form.inbound_list_rpm!==undefined) p.inbound_list_rpm=Number(form.inbound_list_rpm); if (form.inbound_get_rpm!==undefined) p.inbound_get_rpm=Number(form.inbound_get_rpm); const res = await client.updateSettings(p); await client.reloadSettings(); await fetchSettings(); setSnack('Settings applied and reloaded'); if (res && res._meta && res._meta.restart_recommended) setRestartHint(true); if (p.enable_persisted_settings!==undefined) setPersistedEnabled(!!p.enable_persisted_settings); } catch(e:any){ setError(e?.message||'Failed to apply settings'); } finally { setLoading(false);} }} disabled={loading}>
+          <Button variant="contained" onClick={handleApplySettings} disabled={loading}>
             Apply & Reload
           </Button>
           <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchSettings} disabled={loading}>
