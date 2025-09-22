@@ -38,7 +38,8 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import AdminAPIClient from '../api/client';\nimport { useTraits } from '../hooks/useTraits';
+import AdminAPIClient from '../api/client';
+import { useTraits } from '../hooks/useTraits';
 import type { InboundFax } from '../api/types';
 import { ResponsiveFormSection } from './common/ResponsiveFormFields';
 

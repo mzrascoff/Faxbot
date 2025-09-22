@@ -28,7 +28,8 @@ import {
   CheckCircle as CheckIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import AdminAPIClient from '../api/client';\nimport { useTraits } from '../hooks/useTraits';
+import AdminAPIClient from '../api/client';
+import { useTraits } from '../hooks/useTraits';
 import { ResponsiveFormSection, ResponsiveTextField } from './common/ResponsiveFormFields';
 
 interface Props {
