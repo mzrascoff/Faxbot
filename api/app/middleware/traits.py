@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from functools import wraps
+import inspect
 from typing import Any, Callable, Iterable
 
 from fastapi import HTTPException
@@ -30,10 +31,12 @@ def requires_traits(direction: str, keys: Iterable[str]) -> Callable[[Callable[.
                     # Warn‑only mode; proceed
                     # NOTE: real logging hook can be added here
                     pass
-            return await fn(*args, **kwargs)
+            # Support both async and sync endpoints
+            if inspect.iscoroutinefunction(fn):
+                return await fn(*args, **kwargs)
+            return fn(*args, **kwargs)
 
         return wrapper
 
     return decorator
-
 

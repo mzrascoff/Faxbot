@@ -10,22 +10,19 @@ info:
         name: MIT
         url: https://github.com/dmontgomery40/faxbot/blob/main/LICENSE
     version: 1.0.0
-servers:
-  - url: http://localhost:8080
-    description: Local development server
-  - url: https://api.faxbot.net
-    description: Production server
 paths:
     /health:
         get:
             summary: Health
             operationId: health_health_get
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
+                            schema:
+                                type: object
+            description: Health
     /health/ready:
         get:
             summary: Health Ready
@@ -34,11 +31,12 @@ paths:
                 Checks: DB connectivity; backend configuration; storage configuration when inbound is enabled.
             operationId: health_ready_health_ready_get
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
+                            schema:
+                                type: object
     /admin/config:
         get:
             summary: Get Admin Config
@@ -48,23 +46,23 @@ paths:
             operationId: get_admin_config_admin_config_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -76,28 +74,29 @@ paths:
             operationId: get_admin_providers_admin_providers_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Get Admin Providers
     /admin/settings:
         get:
             summary: Get Admin Settings
@@ -105,23 +104,23 @@ paths:
             operationId: get_admin_settings_admin_settings_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -135,16 +134,15 @@ paths:
             operationId: update_admin_settings_admin_settings_put
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -152,12 +150,13 @@ paths:
                         schema:
                             $ref: #/components/schemas/UpdateSettingsRequest
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -170,16 +169,15 @@ paths:
             operationId: validate_settings_admin_settings_validate_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -187,12 +185,13 @@ paths:
                         schema:
                             $ref: #/components/schemas/ValidateSettingsRequest
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -204,28 +203,29 @@ paths:
             operationId: admin_reload_settings_admin_settings_reload_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Reload Settings
     /admin/restart:
         post:
             summary: Admin Restart
@@ -233,100 +233,101 @@ paths:
             operationId: admin_restart_admin_restart_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/health-status:
+    "/admin/health-status":
         get:
             summary: Get Health Status
             operationId: get_health_status_admin_health_status_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/db-status:
+            description: Get Health Status
+    "/admin/db-status":
         get:
             summary: Admin Db Status
             operationId: admin_db_status_admin_db_status_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Db Status
     /admin/plugins/http/install:
         post:
             summary: Install Http Manifest
             operationId: install_http_manifest_admin_plugins_http_install_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -334,33 +335,34 @@ paths:
                         schema:
                             $ref: #/components/schemas/ManifestIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Install Http Manifest
     /admin/plugins/http/validate:
         post:
             summary: Validate Http Manifest
             operationId: validate_http_manifest_admin_plugins_http_validate_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -368,18 +370,20 @@ paths:
                         schema:
                             $ref: #/components/schemas/ManifestValidateIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/plugins/http/import-manifests:
+            description: Validate Http Manifest
+    "/admin/plugins/http/import-manifests":
         post:
             summary: Import Http Manifests
             description: |
@@ -388,16 +392,15 @@ paths:
             operationId: import_http_manifests_admin_plugins_http_import_manifests_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -405,12 +408,13 @@ paths:
                         schema:
                             $ref: #/components/schemas/ImportManifestsIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -425,64 +429,62 @@ paths:
             operationId: admin_logs_admin_logs_get
             parameters:
                 -
-                  name: q
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Q
-              -
-                  name: event
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Event
-              -
-                  name: since
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Since
-              -
-                  name: limit
-                  in: query
-                  required: false
-                  schema:
-                      type: integer
-                      default: 200
-                      title: Limit
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: q
+                    in: query
+                    required: false
+                    schema:
+                        title: Q
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: q
+                -
+                    name: event
+                    in: query
+                    required: false
+                    schema:
+                        title: Event
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: event
+                -
+                    name: since
+                    in: query
+                    required: false
+                    schema:
+                        title: Since
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: since
+                -
+                    name: limit
+                    in: query
+                    required: false
+                    schema:
+                        type: integer
+                        default: 200
+                        title: Limit
+                    description: Query parameter: limit
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -497,53 +499,52 @@ paths:
             operationId: admin_logs_tail_admin_logs_tail_get
             parameters:
                 -
-                  name: q
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Q
-              -
-                  name: event
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Event
-              -
-                  name: lines
-                  in: query
-                  required: false
-                  schema:
-                      type: integer
-                      default: 2000
-                      title: Lines
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: q
+                    in: query
+                    required: false
+                    schema:
+                        title: Q
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: q
+                -
+                    name: event
+                    in: query
+                    required: false
+                    schema:
+                        title: Event
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: event
+                -
+                    name: lines
+                    in: query
+                    required: false
+                    schema:
+                        type: integer
+                        default: 2000
+                        title: Lines
+                    description: Query parameter: lines
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -555,41 +556,44 @@ paths:
             operationId: admin_actions_list_admin_actions_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Actions List
     /admin/actions/run:
         post:
             summary: Admin Actions Run
             operationId: admin_actions_run_admin_actions_run_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          type: string
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -597,56 +601,63 @@ paths:
                         schema:
                             $ref: #/components/schemas/RunActionIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Actions Run
     /admin/tunnel/status:
         get:
             summary: Admin Tunnel Status
             operationId: admin_tunnel_status_admin_tunnel_status_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          type: string
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/TunnelStatusOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Tunnel Status
     /admin/tunnel/config:
         post:
             summary: Admin Tunnel Config
             operationId: admin_tunnel_config_admin_tunnel_config_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          type: string
-                          title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -654,76 +665,78 @@ paths:
                         schema:
                             $ref: #/components/schemas/TunnelConfigIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/TunnelStatusOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Tunnel Config
     /admin/tunnel/test:
         post:
             summary: Admin Tunnel Test
             operationId: admin_tunnel_test_admin_tunnel_test_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          anyOf:
-                            - type: string
-                            - type: "null"
-                          title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/TunnelTestOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Tunnel Test
     /admin/tunnel/pair:
         post:
             summary: Admin Tunnel Pair
             operationId: admin_tunnel_pair_admin_tunnel_pair_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/PairOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/tunnel/register-sinch:
+            description: Admin Tunnel Pair
+    "/admin/tunnel/register-sinch":
         post:
             summary: Admin Tunnel Register Sinch
             description: |
@@ -734,22 +747,23 @@ paths:
             operationId: admin_tunnel_register_sinch_admin_tunnel_register_sinch_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          - type: string
-                          - type: "null"
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
                         title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/RegisterSinchOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -764,36 +778,34 @@ paths:
             operationId: admin_tunnel_cloudflared_logs_admin_tunnel_cloudflared_logs_get
             parameters:
                 -
-                  name: lines
-                  in: query
-                  required: false
-                  schema:
-                      type: integer
-                      maximum: 500
-                      minimum: 1
-                      default: 50
-                      title: Lines
+                    name: lines
+                    in: query
+                    required: false
+                    schema:
+                        type: integer
+                        maximum: 500
+                        minimum: 1
+                        default: 50
+                        title: Lines
+                    description: Query parameter: lines
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          - type: string
-                          - type: "null"
-                      title: X-Api-Key
-                      anyOf:
-                          anyOf:
-                            - type: string
-                            - type: "null"
-                          title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -805,41 +817,44 @@ paths:
             operationId: admin_inbound_callbacks_admin_inbound_callbacks_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Inbound Callbacks
     /admin/inbound/simulate:
         post:
             summary: Admin Inbound Simulate
             operationId: admin_inbound_simulate_admin_inbound_simulate_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          type: string
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -847,121 +862,126 @@ paths:
                         schema:
                             $ref: #/components/schemas/SimulateInboundIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/fax-jobs:
+            description: Admin Inbound Simulate
+    "/admin/fax-jobs":
         get:
             summary: List Admin Jobs
             operationId: list_admin_jobs_admin_fax_jobs_get
             parameters:
                 -
-                  name: status
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Status
-              -
-                  name: backend
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Backend
-              -
-                  name: limit
-                  in: query
-                  required: false
-                  schema:
-                      type: integer
-                      maximum: 100
-                      default: 50
-                      title: Limit
-              -
-                  name: offset
-                  in: query
-                  required: false
-                  schema:
-                      type: integer
-                      minimum: 0
-                      default: 0
-                      title: Offset
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: status
+                    in: query
+                    required: false
+                    schema:
+                        title: Status
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: status
+                -
+                    name: backend
+                    in: query
+                    required: false
+                    schema:
+                        title: Backend
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: backend
+                -
+                    name: limit
+                    in: query
+                    required: false
+                    schema:
+                        type: integer
+                        maximum: 100
+                        default: 50
+                        title: Limit
+                    description: Query parameter: limit
+                -
+                    name: offset
+                    in: query
+                    required: false
+                    schema:
+                        type: integer
+                        minimum: 0
+                        default: 0
+                        title: Offset
+                    description: Query parameter: offset
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/fax-jobs/{job_id}:
+            description: List Admin Jobs
+    "/admin/fax-jobs/{job_id}":
         get:
             summary: Get Admin Job
             operationId: get_admin_job_admin_fax_jobs__job_id__get
             parameters:
                 -
-                  name: job_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Job Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: job_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Job Id
+                    description: Path parameter: job_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/fax-jobs/{job_id}/pdf:
+            description: Get Admin Job
+    "/admin/fax-jobs/{job_id}/pdf":
         get:
             summary: Admin Get Job Pdf
             description: |
@@ -970,36 +990,37 @@ paths:
             operationId: admin_get_job_pdf_admin_fax_jobs__job_id__pdf_get
             parameters:
                 -
-                  name: job_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Job Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: job_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Job Id
+                    description: Path parameter: job_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/fax-jobs/{job_id}/refresh:
+    "/admin/fax-jobs/{job_id}/refresh":
         post:
             summary: Admin Refresh Job
             description: |
@@ -1008,30 +1029,31 @@ paths:
             operationId: admin_refresh_job_admin_fax_jobs__job_id__refresh_post
             parameters:
                 -
-                  name: job_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Job Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: job_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Job Id
+                    description: Path parameter: job_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -1046,23 +1068,23 @@ paths:
             operationId: run_diagnostics_admin_diagnostics_run_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -1075,23 +1097,23 @@ paths:
             operationId: export_settings_env_admin_settings_export_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -1106,16 +1128,15 @@ paths:
             operationId: persist_settings_admin_settings_persist_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -1123,12 +1144,13 @@ paths:
                         schema:
                             $ref: #/components/schemas/PersistSettingsIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -1140,87 +1162,87 @@ paths:
             operationId: send_fax_fax_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
-                    multipart/form-data:
+                    "multipart/form-data":
                         schema:
                             $ref: #/components/schemas/Body_send_fax_fax_post
             responses:
-                202:
+                "202":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/FaxJobOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Send Fax
     /fax/{job_id}:
         get:
             summary: Get Fax
             operationId: get_fax_fax__job_id__get
             parameters:
                 -
-                  name: job_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Job Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: job_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Job Id
+                    description: Path parameter: job_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/FaxJobOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/api-keys:
+            description: Get Fax
+    "/admin/api-keys":
         post:
             summary: Admin Create Api Key
             operationId: admin_create_api_key_admin_api_keys_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -1228,35 +1250,35 @@ paths:
                         schema:
                             $ref: #/components/schemas/CreateAPIKeyIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/CreateAPIKeyOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Create Api Key
         get:
             summary: Admin List Api Keys
             operationId: admin_list_api_keys_admin_api_keys_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
@@ -1265,137 +1287,141 @@ paths:
                                 items:
                                     $ref: #/components/schemas/APIKeyMeta
                                 title: Response Admin List Api Keys Admin Api Keys Get
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/api-keys/{key_id}:
+            description: Admin List Api Keys
+    "/admin/api-keys/{key_id}":
         delete:
             summary: Admin Revoke Api Key
             operationId: admin_revoke_api_key_admin_api_keys__key_id__delete
             parameters:
                 -
-                  name: key_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Key Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: key_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Key Id
+                    description: Path parameter: key_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Revoke Api Key
     /admin/tunnel/wg/import:
         post:
             summary: Admin Wg Import Conf
             operationId: admin_wg_import_conf_admin_tunnel_wg_import_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 content:
-                    multipart/form-data:
+                    "multipart/form-data":
                         schema:
                             $ref: #/components/schemas/Body_admin_wg_import_conf_admin_tunnel_wg_import_post
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/WGImportOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Wg Import Conf
     /admin/tunnel/wg/conf:
         get:
             summary: Admin Wg Get Conf
             operationId: admin_wg_get_conf_admin_tunnel_wg_conf_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Wg Get Conf
         delete:
             summary: Admin Wg Delete Conf
             operationId: admin_wg_delete_conf_admin_tunnel_wg_conf_delete
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/WgDeleteOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Wg Delete Conf
     /admin/tunnel/wg/qr:
         post:
             summary: Admin Wg Qr
@@ -1403,65 +1429,65 @@ paths:
             operationId: admin_wg_qr_admin_tunnel_wg_qr_post
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/WgQrOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /admin/api-keys/{key_id}/rotate:
+    "/admin/api-keys/{key_id}/rotate":
         post:
             summary: Admin Rotate Api Key
             operationId: admin_rotate_api_key_admin_api_keys__key_id__rotate_post
             parameters:
                 -
-                  name: key_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Key Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: key_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Key Id
+                    description: Path parameter: key_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/RotateAPIKeyOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Admin Rotate Api Key
     /fax/{job_id}/pdf:
         get:
             summary: Get Fax Pdf
@@ -1471,93 +1497,93 @@ paths:
             operationId: get_fax_pdf_fax__job_id__pdf_get
             parameters:
                 -
-                  name: job_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Job Id
-              -
-                  name: token
-                  in: query
-                  required: true
-                  schema:
-                      type: string
-                      title: Token
+                    name: job_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Job Id
+                    description: Path parameter: job_id
+                -
+                    name: token
+                    in: query
+                    required: true
+                    schema:
+                        type: string
+                        title: Token
+                    description: Query parameter: token
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /phaxio-callback:
+    "/phaxio-callback":
         post:
             summary: Phaxio Callback
             description: Handle Phaxio status callbacks.
             operationId: phaxio_callback_phaxio_callback_post
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
+                            schema:
+                                type: object
     /inbound:
         get:
             summary: List Inbound
             operationId: list_inbound_inbound_get
             parameters:
                 -
-                  name: to_number
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: To Number
-              -
-                  name: status
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Status
-              -
-                  name: mailbox
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Mailbox
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: to_number
+                    in: query
+                    required: false
+                    schema:
+                        title: To Number
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: to_number
+                -
+                    name: status
+                    in: query
+                    required: false
+                    schema:
+                        title: Status
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: status
+                -
+                    name: mailbox
+                    in: query
+                    required: false
+                    schema:
+                        title: Mailbox
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: mailbox
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
@@ -1566,110 +1592,112 @@ paths:
                                 items:
                                     $ref: #/components/schemas/InboundFaxOut
                                 title: Response List Inbound Inbound Get
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: List Inbound
     /inbound/{inbound_id}:
         get:
             summary: Get Inbound
             operationId: get_inbound_inbound__inbound_id__get
             parameters:
                 -
-                  name: inbound_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Inbound Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: inbound_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Inbound Id
+                    description: Path parameter: inbound_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/InboundFaxOut
-                422:
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Get Inbound
     /inbound/{inbound_id}/pdf:
         get:
             summary: Get Inbound Pdf
             operationId: get_inbound_pdf_inbound__inbound_id__pdf_get
             parameters:
                 -
-                  name: inbound_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Inbound Id
-              -
-                  name: token
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Token
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: inbound_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Inbound Id
+                    description: Path parameter: inbound_id
+                -
+                    name: token
+                    in: query
+                    required: false
+                    schema:
+                        title: Token
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: token
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Get Inbound Pdf
     /_internal/asterisk/inbound:
         post:
             summary: Asterisk Inbound
             operationId: asterisk_inbound__internal_asterisk_inbound_post
             parameters:
                 -
-                  name: x-internal-secret
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Internal-Secret
+                    name: x-internal-secret
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Internal-Secret
+                        type:
+                            - string
+                            - "null"
+                    description: Header parameter: x-internal-secret
             requestBody:
                 required: true
                 content:
@@ -1679,122 +1707,131 @@ paths:
                             additionalProperties: true
                             title: Payload
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /phaxio-inbound:
+            description: Asterisk Inbound
+    "/phaxio-inbound":
         post:
             summary: Phaxio Inbound
             operationId: phaxio_inbound_phaxio_inbound_post
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-    /sinch-inbound:
+                            schema:
+                                type: object
+            description: Phaxio Inbound
+    "/sinch-inbound":
         post:
             summary: Sinch Inbound
             operationId: sinch_inbound_sinch_inbound_post
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
+                            schema:
+                                type: object
+            description: Sinch Inbound
     /plugins:
         get:
             summary: List Plugins
             operationId: list_plugins_plugins_get
             parameters:
                 -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: List Plugins
     /plugins/{plugin_id}/config:
         get:
             summary: Get Plugin Config
             operationId: get_plugin_config_plugins__plugin_id__config_get
             parameters:
                 -
-                  name: plugin_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Plugin Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: plugin_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Plugin Id
+                    description: Path parameter: plugin_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Get Plugin Config
         put:
             summary: Update Plugin Config
             operationId: update_plugin_config_plugins__plugin_id__config_put
             parameters:
                 -
-                  name: plugin_id
-                  in: path
-                  required: true
-                  schema:
-                      type: string
-                      title: Plugin Id
-              -
-                  name: x-api-key
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                    name: plugin_id
+                    in: path
+                    required: true
+                    schema:
+                        type: string
+                        title: Plugin Id
+                    description: Path parameter: plugin_id
+                -
+                    name: x-api-key
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Api-Key
+                        type:
+                            - string
+                            - "null"
+                    description: API key for authentication
             requestBody:
                 required: true
                 content:
@@ -1802,28 +1839,32 @@ paths:
                         schema:
                             $ref: #/components/schemas/UpdatePluginConfigIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
-    /plugin-registry:
+            description: Update Plugin Config
+    "/plugin-registry":
         get:
             summary: Plugin Registry
             operationId: plugin_registry_plugin_registry_get
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-    /signalwire-callback:
+                            schema:
+                                type: object
+            description: Plugin Registry
+    "/signalwire-callback":
         post:
             summary: Signalwire Callback
             description: |
@@ -1832,23 +1873,23 @@ paths:
             operationId: signalwire_callback_signalwire_callback_post
             parameters:
                 -
-                  name: job_id
-                  in: query
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: Job Id
+                    name: job_id
+                    in: query
+                    required: false
+                    schema:
+                        title: Job Id
+                        type:
+                            - string
+                            - "null"
+                    description: Query parameter: job_id
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
@@ -1860,16 +1901,15 @@ paths:
             operationId: freeswitch_outbound_result__internal_freeswitch_outbound_result_post
             parameters:
                 -
-                  name: x-internal-secret
-                  in: header
-                  required: false
-                  schema:
-                      anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Internal-Secret
+                    name: x-internal-secret
+                    in: header
+                    required: false
+                    schema:
+                        title: X-Internal-Secret
+                        type:
+                            - string
+                            - "null"
+                    description: Header parameter: x-internal-secret
             requestBody:
                 required: true
                 content:
@@ -1877,17 +1917,19 @@ paths:
                         schema:
                             $ref: #/components/schemas/FSOutboundResultIn
             responses:
-                200:
+                "200":
                     description: Successful Response
                     content:
                         application/json:
-                            schema: {}
-                422:
+                            schema:
+                                type: object
+                "422":
                     description: Validation Error
                     content:
                         application/json:
                             schema:
                                 $ref: #/components/schemas/HTTPValidationError
+            description: Freeswitch Outbound Result
 components:
     schemas:
         APIKeyMeta:
@@ -1896,19 +1938,15 @@ components:
                     type: string
                     title: Key Id
                 name:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Name
+                    type:
+                        - string
+                        - "null"
                 owner:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Owner
+                    type:
+                        - string
+                        - "null"
                 scopes:
                     items:
                         type: string
@@ -1916,44 +1954,34 @@ components:
                     title: Scopes
                     default: []
                 created_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Created At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 last_used_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Last Used At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 expires_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Expires At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 revoked_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Revoked At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 note:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Note
+                    type:
+                        - string
+                        - "null"
             type: object
             required:
                 - key_id
@@ -1961,20 +1989,16 @@ components:
         Body_admin_wg_import_conf_admin_tunnel_wg_import_post:
             properties:
                 file:
-                    anyOf:
-                        -
-                          type: string
-                          format: binary
-                      -
-                          type: null
                     title: File
+                    format: binary
+                    type:
+                        - string
+                        - "null"
                 content:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Content
+                    type:
+                        - string
+                        - "null"
             type: object
             title: Body_admin_wg_import_conf_admin_tunnel_wg_import_post
         Body_send_fax_fax_post:
@@ -1989,48 +2013,38 @@ components:
             type: object
             required:
                 - to
-              - file
+                - file
             title: Body_send_fax_fax_post
         CreateAPIKeyIn:
             properties:
                 name:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Name
+                    type:
+                        - string
+                        - "null"
                 owner:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Owner
+                    type:
+                        - string
+                        - "null"
                 scopes:
-                    anyOf:
-                        -
-                          items:
-                              type: string
-                          type: array
-                      -
-                          type: null
                     title: Scopes
+                    items:
+                        type: string
+                    type:
+                        - array
+                        - "null"
                 expires_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Expires At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 note:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Note
+                    type:
+                        - string
+                        - "null"
             type: object
             title: CreateAPIKeyIn
         CreateAPIKeyOut:
@@ -2042,19 +2056,15 @@ components:
                     type: string
                     title: Token
                 name:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Name
+                    type:
+                        - string
+                        - "null"
                 owner:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Owner
+                    type:
+                        - string
+                        - "null"
                 scopes:
                     items:
                         type: string
@@ -2062,62 +2072,48 @@ components:
                     title: Scopes
                     default: []
                 expires_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Expires At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
             type: object
             required:
                 - key_id
-              - token
+                - token
             title: CreateAPIKeyOut
         FSOutboundResultIn:
             properties:
                 job_id:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Job Id
+                    type:
+                        - string
+                        - "null"
                 fax_status:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Fax Status
+                    type:
+                        - string
+                        - "null"
                 fax_result_text:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Fax Result Text
+                    type:
+                        - string
+                        - "null"
                 fax_result_code:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Fax Result Code
+                    type:
+                        - string
+                        - "null"
                 fax_document_transferred_pages:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Fax Document Transferred Pages
+                    type:
+                        - integer
+                        - "null"
                 uuid:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Uuid
+                    type:
+                        - string
+                        - "null"
             type: object
             title: FSOutboundResultIn
         FaxJobOut:
@@ -2132,30 +2128,24 @@ components:
                     type: string
                     title: Status
                 error:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Error
+                    type:
+                        - string
+                        - "null"
                 pages:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Pages
+                    type:
+                        - integer
+                        - "null"
                 backend:
                     type: string
                     title: Backend
                     default: sip
                 provider_sid:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Provider Sid
+                    type:
+                        - string
+                        - "null"
                 created_at:
                     type: string
                     format: date-time
@@ -2167,10 +2157,10 @@ components:
             type: object
             required:
                 - id
-              - to
-              - status
-              - created_at
-              - updated_at
+                - to
+                - status
+                - created_at
+                - updated_at
             title: FaxJobOut
         HTTPValidationError:
             properties:
@@ -2184,29 +2174,23 @@ components:
         ImportManifestsIn:
             properties:
                 items:
-                    anyOf:
-                        -
-                          items:
-                              additionalProperties: true
-                              type: object
-                          type: array
-                      -
-                          type: null
                     title: Items
+                    items:
+                        additionalProperties: true
+                        type: object
+                    type:
+                        - array
+                        - "null"
                 markdown:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Markdown
+                    type:
+                        - string
+                        - "null"
                 source:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Source
+                    type:
+                        - string
+                        - "null"
             type: object
             title: ImportManifestsIn
         InboundFaxOut:
@@ -2215,19 +2199,15 @@ components:
                     type: string
                     title: Id
                 fr:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Fr
+                    type:
+                        - string
+                        - "null"
                 to:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: To
+                    type:
+                        - string
+                        - "null"
                 status:
                     type: string
                     title: Status
@@ -2235,55 +2215,43 @@ components:
                     type: string
                     title: Backend
                 pages:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Pages
+                    type:
+                        - integer
+                        - "null"
                 size_bytes:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Size Bytes
+                    type:
+                        - integer
+                        - "null"
                 created_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Created At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 received_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Received At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 updated_at:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Updated At
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 mailbox:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Mailbox
+                    type:
+                        - string
+                        - "null"
             type: object
             required:
                 - id
-              - status
-              - backend
+                - status
+                - backend
             title: InboundFaxOut
         ManifestIn:
             properties:
@@ -2302,50 +2270,38 @@ components:
                     type: object
                     title: Manifest
                 credentials:
-                    anyOf:
-                        -
-                          additionalProperties: true
-                          type: object
-                      -
-                          type: null
                     title: Credentials
+                    additionalProperties: true
+                    type:
+                        - object
+                        - "null"
                 settings:
-                    anyOf:
-                        -
-                          additionalProperties: true
-                          type: object
-                      -
-                          type: null
                     title: Settings
+                    additionalProperties: true
+                    type:
+                        - object
+                        - "null"
                 to:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: To
+                    type:
+                        - string
+                        - "null"
                 file_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: File Url
+                    type:
+                        - string
+                        - "null"
                 from_number:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: From Number
+                    type:
+                        - string
+                        - "null"
                 render_only:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Render Only
                     default: true
+                    type:
+                        - boolean
+                        - "null"
             type: object
             required:
                 - manifest
@@ -2362,24 +2318,20 @@ components:
             type: object
             required:
                 - code
-              - expires_at
+                - expires_at
             title: PairOut
         PersistSettingsIn:
             properties:
                 content:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Content
+                    type:
+                        - string
+                        - "null"
                 path:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Path
+                    type:
+                        - string
+                        - "null"
             type: object
             title: PersistSettingsIn
         RegisterSinchOut:
@@ -2388,27 +2340,21 @@ components:
                     type: boolean
                     title: Success
                 webhook_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Webhook Url
+                    type:
+                        - string
+                        - "null"
                 provider_response:
-                    anyOf:
-                        -
-                          additionalProperties: true
-                          type: object
-                      -
-                          type: null
                     title: Provider Response
+                    additionalProperties: true
+                    type:
+                        - object
+                        - "null"
                 error:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Error
+                    type:
+                        - string
+                        - "null"
             type: object
             required:
                 - success
@@ -2424,7 +2370,7 @@ components:
             type: object
             required:
                 - key_id
-              - token
+                - token
             title: RotateAPIKeyOut
         RunActionIn:
             properties:
@@ -2438,42 +2384,32 @@ components:
         SimulateInboundIn:
             properties:
                 backend:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Backend
+                    type:
+                        - string
+                        - "null"
                 fr:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Fr
+                    type:
+                        - string
+                        - "null"
                 to:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: To
+                    type:
+                        - string
+                        - "null"
                 pages:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Pages
                     default: 1
+                    type:
+                        - integer
+                        - "null"
                 status:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Status
                     default: received
+                    type:
+                        - string
+                        - "null"
             type: object
             title: SimulateInboundIn
         TunnelConfigIn:
@@ -2487,54 +2423,40 @@ components:
                     title: Provider
                     default: none
                 cloudflare_custom_domain:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Cloudflare Custom Domain
+                    type:
+                        - string
+                        - "null"
                 wireguard_endpoint:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Wireguard Endpoint
+                    type:
+                        - string
+                        - "null"
                 wireguard_server_public_key:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Wireguard Server Public Key
+                    type:
+                        - string
+                        - "null"
                 wireguard_client_ip:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Wireguard Client Ip
+                    type:
+                        - string
+                        - "null"
                 wireguard_dns:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Wireguard Dns
+                    type:
+                        - string
+                        - "null"
                 tailscale_auth_key:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Tailscale Auth Key
+                    type:
+                        - string
+                        - "null"
                 tailscale_hostname:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Tailscale Hostname
+                    type:
+                        - string
+                        - "null"
             type: object
             title: TunnelConfigIn
         TunnelStatusOut:
@@ -2549,39 +2471,31 @@ components:
                     type: string
                     title: Status
                 public_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Public Url
+                    type:
+                        - string
+                        - "null"
                 local_ip:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Local Ip
+                    type:
+                        - string
+                        - "null"
                 last_checked:
-                    anyOf:
-                        -
-                          type: string
-                          format: date-time
-                      -
-                          type: null
                     title: Last Checked
+                    format: date-time
+                    type:
+                        - string
+                        - "null"
                 error_message:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Error Message
+                    type:
+                        - string
+                        - "null"
             type: object
             required:
                 - enabled
-              - provider
-              - status
+                - provider
+                - status
             title: TunnelStatusOut
         TunnelTestOut:
             properties:
@@ -2589,19 +2503,15 @@ components:
                     type: boolean
                     title: Ok
                 message:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Message
+                    type:
+                        - string
+                        - "null"
                 target:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Target
+                    type:
+                        - string
+                        - "null"
             type: object
             required:
                 - ok
@@ -2609,430 +2519,310 @@ components:
         UpdatePluginConfigIn:
             properties:
                 enabled:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Enabled
+                    type:
+                        - boolean
+                        - "null"
                 settings:
-                    anyOf:
-                        -
-                          additionalProperties: true
-                          type: object
-                      -
-                          type: null
                     title: Settings
+                    additionalProperties: true
+                    type:
+                        - object
+                        - "null"
             type: object
             title: UpdatePluginConfigIn
         UpdateSettingsRequest:
             properties:
                 backend:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Backend
+                    type:
+                        - string
+                        - "null"
                 outbound_backend:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Outbound Backend
+                    type:
+                        - string
+                        - "null"
                 inbound_backend:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Inbound Backend
+                    type:
+                        - string
+                        - "null"
                 require_api_key:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Require Api Key
+                    type:
+                        - boolean
+                        - "null"
                 enforce_public_https:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Enforce Public Https
+                    type:
+                        - boolean
+                        - "null"
                 public_api_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Public Api Url
+                    type:
+                        - string
+                        - "null"
                 fax_disabled:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Fax Disabled
+                    type:
+                        - boolean
+                        - "null"
                 max_file_size_mb:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Max File Size Mb
+                    type:
+                        - integer
+                        - "null"
                 enable_persisted_settings:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Enable Persisted Settings
+                    type:
+                        - boolean
+                        - "null"
                 database_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Database Url
+                    type:
+                        - string
+                        - "null"
                 feature_v3_plugins:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Feature V3 Plugins
+                    type:
+                        - boolean
+                        - "null"
                 feature_plugin_install:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Feature Plugin Install
+                    type:
+                        - boolean
+                        - "null"
                 enable_mcp_sse:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Enable Mcp Sse
+                    type:
+                        - boolean
+                        - "null"
                 require_mcp_oauth:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Require Mcp Oauth
+                    type:
+                        - boolean
+                        - "null"
                 oauth_issuer:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Oauth Issuer
+                    type:
+                        - string
+                        - "null"
                 oauth_audience:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Oauth Audience
+                    type:
+                        - string
+                        - "null"
                 oauth_jwks_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Oauth Jwks Url
+                    type:
+                        - string
+                        - "null"
                 enable_mcp_http:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Enable Mcp Http
+                    type:
+                        - boolean
+                        - "null"
                 phaxio_api_key:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Phaxio Api Key
+                    type:
+                        - string
+                        - "null"
                 phaxio_api_secret:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Phaxio Api Secret
+                    type:
+                        - string
+                        - "null"
                 phaxio_status_callback_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Phaxio Status Callback Url
+                    type:
+                        - string
+                        - "null"
                 phaxio_verify_signature:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Phaxio Verify Signature
+                    type:
+                        - boolean
+                        - "null"
                 sinch_project_id:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Project Id
+                    type:
+                        - string
+                        - "null"
                 sinch_api_key:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Api Key
+                    type:
+                        - string
+                        - "null"
                 sinch_api_secret:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Api Secret
+                    type:
+                        - string
+                        - "null"
                 sinch_base_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Base Url
+                    type:
+                        - string
+                        - "null"
                 sinch_auth_method:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Auth Method
+                    type:
+                        - string
+                        - "null"
                 sinch_auth_base_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Auth Base Url
+                    type:
+                        - string
+                        - "null"
                 signalwire_space_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Signalwire Space Url
+                    type:
+                        - string
+                        - "null"
                 signalwire_project_id:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Signalwire Project Id
+                    type:
+                        - string
+                        - "null"
                 signalwire_api_token:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Signalwire Api Token
+                    type:
+                        - string
+                        - "null"
                 signalwire_fax_from_e164:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Signalwire Fax From E164
+                    type:
+                        - string
+                        - "null"
                 documo_api_key:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Documo Api Key
+                    type:
+                        - string
+                        - "null"
                 documo_base_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Documo Base Url
+                    type:
+                        - string
+                        - "null"
                 documo_use_sandbox:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Documo Use Sandbox
+                    type:
+                        - boolean
+                        - "null"
                 ami_host:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Ami Host
+                    type:
+                        - string
+                        - "null"
                 ami_port:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Ami Port
+                    type:
+                        - integer
+                        - "null"
                 ami_username:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Ami Username
+                    type:
+                        - string
+                        - "null"
                 ami_password:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Ami Password
+                    type:
+                        - string
+                        - "null"
                 fax_station_id:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Fax Station Id
+                    type:
+                        - string
+                        - "null"
                 inbound_enabled:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Inbound Enabled
+                    type:
+                        - boolean
+                        - "null"
                 inbound_retention_days:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Inbound Retention Days
+                    type:
+                        - integer
+                        - "null"
                 inbound_token_ttl_minutes:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Inbound Token Ttl Minutes
+                    type:
+                        - integer
+                        - "null"
                 asterisk_inbound_secret:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Asterisk Inbound Secret
+                    type:
+                        - string
+                        - "null"
                 phaxio_inbound_verify_signature:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Phaxio Inbound Verify Signature
+                    type:
+                        - boolean
+                        - "null"
                 sinch_inbound_basic_user:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Inbound Basic User
+                    type:
+                        - string
+                        - "null"
                 sinch_inbound_basic_pass:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Inbound Basic Pass
+                    type:
+                        - string
+                        - "null"
                 audit_log_enabled:
-                    anyOf:
-                        -
-                          type: boolean
-                      -
-                          type: null
                     title: Audit Log Enabled
+                    type:
+                        - boolean
+                        - "null"
                 max_requests_per_minute:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Max Requests Per Minute
+                    type:
+                        - integer
+                        - "null"
                 storage_backend:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Storage Backend
+                    type:
+                        - string
+                        - "null"
                 s3_bucket:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: S3 Bucket
+                    type:
+                        - string
+                        - "null"
                 s3_prefix:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: S3 Prefix
+                    type:
+                        - string
+                        - "null"
                 s3_region:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: S3 Region
+                    type:
+                        - string
+                        - "null"
                 s3_endpoint_url:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: S3 Endpoint Url
+                    type:
+                        - string
+                        - "null"
                 s3_kms_key_id:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: S3 Kms Key Id
+                    type:
+                        - string
+                        - "null"
                 inbound_list_rpm:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Inbound List Rpm
+                    type:
+                        - integer
+                        - "null"
                 inbound_get_rpm:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Inbound Get Rpm
+                    type:
+                        - integer
+                        - "null"
                 tunnel_provider:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Tunnel Provider
+                    type:
+                        - string
+                        - "null"
             type: object
             title: UpdateSettingsRequest
         ValidateSettingsRequest:
@@ -3041,68 +2831,50 @@ components:
                     type: string
                     title: Backend
                 phaxio_api_key:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Phaxio Api Key
+                    type:
+                        - string
+                        - "null"
                 phaxio_api_secret:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Phaxio Api Secret
+                    type:
+                        - string
+                        - "null"
                 sinch_project_id:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Project Id
+                    type:
+                        - string
+                        - "null"
                 sinch_api_key:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Api Key
+                    type:
+                        - string
+                        - "null"
                 sinch_api_secret:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Sinch Api Secret
+                    type:
+                        - string
+                        - "null"
                 ami_host:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Ami Host
+                    type:
+                        - string
+                        - "null"
                 ami_port:
-                    anyOf:
-                        -
-                          type: integer
-                      -
-                          type: null
                     title: Ami Port
+                    type:
+                        - integer
+                        - "null"
                 ami_username:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Ami Username
+                    type:
+                        - string
+                        - "null"
                 ami_password:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Ami Password
+                    type:
+                        - string
+                        - "null"
             type: object
             required:
                 - backend
@@ -3111,11 +2883,9 @@ components:
             properties:
                 loc:
                     items:
-                        anyOf:
-                            -
-                              type: string
-                          -
-                              type: integer
+                        type:
+                            - string
+                            - integer
                     type: array
                     title: Location
                 msg:
@@ -3127,8 +2897,8 @@ components:
             type: object
             required:
                 - loc
-              - msg
-              - type
+                - msg
+                - type
             title: ValidationError
         WGImportOut:
             properties:
@@ -3151,18 +2921,21 @@ components:
         WgQrOut:
             properties:
                 png_base64:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Png Base64
+                    type:
+                        - string
+                        - "null"
                 svg_base64:
-                    anyOf:
-                        -
-                          type: string
-                      -
-                          type: null
                     title: Svg Base64
+                    type:
+                        - string
+                        - "null"
             type: object
             title: WgQrOut
+servers:
+    -
+        url: http://localhost:8080
+        description: Local development server
+    -
+        url: https://api.faxbot.net
+        description: Production server

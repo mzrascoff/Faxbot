@@ -4,6 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+import uuid
 from app.db import SessionLocal, InboundFax
 
 
@@ -15,8 +16,9 @@ def test_sinch_inbound_stores_readable_pdf(tmp_path, monkeypatch):
     monkeypatch.setenv("SINCH_API_SECRET", "secret")
     monkeypatch.setenv("FAX_DATA_DIR", str(tmp_path))
 
+    sid = f"fax_{uuid.uuid4().hex[:8]}"
     payload = {
-        "id": "fax_123",
+        "id": sid,
         "from": "+15550001111",
         "to": "+15551234567",
         "num_pages": 1,
@@ -46,7 +48,7 @@ def test_sinch_inbound_stores_readable_pdf(tmp_path, monkeypatch):
 
     # Verify DB record created and file readable as PDF
     with SessionLocal() as db:
-        rows = db.query(InboundFax).filter(InboundFax.provider_sid == "fax_123").all()
+        rows = db.query(InboundFax).filter(InboundFax.provider_sid == sid).all()
         assert len(rows) == 1
         fx = rows[0]
         assert fx.pdf_path
@@ -56,5 +58,4 @@ def test_sinch_inbound_stores_readable_pdf(tmp_path, monkeypatch):
             content = f.read()
         assert content.startswith(b"%PDF-")
         assert hashlib.sha256(content).hexdigest() == fx.sha256
-
 

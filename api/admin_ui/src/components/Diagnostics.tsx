@@ -146,10 +146,10 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       if (key === 'public_url_https' && !value) return 'PUBLIC_API_URL should be HTTPS for PHI; enable TLS.';
     }
     if (t.includes('sinch')) {
-      if (key === 'project_id_set' && !value) return 'Set SINCH_PROJECT_ID from your Sinch console.';
-      if (key === 'api_key_set' && !value) return 'Set SINCH_API_KEY for Sinch (used to mint OAuth tokens).';
-      if (key === 'api_secret_set' && !value) return 'Set SINCH_API_SECRET for Sinch (used to mint OAuth tokens).';
-      if ((key === 'auth' || key === 'auth_valid') && value === false) return 'If your account uses a regional API, set SINCH_BASE_URL (e.g., https://us.fax.api.sinch.com/v3) and re-run. Outbound API uses OAuth 2.0 (Bearer).';
+      if ((key === 'auth_present' || key === 'project_id_set') && !value) return 'Set SINCH_PROJECT_ID, SINCH_API_KEY, and SINCH_API_SECRET (Sinch Build → Access Keys).';
+      if (key === 'api_key_set' && !value) return 'Set SINCH_API_KEY (Key ID) — used to mint OAuth 2.0 access tokens.';
+      if (key === 'api_secret_set' && !value) return 'Set SINCH_API_SECRET — used with the key to mint OAuth 2.0 access tokens.';
+      if ((key === 'auth' || key === 'auth_valid') && value === false) return 'If auth fails, set SINCH_BASE_URL for your region (e.g., https://us.fax.api.sinch.com/v3) and re-run. Outbound API uses OAuth 2.0 (Bearer).';
     }
     if (t.includes('sip')) {
       if (key === 'ami_password_not_default' && !value) return 'Change ASTERISK_AMI_PASSWORD from default to a secure value.';
@@ -223,9 +223,10 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
 
     if (t.includes('sinch')) {
+      docs.push({ text: 'Faxbot: Sinch Setup', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html` });
       docs.push({ text: 'Sinch Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/' });
       docs.push({ text: 'OAuth 2.0 for Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/' });
-      docs.push({ text: 'Sinch Customer Dashboard (Access Keys)', href: 'https://dashboard.sinch.com/settings/access-keys' });
+      docs.push({ text: 'Sinch Customer Dashboard (Access Keys – Build)', href: 'https://dashboard.sinch.com/settings/access-keys' });
     }
     
     return docs;
@@ -338,7 +339,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                           variant="outlined"
                           onClick={() => {
                             const anchor = anchorFor(title);
-                            onNavigate(1);
+                            onNavigate('settings/settings');
                             setTimeout(() => {
                               const el = document.querySelector(anchor);
                               el?.scrollIntoView({ behavior: 'smooth' });

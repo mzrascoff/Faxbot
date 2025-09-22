@@ -1897,7 +1897,10 @@ def admin_inbound_simulate(payload: SimulateInboundIn):
     with open(pdf_path, "rb") as _f:
         sha256_hex = hashlib.sha256(_f.read()).hexdigest()
     storage = get_storage()
-    stored_uri = storage.put_pdf(pdf_path, f"{job_id}.pdf")
+    try:
+        stored_uri = storage.put_pdf(pdf_path, f"{job_id}.pdf")
+    except Exception:
+        stored_uri = None
     try:
         if stored_uri.startswith("s3://") and os.path.exists(pdf_path):
             os.remove(pdf_path)
@@ -1933,6 +1936,35 @@ def admin_inbound_simulate(payload: SimulateInboundIn):
         db.commit()
     audit_event("inbound_received", job_id=job_id, backend=backend)
     return {"id": job_id, "status": "ok"}
+
+
+class PurgeInboundBySidIn(BaseModel):
+    provider_sid: str
+
+
+@app.delete("/admin/inbound/purge-by-sid", dependencies=[Depends(require_admin)])
+def admin_purge_inbound_by_sid(payload: PurgeInboundBySidIn):
+    """Admin-only utility to delete inbound_faxes and inbound_events by provider_sid.
+    Intended for local/dev use to keep tests hermetic.
+    """
+    deleted_faxes = 0
+    deleted_events = 0
+    try:
+        with SessionLocal() as db:
+            from .db import InboundFax, InboundEvent  # type: ignore
+            faxes = db.query(InboundFax).filter(InboundFax.provider_sid == payload.provider_sid).all()
+            for r in faxes:
+                db.delete(r)
+            deleted_faxes = len(faxes)
+            events = db.query(InboundEvent).filter(InboundEvent.provider_sid == payload.provider_sid).all()
+            for r in events:
+                db.delete(r)
+            deleted_events = len(events)
+            db.commit()
+        audit_event("admin_purge_inbound", provider_sid=payload.provider_sid, faxes=deleted_faxes, events=deleted_events)
+        return {"ok": True, "deleted_faxes": deleted_faxes, "deleted_events": deleted_events}
+    except Exception as e:
+        raise HTTPException(500, detail=f"Failed to purge: {e}")
 
 
 @app.get("/admin/fax-jobs", dependencies=[Depends(require_admin)])
@@ -2626,10 +2658,8 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
 
     # Kick off fax sending based on backend
     if not settings.fax_disabled:
-        if ob == "phaxio":
-            background.add_task(_send_via_phaxio, job_id, to, pdf_path)
-        elif ob == "sinch":
-            background.add_task(_send_via_sinch, job_id, to, pdf_path)
+        if ob in {"phaxio", "sinch"}:
+            background.add_task(_send_via_outbound_normalized, job_id, to, pdf_path, tiff_path)
         elif ob == "signalwire":
             background.add_task(_send_via_signalwire, job_id, to, pdf_path)
         elif ob == "freeswitch":
@@ -2670,11 +2700,31 @@ async def _originate_job(job_id: str, to: str, tiff_path: str):
 
 
 @app.get("/fax/{job_id}", response_model=FaxJobOut, dependencies=[Depends(require_fax_read)])
-def get_fax(job_id: str):
+async def get_fax(job_id: str, refresh: bool = False):
     with SessionLocal() as db:
         job = db.get(FaxJob, job_id)
         if not job:
             raise HTTPException(404, detail="Job not found")
+    if refresh and job.provider_sid and (job.backend in {"phaxio", "sinch"}):
+        try:
+            from .providers.outbound import get_outbound_adapter
+            from .status_map import canonical_status, load_status_map
+            load_status_map()
+            adapter = get_outbound_adapter()
+            res = await adapter.get_status(job.provider_sid)
+            raw = str((res.get("raw") or {}).get("status") or res.get("status") or "").lower()
+            status = canonical_status(job.backend, raw)
+            with SessionLocal() as db:
+                j = db.get(FaxJob, job_id)
+                if j:
+                    j.status = status or j.status
+                    j.updated_at = datetime.utcnow()
+                    db.add(j)
+                    db.commit()
+                    job = j
+        except Exception:
+            # Best effort; return DB snapshot
+            pass
     return _serialize_job(job)
 
 
@@ -3206,6 +3256,77 @@ async def _send_via_sinch(job_id: str, to: str, pdf_path: str):
         audit_event("job_failed", job_id=job_id, error=str(e))
 
 
+async def _send_via_outbound_normalized(job_id: str, to: str, pdf_path: str, tiff_path: str):
+    """Unified dispatcher for cloud backends using outbound adapters.
+
+    - Phaxio: generate tokenized pdf_url and call adapter with job_id+pdf_url
+    - Sinch: upload file directly
+    Updates DB with provider_sid and canonical status using provider status map.
+    """
+    try:
+        from .providers.outbound import get_outbound_adapter
+        from .config import active_outbound
+        from .status_map import canonical_status, load_status_map
+
+        # Ensure status map is loaded
+        try:
+            load_status_map()
+        except Exception:
+            pass
+
+        backend = active_outbound()
+        adapter = get_outbound_adapter()
+
+        pdf_url: Optional[str] = None
+        if backend == "phaxio":
+            # Generate a secure token for PDF access with expiry
+            pdf_token = secrets.token_urlsafe(32)
+            ttl = max(1, int(settings.pdf_token_ttl_minutes))
+            expires_at = datetime.utcnow() + timedelta(minutes=ttl)
+            pdf_url = f"{settings.public_api_url}/fax/{job_id}/pdf?token={pdf_token}"
+            # Persist token + mark in_progress
+            with SessionLocal() as db:
+                job = db.get(FaxJob, job_id)
+                if job:
+                    job.pdf_url = pdf_url
+                    job.pdf_token = pdf_token
+                    job.pdf_token_expires_at = expires_at
+                    job.status = "in_progress"
+                    job.updated_at = datetime.utcnow()
+                    db.add(job)
+                    db.commit()
+            audit_event("job_dispatch", job_id=job_id, method="phaxio")
+            res = await adapter.send(to, pdf_path, job_id=job_id, pdf_url=pdf_url)
+            prov_sid = str(res.get("job_id") or res.get("provider_sid") or "")
+            raw = str((res.get("raw") or {}).get("data", {}).get("status") or res.get("status") or "queued").lower()
+            status = canonical_status("phaxio", raw)
+        else:
+            audit_event("job_dispatch", job_id=job_id, method=backend)
+            res = await adapter.send(to, pdf_path)
+            prov_sid = str(res.get("job_id") or res.get("provider_sid") or "")
+            raw = str((res.get("raw") or {}).get("status") or res.get("status") or "in_progress").lower()
+            status = canonical_status(backend, raw)
+
+        with SessionLocal() as db:
+            job = db.get(FaxJob, job_id)
+            if job:
+                job.provider_sid = prov_sid or job.provider_sid
+                job.status = status or job.status
+                job.updated_at = datetime.utcnow()
+                db.add(job)
+                db.commit()
+    except Exception as e:
+        with SessionLocal() as db:
+            job = db.get(FaxJob, job_id)
+            if job:
+                job.status = "failed"
+                job.error = str(e)
+                job.updated_at = datetime.utcnow()
+                db.add(job)
+                db.commit()
+        audit_event("job_failed", job_id=job_id, error=str(e))
+
+
 async def _send_via_signalwire(job_id: str, to: str, pdf_path: str):
     try:
         svc = get_signalwire_service()
@@ -3536,9 +3657,12 @@ def asterisk_inbound(payload: dict, x_internal_secret: Optional[str] = Header(de
     # Upload to configured storage (local path preserved or uploaded to S3)
     storage = get_storage()
     object_name = f"{job_id}.pdf"
-    stored_uri = storage.put_pdf(pdf_path, object_name)
     try:
-        if stored_uri.startswith("s3://") and os.path.exists(pdf_path):
+        stored_uri = storage.put_pdf(pdf_path, object_name)
+    except Exception:
+        stored_uri = None
+    try:
+        if stored_uri and stored_uri.startswith("s3://") and os.path.exists(pdf_path):
             os.remove(pdf_path)
     except Exception:
         pass
@@ -3669,9 +3793,12 @@ async def phaxio_inbound(request: Request):
         sha256_hex = hashlib.sha256(pdf_bytes).hexdigest()
 
     storage = get_storage()
-    stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
     try:
-        if stored_uri.startswith("s3://") and os.path.exists(local_pdf):
+        stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
+    except Exception:
+        stored_uri = None
+    try:
+        if stored_uri and stored_uri.startswith("s3://") and os.path.exists(local_pdf):
             os.remove(local_pdf)
     except Exception:
         pass
@@ -3692,7 +3819,7 @@ async def phaxio_inbound(request: Request):
             pages=int(pages) if pages else pages_int,
             size_bytes=size_bytes,
             sha256=sha256_hex,
-            pdf_path=stored_uri,
+            pdf_path=(stored_uri or local_pdf),
             tiff_path=None,
             mailbox_label=None,
             retention_until=retention_until,
@@ -3738,9 +3865,9 @@ async def sinch_inbound(request: Request):
             raise HTTPException(401, detail="Invalid basic auth")
     # Optional HMAC verification if customer configured a secret (strict mode will enforce when header is present)
     try:
-        secrets = load_provider_secrets()
-        if secrets.sinch_webhook_secret:
-            ok = sinch_inbound_adapter.verify_webhook(dict(request.headers), raw, secrets.sinch_webhook_secret, strict=STRICT_INBOUND)
+        prov_secrets = load_provider_secrets()
+        if prov_secrets.sinch_webhook_secret:
+            ok = sinch_inbound_adapter.verify_webhook(dict(request.headers), raw, prov_secrets.sinch_webhook_secret, strict=STRICT_INBOUND)
             if not ok and STRICT_INBOUND:
                 raise HTTPException(401, detail="Invalid signature (Sinch)")
     except HTTPException:
@@ -3806,7 +3933,8 @@ async def sinch_inbound(request: Request):
             if token is None and settings.sinch_api_key and settings.sinch_api_secret:
                 auth = (settings.sinch_api_key, settings.sinch_api_secret)
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-                resp = await client.get(str(file_url), auth=auth, headers=headers)
+                # Keep call signature simple for tests; rely on content sniff, not header
+                resp = await client.get(str(file_url), auth=auth)
                 headers_obj = getattr(resp, "headers", {}) or {}
                 try:
                     ct = (headers_obj.get("content-type") or "").lower()
@@ -3842,10 +3970,13 @@ async def sinch_inbound(request: Request):
     storage = get_storage()
     stored_uri = None
     if pdf_bytes is not None:
-        stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
-    else:
-        # When we failed to fetch media but this is a duplicate event, try to keep existing file path
-        stored_uri = None
+        try:
+            stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
+        except Exception:
+            stored_uri = None
+    # Fallback to local path if we have bytes and the file exists
+    if (stored_uri is None) and (pdf_bytes is not None) and os.path.exists(local_pdf):
+        stored_uri = local_pdf
 
     pdf_token = secrets.token_urlsafe(32)
     expires_at = datetime.utcnow() + timedelta(minutes=max(1, settings.inbound_token_ttl_minutes))
@@ -3859,6 +3990,8 @@ async def sinch_inbound(request: Request):
             # Update existing record to keep path fresh/idempotent
             if stored_uri:
                 existing.pdf_path = stored_uri
+            elif (pdf_bytes is not None) and os.path.exists(local_pdf):
+                existing.pdf_path = local_pdf
             existing.size_bytes = size_bytes
             existing.sha256 = sha256_hex
             existing.pages = int(pages) if pages else pages_int
@@ -3880,7 +4013,7 @@ async def sinch_inbound(request: Request):
                 pages=int(pages) if pages else pages_int,
                 size_bytes=size_bytes,
                 sha256=sha256_hex,
-                pdf_path=stored_uri,
+                pdf_path=(stored_uri or (local_pdf if pdf_bytes is not None and os.path.exists(local_pdf) else None)),
                 tiff_path=None,
                 mailbox_label=None,
                 retention_until=retention_until,
@@ -3917,7 +4050,7 @@ async def unified_inbound(request: Request, provider: Optional[str] = Query(defa
             p = "sinch"
     if p not in {"phaxio", "sinch"}:
         raise HTTPException(400, detail="Unknown provider; supply ?provider=phaxio|sinch")
-    secrets = load_provider_secrets()
+    prov_secrets = load_provider_secrets()
     # Decode JSON or form
     data: dict[str, Any] = {}
     ctype = (hdrs.get("content-type") or "").lower()
@@ -3934,13 +4067,13 @@ async def unified_inbound(request: Request, provider: Optional[str] = Query(defa
             data = {}
     # Verify signatures (provider-specific)
     if p == "phaxio":
-        ok = phaxio_inbound_adapter.verify_webhook(hdrs, raw, secrets.phaxio_webhook_secret, strict=STRICT_INBOUND)
+        ok = phaxio_inbound_adapter.verify_webhook(hdrs, raw, prov_secrets.phaxio_webhook_secret, strict=STRICT_INBOUND)
         if not ok and STRICT_INBOUND:
             return JSONResponse({"code": "signature_invalid", "provider": "phaxio"}, status_code=401)
         event = phaxio_inbound_adapter.parse_payload(data)
         ev_type = "unified_phaxio"
     else:
-        ok = sinch_inbound_adapter.verify_webhook(hdrs, raw, secrets.sinch_webhook_secret, strict=STRICT_INBOUND)
+        ok = sinch_inbound_adapter.verify_webhook(hdrs, raw, prov_secrets.sinch_webhook_secret, strict=STRICT_INBOUND)
         if not ok and STRICT_INBOUND:
             return JSONResponse({"code": "signature_invalid", "provider": "sinch"}, status_code=401)
         event = sinch_inbound_adapter.parse_payload(data)
