@@ -1,11 +1,3 @@
----
-layout: default
-title: Phaxio — One‑Pager (Print)
-parent: Go‑Live Checklists
-nav_order: 99
-permalink: /go-live/phaxio/one-pager/
----
-
 <style>
 @media print {
   .side-bar, .site-nav, .site-header, .page-header, .page-footer, .search, nav { display: none !important; }
@@ -57,4 +49,3 @@ Approvals
 - Operations sign‑off: <span class="sig-line"></span>
 
 References: Phaxio API v2.1 (create/send, webhooks), HIPAA — see Third‑Party page.
-

@@ -1,11 +1,3 @@
----
-layout: default
-title: Phaxio Go‑Live
-parent: Go‑Live Checklists
-nav_order: 1
-permalink: /go-live/phaxio/
----
-
 # Phaxio Go‑Live Checklist
 
 Accounts & Legal
@@ -38,4 +30,3 @@ Smoke Tests
 Runbooks
 - On callback failures: check signature header, endpoint reachability, and secrets
 - On PDF fetch failures: check token, TTL, and public HTTPS URL
-

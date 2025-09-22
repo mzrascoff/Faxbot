@@ -1,12 +1,3 @@
----
-layout: default
-title: MCP Integration
-nav_order: 30
-has_children: true
-permalink: /mcp/
-nav_exclude: false
----
-
 # MCP Integration
 
 Faxbot provides MCP servers in Node and Python with identical tools:
@@ -16,7 +7,7 @@ Faxbot provides MCP servers in Node and Python with identical tools:
   - HTTP (Node streamable HTTP)
   - SSE + OAuth2 (Node and Python)
 
-Current guide: {{ site.baseurl }}/ai-integration/
+See also: [Transports](transports.md)
 
 Limits and file handling
 - stdio: use `filePath` to avoid base64 limits

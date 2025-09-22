@@ -1,8 +1,8 @@
----
-title: Faxbot
----
-
 # Faxbot
+
+<p align="center">
+  <img src="assets/images/faxbot_full_logo.png" alt="Faxbot" width="560" />
+</p>
 
 Open‑source, self‑hostable fax API with modular backends (Phaxio, Sinch, SIP/Asterisk), Admin Console, and MCP integration.
 
@@ -17,4 +17,3 @@ Open‑source, self‑hostable fax API with modular backends (Phaxio, Sinch, SIP
 - API Reference: https://faxbot.net/api/v1/ · Swagger: https://faxbot.net/api/v1/swagger
 - SDKs: [Node & Python](sdks/index.md)
 - AI Integration: [MCP](mcp/index.md)
-

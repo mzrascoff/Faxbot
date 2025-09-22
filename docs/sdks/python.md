@@ -1,11 +1,3 @@
----
-layout: default
-title: Python SDK
-parent: SDKs
-nav_order: 2
-permalink: /sdks/python/
----
-
 # Python SDK
 
 Install
@@ -27,4 +19,3 @@ Errors
 - 404: job not found
 - 413: file too large
 - 415: unsupported type
-

@@ -1,11 +1,3 @@
----
-layout: default
-title: Node.js SDK
-parent: SDKs
-nav_order: 1
-permalink: /sdks/node/
----
-
 # Node.js SDK
 
 Install
@@ -33,4 +25,3 @@ Health check
 ```javascript
 const ok = await client.checkHealth();
 ```
-

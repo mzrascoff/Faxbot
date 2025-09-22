@@ -1,12 +1,3 @@
----
-layout: default
-title: Transports
-parent: MCP Integration
-nav_order: 3
-permalink: /mcp/transports/
-nav_exclude: false
----
-
 # Transports
 
 Stdio

@@ -1,11 +1,3 @@
----
-layout: default
-title: SIP/Asterisk Go‑Live
-parent: Go‑Live Checklists
-nav_order: 3
-permalink: /go-live/sip-asterisk/
----
-
 # SIP/Asterisk Go‑Live Checklist
 
 Telephony & Network
@@ -33,4 +25,3 @@ Smoke Tests
 Runbooks
 - On AMI login failure: verify credentials and network path
 - On TIFF errors: confirm Ghostscript binary and permissions
-

@@ -1,11 +1,3 @@
----
-layout: default
-title: Sinch Go‑Live
-parent: Go‑Live Checklists
-nav_order: 2
-permalink: /go-live/sinch/
----
-
 # Sinch Go‑Live Checklist
 
 Accounts & Project
@@ -28,4 +20,3 @@ Smoke Tests
 Runbooks
 - HTTP errors on create fax: check project/region and credentials
 - Status polling: plan for provider state transitions; webhook evaluation pending (track releases)
-

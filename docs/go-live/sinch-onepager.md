@@ -1,11 +1,3 @@
----
-layout: default
-title: Sinch — One‑Pager (Print)
-parent: Go‑Live Checklists
-nav_order: 99
-permalink: /go-live/sinch/one-pager/
----
-
 <style>
 @media print {
   .side-bar, .site-nav, .site-header, .page-header, .page-footer, .search, nav { display: none !important; }
@@ -44,4 +36,3 @@ Approvals
 - Operations sign‑off: <span class="sig-line"></span>
 
 References: Sinch Fax overview & API reference — see Third‑Party page.
-

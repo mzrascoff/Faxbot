@@ -1,12 +1,3 @@
----
-layout: default
-title: Python MCP
-parent: MCP Integration
-nav_order: 1
-permalink: /mcp/python/
-nav_exclude: false
----
-
 # Python MCP
 
 Stdio server
@@ -29,4 +20,4 @@ Tools
 - `send_fax(to, filePath | fileContent+fileName[, fileType])`
 - `get_fax_status(jobId)`
 
-See AI Integration for Compose startup: {{ site.baseurl }}/ai-integration/
+See [MCP overview](index.md) for context and tools.

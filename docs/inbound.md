@@ -1,10 +1,3 @@
----
-layout: default
-title: Inbound Receiving
-nav_order: 40
-permalink: /inbound/
----
-
 # Inbound Receiving
 
 Receive faxes from cloud providers or a self‑hosted Asterisk stack, store PDFs, and access them securely with short‑lived tokens.

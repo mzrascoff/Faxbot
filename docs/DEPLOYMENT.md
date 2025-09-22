@@ -1,10 +1,3 @@
----
-layout: default
-title: Deployment
-nav_order: 50
-permalink: /deployment/
----
-
 # Deployment
 
 Services
@@ -42,4 +35,4 @@ Security
 
 References
 - AWS S3 SSE‑KMS: <https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html>
-- Third‑Party docs: [/third-party/](/third-party/)
+- Third‑Party docs: [Third‑Party References](third-party.md)

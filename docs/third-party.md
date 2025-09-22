@@ -1,10 +1,3 @@
----
-layout: default
-title: Third‑Party References
-nav_order: 95
-permalink: /third-party/
----
-
 # Third‑Party References
 
 Provider docs
@@ -13,8 +6,8 @@ Provider docs
   - Send fax webhooks (callbacks): <https://www.phaxio.com/docs/api/v2.1/faxes/send_webhooks>
   - HIPAA guidance: <https://www.phaxio.com/docs/security/hipaa>
 - Sinch Fax API v3
-- Overview: <https://developers.sinch.com/docs/fax/overview/>
-- API Reference: <https://developers.sinch.com/docs/fax/api-reference/>
+  - Overview: <https://developers.sinch.com/docs/fax/overview/>
+  - API Reference: <https://developers.sinch.com/docs/fax/api-reference/>
 - Asterisk (self‑hosted backend)
 - Asterisk Manager Interface (AMI): <https://wiki.asterisk.org/wiki/display/AST/Asterisk+Manager+Interface+(AMI)>
 - Fax overview: <https://wiki.asterisk.org/wiki/display/AST/Fax>

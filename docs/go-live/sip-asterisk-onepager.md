@@ -1,11 +1,3 @@
----
-layout: default
-title: SIP/Asterisk — One‑Pager (Print)
-parent: Go‑Live Checklists
-nav_order: 99
-permalink: /go-live/sip-asterisk/one-pager/
----
-
 <style>
 @media print {
   .side-bar, .site-nav, .site-header, .page-header, .page-footer, .search, nav { display: none !important; }
@@ -47,4 +39,3 @@ Approvals
 - Operations sign‑off: <span class="sig-line"></span>
 
 References: Asterisk AMI, Fax, SendFAX — see Third‑Party page.
-

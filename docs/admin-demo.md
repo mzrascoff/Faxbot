@@ -1,10 +1,3 @@
----
-layout: default
-title: Admin Demo
-nav_order: 28
-permalink: /admin-demo/
----
-
 # Admin Demo
 
 Explore an interactive, simulated Faxbot Admin Console to learn the workflow without connecting to providers.
@@ -15,4 +8,4 @@ Explore an interactive, simulated Faxbot Admin Console to learn the workflow wit
 
 Next steps
 - Move to your local Admin Console to connect a real backend via the Setup Wizard
-- Review [Backends](/backends/) for provider-specific walkthroughs and security notes
+- Review [Backends](go-live/index.md) for provider-specific walkthroughs and security notes

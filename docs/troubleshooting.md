@@ -1,12 +1,4 @@
----
-layout: default
-title: Troubleshooting
-nav_order: 80
-permalink: /troubleshooting/
-nav_exclude: true
----
-
-# Troubleshooting (Legacy Page)
+# Troubleshooting
 
 Common errors
 - 401 Unauthorized
@@ -48,4 +40,4 @@ Diagnostics
 - Logs show warnings for missing API key or insecure public URL when enforcement is on
 
 More help
-- {{ site.baseurl }}/development/troubleshooting.html
+- See provider‑specific docs under [Backends](go-live/index.md) and external links under [Third‑Party References](third-party.md)
