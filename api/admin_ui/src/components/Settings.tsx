@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
 import type { Settings as SettingsType } from '../api/types';
+import { useTraits } from '../hooks/useTraits';
 import { ResponsiveSettingItem, ResponsiveSettingSection } from './common/ResponsiveSettingItem';
 import { ResponsiveTextField, ResponsiveFormSection } from './common/ResponsiveFormFields';
 import TunnelSettings from './TunnelSettings';
@@ -52,6 +53,7 @@ function Settings({ client }: SettingsProps) {
   const [persistedEnabled, setPersistedEnabled] = useState<boolean>(false);
   const [docsBase, setDocsBase] = useState<string>('https://dmontgomery40.github.io/Faxbot');
   const [lastGeneratedSecret, setLastGeneratedSecret] = useState<string>('');
+  const { hasTrait, active } = useTraits();
   const handleForm = (field: string, value: any) => setForm((prev: any) => ({ ...prev, [field]: value }));
   const isSmall = useMediaQuery('(max-width:900px)');
   const ctlStyle: React.CSSProperties = { background: 'transparent', color: 'inherit', borderColor: '#444', padding: '6px', borderRadius: 6, width: isSmall ? '100%' : 'auto', maxWidth: isSmall ? '100%' : undefined };
@@ -367,7 +369,7 @@ function Settings({ client }: SettingsProps) {
           </ResponsiveSettingSection>
 
           {/* Backend-Specific Configuration */}
-          {settings.backend.type === 'phaxio' && (
+          {active?.outbound === 'phaxio' && (
                   <ResponsiveSettingSection
                     title="PHAXIO Configuration"
                     subtitle="Configure your Phaxio API credentials and settings"
@@ -419,7 +421,7 @@ function Settings({ client }: SettingsProps) {
                   </ResponsiveSettingSection>
                 )}
 
-                {settings.backend.type === 'sinch' && (
+                {active?.outbound === 'sinch' && (
                   <ResponsiveSettingSection
                     title="Sinch Fax API v3 Configuration"
                     subtitle="Outbound API uses OAuth 2.0 (Bearer). Inbound webhooks are not provider‑signed; you may enforce Basic auth on your endpoint."
@@ -532,7 +534,7 @@ function Settings({ client }: SettingsProps) {
                   </ResponsiveSettingSection>
                 )}
 
-                {settings.backend.type === 'documo' && (
+                {active?.outbound === 'documo' && (
                   <ResponsiveSettingSection
                     title="Documo Configuration"
                     subtitle="Configure your Documo API settings"
@@ -564,7 +566,7 @@ function Settings({ client }: SettingsProps) {
                   </ResponsiveSettingSection>
                 )}
 
-                {settings.backend.type === 'sip' && (
+                {active?.outbound === 'sip' && (
                   <ResponsiveSettingSection
                     title="SIP / Asterisk Configuration"
                     subtitle="Configure your Asterisk AMI connection settings"
@@ -824,7 +826,7 @@ function Settings({ client }: SettingsProps) {
           </ResponsiveFormSection>
 
           {/* SignalWire (cloud) */}
-          {(form.backend === 'signalwire' || settings.backend.type === 'signalwire') && (
+          {active?.outbound === 'signalwire' && (
             <ResponsiveFormSection
               title="SignalWire Configuration"
               subtitle="Configure your SignalWire fax settings"
@@ -875,7 +877,7 @@ function Settings({ client }: SettingsProps) {
 
           {/* Storage Configuration */}
           {/* FreeSWITCH (self-hosted) */}
-          {(form.backend === 'freeswitch' || settings.backend.type === 'freeswitch') && (
+          {active?.outbound === 'freeswitch' && (
             <Grid item xs={12}>
               <Card>
                 <CardContent>
@@ -936,7 +938,7 @@ function Settings({ client }: SettingsProps) {
             icon={<StorageIcon />}
           >
             <ResponsiveSettingItem
-              icon={getStatusIcon(settings.storage?.backend === 's3')}
+              icon={getStatusIcon(hasTrait('inbound', 'needs_storage') && settings.storage?.backend === 's3')}
               label="Storage Backend"
               value={(form.storage_backend || settings.storage?.backend || 'local')}
               helperText="Local for development only. Use S3 with KMS for PHI in production."
@@ -949,7 +951,7 @@ function Settings({ client }: SettingsProps) {
               showCurrentValue={true}
             />
             
-            {(form.storage_backend === 's3' || settings.storage?.backend === 's3') && (
+            {(form.storage_backend === 's3' || settings.storage?.backend === 's3') && hasTrait('inbound', 'needs_storage') && (
               <Box sx={{ mt: 2 }}>
                 <ResponsiveSettingItem
                   icon={<StorageIcon />}

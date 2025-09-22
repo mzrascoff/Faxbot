@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "providers": {
+    "phaxio": {
+      "queued": ["queued"],
+      "in_progress": ["in_progress", "processing", "pending"],
+      "success": ["success", "completed", "sent"],
+      "failed": ["failed", "failure", "error"]
+    },
+    "sinch": {
+      "queued": ["queued"],
+      "in_progress": ["in_progress", "processing"],
+      "success": ["success", "completed", "completed_ok"],
+      "failed": ["failed", "failure", "error"]
+    }
+  }
+}
+

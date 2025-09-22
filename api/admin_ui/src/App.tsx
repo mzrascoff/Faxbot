@@ -57,6 +57,9 @@ import Inbound from './components/Inbound';
 import Terminal from './components/Terminal';
 import ScriptsTests from './components/ScriptsTests';
 import TunnelSettings from './components/TunnelSettings';
+import ProviderSetupWizard from './components/ProviderSetupWizard';
+import InboundWebhookTester from './components/InboundWebhookTester';
+import OutboundSmokeTests from './components/OutboundSmokeTests';
 import { ThemeProvider } from './theme/ThemeContext';
 import { ThemeToggle } from './components/ThemeToggle';
 
@@ -101,6 +104,7 @@ function AppContent() {
   const [settingsTab, setSettingsTab] = useState(0); // 0: Setup, 1: Settings, 2: Keys, 3: MCP
   const [toolsTab, setToolsTab] = useState(0); // 0: Terminal, 1: Diagnostics, 2: Logs, 3: Plugins, 4: Scripts & Tests
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [providerWizardOpen, setProviderWizardOpen] = useState(false);
 
   const handleLogin = async (key: string) => {
     try {
@@ -644,7 +648,21 @@ function AppContent() {
             </Box>
             <Box sx={{ p: { xs: 2, md: 3 } }}>
               {settingsTab === 0 && <SetupWizard client={client!} onDone={() => handleTabChange(0)} docsBase={adminConfig?.branding?.docs_base} />}
-              {settingsTab === 1 && <Settings client={client!} />}
+              {settingsTab === 1 && (
+                <Box>
+                  <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<SettingsIcon />}
+                      onClick={() => setProviderWizardOpen(true)}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Provider Setup Wizard
+                    </Button>
+                  </Box>
+                  <Settings client={client!} />
+                </Box>
+              )}
               {settingsTab === 2 && <ApiKeys client={client!} />}
               {settingsTab === 3 && <MCP client={client!} />}
             </Box>
@@ -676,7 +694,17 @@ function AppContent() {
             </Box>
             <Box sx={{ p: { xs: 2, md: 3 } }}>
               {toolsTab === 0 && <Terminal apiKey={apiKey} />}
-              {toolsTab === 1 && <Diagnostics client={client!} onNavigate={handleTabChange} docsBase={adminConfig?.branding?.docs_base} />}
+              {toolsTab === 1 && (
+                <Box>
+                  <Diagnostics client={client!} onNavigate={handleTabChange} docsBase={adminConfig?.branding?.docs_base} />
+                  <Box sx={{ mt: 4 }}>
+                    <OutboundSmokeTests client={client!} docsBase={adminConfig?.branding?.docs_base} />
+                  </Box>
+                  <Box sx={{ mt: 4 }}>
+                    <InboundWebhookTester client={client!} docsBase={adminConfig?.branding?.docs_base} />
+                  </Box>
+                </Box>
+              )}
               {toolsTab === 2 && <Logs client={client!} />}
               {toolsTab === 3 && adminConfig?.v3_plugins?.enabled && <Plugins client={client!} />}
               {(toolsTab === 4 || (toolsTab === 3 && !adminConfig?.v3_plugins?.enabled)) && <ScriptsTests client={client!} docsBase={adminConfig?.branding?.docs_base} />}
@@ -693,6 +721,19 @@ function AppContent() {
           </Paper>
         </TabPanel>
       </Container>
+
+      {/* Provider Setup Wizard */}
+      <ProviderSetupWizard
+        client={client!}
+        open={providerWizardOpen}
+        onClose={() => setProviderWizardOpen(false)}
+        onComplete={() => {
+          setProviderWizardOpen(false);
+          // Refresh the page or reload config
+          window.location.reload();
+        }}
+        docsBase={adminConfig?.branding?.docs_base}
+      />
     </Box>
   );
 }
