@@ -7,13 +7,18 @@
   {
     "version": "dcb5167",
     "title": "dcb5167",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "50c55e0",
     "title": "50c55e0",
     "aliases": []
+  },
+  {
+    "version": "48d4114",
+    "title": "48d4114",
+    "aliases": [
+      "latest"
+    ]
   }
 ]
