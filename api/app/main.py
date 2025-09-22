@@ -28,6 +28,9 @@ from .ami import ami_client
 from .phaxio_service import get_phaxio_service
 from .sinch_service import get_sinch_service
 from .signalwire_service import get_signalwire_service
+from .config_loader import load_provider_secrets
+from .providers import sinch as sinch_inbound_adapter
+from .providers import phaxio as phaxio_inbound_adapter
 from .freeswitch_service import originate_txfax, fs_cli_available
 import hmac
 import hashlib
@@ -39,6 +42,7 @@ from .audit import query_recent_logs
 from .storage import get_storage, reset_storage
 from .auth import verify_db_key, create_api_key, list_api_keys, revoke_api_key, rotate_api_key
 from .plugins.http_provider import HttpManifest, HttpProviderRuntime
+from .utils.observability import log_event
 from .signalwire_service import get_signalwire_service
 
 # v3 plugins (feature-gated)
@@ -48,6 +52,7 @@ except Exception:  # pragma: no cover - optional
     _read_cfg = None  # type: ignore
     _write_cfg = None  # type: ignore
 from pydantic import BaseModel
+from .middleware.traits import requires_traits
 
 
 app = FastAPI(
@@ -71,6 +76,9 @@ app.phaxio_service = _phaxio_module  # type: ignore[attr-defined]
 
 PHONE_RE = re.compile(r"^[+]?\d{6,20}$")
 ALLOWED_CT = {"application/pdf", "text/plain"}
+
+# Strict verification toggle for inbound signatures
+STRICT_INBOUND = os.getenv("INBOUND_STRICT_VERIFY", "false").lower() in {"1","true","yes"}
 
 
 # In-memory per-key rate limiter (fixed window, per minute)
@@ -296,6 +304,13 @@ async def on_startup():
     if not settings.fax_disabled and providerHasTrait("any", "requires_ami"):
         asyncio.create_task(ami_client.connect())
         ami_client.on_fax_result(_handle_fax_result)
+
+    # Load provider status map for canonicalization
+    try:
+        from .status_map import load_status_map  # type: ignore
+        load_status_map()
+    except Exception:
+        pass
 
     # Auto‑tunnel: Cloudflare URL discovery (dev/non‑HIPAA only)
     try:
@@ -562,6 +577,10 @@ def get_admin_config():
             "docs_base": os.getenv("DOCS_BASE_URL", "https://dmontgomery40.github.io/Faxbot"),
             "logo_path": "/admin/ui/faxbot_full_logo.png",
         },
+        # Traits in one call (active + registry)
+        "traits": {
+            "active": {"outbound": ob, "inbound": ib},
+        },
         "mcp": {
             "sse_enabled": (os.getenv("ENABLE_MCP_SSE", "false").lower() in {"1","true","yes"}),
             "sse_path": settings.mcp_sse_path,
@@ -619,6 +638,25 @@ def get_admin_config():
             "config_path": settings.faxbot_config_path,
             "plugin_install_enabled": settings.feature_plugin_install,
         }
+    # Late import to avoid circulars
+    try:
+        from .config import get_provider_registry  # type: ignore
+        reg = get_provider_registry()
+        cfg["traits"]["registry"] = reg
+        # Summarize providers capabilities for Admin Console
+        providers: list[dict[str, Any]] = []
+        for pid, meta in (reg or {}).items():
+            t = (meta.get("traits") or {})
+            providers.append({
+                "id": pid,
+                "supports_outbound": True,
+                "supports_inbound": bool(t.get("supports_inbound")),
+                "inbound_verification": (t.get("inbound_verification") or "none"),
+            })
+        cfg["providers"] = providers
+    except Exception:
+        cfg["traits"]["registry"] = {}
+        cfg["providers"] = []
     return cfg
 
 
@@ -3451,7 +3489,11 @@ def get_inbound_pdf(inbound_id: str, token: Optional[str] = Query(default=None),
         )
 
 
+from .middleware.traits import requires_traits
+
+
 @app.post("/_internal/asterisk/inbound")
+@requires_traits(direction="inbound", keys=["supports_inbound", "requires_ami"])
 def asterisk_inbound(payload: dict, x_internal_secret: Optional[str] = Header(default=None)):
     if not settings.inbound_enabled:
         raise HTTPException(404, detail="Inbound not enabled")
@@ -3536,6 +3578,7 @@ def asterisk_inbound(payload: dict, x_internal_secret: Optional[str] = Header(de
 
 
 @app.post("/phaxio-inbound")
+@requires_traits(direction="inbound", keys=["supports_inbound"])
 async def phaxio_inbound(request: Request):
     if not settings.inbound_enabled:
         raise HTTPException(404, detail="Inbound not enabled")
@@ -3666,6 +3709,7 @@ async def phaxio_inbound(request: Request):
 
 
 @app.post("/sinch-inbound")
+@requires_traits(direction="inbound", keys=["supports_inbound"])
 async def sinch_inbound(request: Request):
     # Ensure latest env (tests may set FAX_DATA_DIR etc.)
     try:
@@ -3692,9 +3736,17 @@ async def sinch_inbound(request: Request):
                 ok = False
         if not ok:
             raise HTTPException(401, detail="Invalid basic auth")
-    # Verify HMAC if configured
-    # Note: Sinch Fax API does not provide HMAC signatures for fax webhooks.
-    # We intentionally do not support HMAC verification here to avoid false expectations.
+    # Optional HMAC verification if customer configured a secret (strict mode will enforce when header is present)
+    try:
+        secrets = load_provider_secrets()
+        if secrets.sinch_webhook_secret:
+            ok = sinch_inbound_adapter.verify_webhook(dict(request.headers), raw, secrets.sinch_webhook_secret, strict=STRICT_INBOUND)
+            if not ok and STRICT_INBOUND:
+                raise HTTPException(401, detail="Invalid signature (Sinch)")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
 
     # Accept JSON or multipart form
     data: dict[str, Any] = {}
@@ -3843,6 +3895,75 @@ async def sinch_inbound(request: Request):
             db.commit()
     audit_event("inbound_received", job_id=job_id, backend="sinch", pdf_error=pdf_error)
     return {"status": "ok"}
+
+
+@app.post("/webhooks/inbound")
+async def unified_inbound(request: Request, provider: Optional[str] = Query(default=None)):
+    """Unified inbound endpoint with provider autodetect.
+    - provider query param OR header auto-detect (X-Phaxio-Signature / X-Sinch-Signature)
+    - Returns canonical event shape and enforces signature in strict mode.
+    """
+    try:
+        raw = await request.body()
+    except Exception:
+        raw = b""
+    hdrs = dict(request.headers)
+    # Pick provider
+    p = (provider or "").strip().lower()
+    if not p:
+        if "x-phaxio-signature" in {k.lower() for k in hdrs.keys()}:
+            p = "phaxio"
+        elif "x-sinch-signature" in {k.lower() for k in hdrs.keys()}:
+            p = "sinch"
+    if p not in {"phaxio", "sinch"}:
+        raise HTTPException(400, detail="Unknown provider; supply ?provider=phaxio|sinch")
+    secrets = load_provider_secrets()
+    # Decode JSON or form
+    data: dict[str, Any] = {}
+    ctype = (hdrs.get("content-type") or "").lower()
+    try:
+        data = await request.json()
+    except Exception:
+        if "multipart/form-data" in ctype or "application/x-www-form-urlencoded" in ctype:
+            try:
+                form = await request.form()
+                data = {k: (form.get(k)) for k in form.keys()}  # type: ignore
+            except Exception:
+                data = {}
+        else:
+            data = {}
+    # Verify signatures (provider-specific)
+    if p == "phaxio":
+        ok = phaxio_inbound_adapter.verify_webhook(hdrs, raw, secrets.phaxio_webhook_secret, strict=STRICT_INBOUND)
+        if not ok and STRICT_INBOUND:
+            return JSONResponse({"code": "signature_invalid", "provider": "phaxio"}, status_code=401)
+        event = phaxio_inbound_adapter.parse_payload(data)
+        ev_type = "unified_phaxio"
+    else:
+        ok = sinch_inbound_adapter.verify_webhook(hdrs, raw, secrets.sinch_webhook_secret, strict=STRICT_INBOUND)
+        if not ok and STRICT_INBOUND:
+            return JSONResponse({"code": "signature_invalid", "provider": "sinch"}, status_code=401)
+        event = sinch_inbound_adapter.parse_payload(data)
+        ev_type = "unified_sinch"
+    # Idempotent log (simple audit; DB log is optional)
+    # Idempotent DB log
+    try:
+        from .db import InboundEvent  # type: ignore
+        with SessionLocal() as db:
+            if not (event.get("id")):
+                # No id → treat as ignored but still audit
+                audit_event("inbound_ignored", provider=p)
+            else:
+                evt = InboundEvent(id=uuid.uuid4().hex, provider_sid=str(event["id"]), event_type=ev_type, created_at=datetime.utcnow())
+                try:
+                    db.add(evt)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        audit_event("inbound_received", provider=p, provider_sid=event.get("id"))
+    except Exception:
+        pass
+    return {"ok": True, "provider": p, "event": event}
 # ===== Global error logging =====
 @app.exception_handler(HTTPException)
 async def _handle_http_exc(request: Request, exc: HTTPException):

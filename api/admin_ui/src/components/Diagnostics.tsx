@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
 import type { DiagnosticsResult } from '../api/types';
+import { useTraits } from '../hooks/useTraits';
 import { ResponsiveFormSection } from './common/ResponsiveFormFields';
 
 interface DiagnosticsProps {
@@ -69,6 +70,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { active, registry, hasTrait, traitValue } = useTraits();
 
   const runDiagnostics = async () => {
     try {
@@ -772,6 +774,75 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                       Download
                     </Button>
                   </Box>
+                </Stack>
+              </ResponsiveFormSection>
+
+              {/* Provider Traits */}
+              <ResponsiveFormSection
+                title="Provider Traits"
+                subtitle="Active provider capabilities and configuration"
+                icon={<InfoIcon />}
+              >
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                      Active Providers
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <Chip
+                        label={`Outbound: ${active?.outbound || 'None'}`}
+                        color="primary"
+                        variant="outlined"
+                        sx={{ borderRadius: 1 }}
+                      />
+                      <Chip
+                        label={`Inbound: ${active?.inbound || 'None'}`}
+                        color="secondary"
+                        variant="outlined"
+                        sx={{ borderRadius: 1 }}
+                      />
+                    </Box>
+                  </Box>
+
+                  {active?.outbound && registry?.[active.outbound]?.traits && (
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                        Outbound Traits
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {Object.entries(registry[active.outbound].traits || {}).map(([key, value]) => (
+                          <Chip
+                            key={key}
+                            label={`${key}: ${String(value)}`}
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            sx={{ borderRadius: 1 }}
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {active?.inbound && registry?.[active.inbound]?.traits && active.inbound !== active.outbound && (
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                        Inbound Traits
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {Object.entries(registry[active.inbound].traits || {}).map(([key, value]) => (
+                          <Chip
+                            key={key}
+                            label={`${key}: ${String(value)}`}
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            sx={{ borderRadius: 1 }}
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
                 </Stack>
               </ResponsiveFormSection>
 
