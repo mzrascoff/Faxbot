@@ -2,6 +2,11 @@
   {
     "version": "dcbcbdb",
     "title": "dcbcbdb",
+    "aliases": []
+  },
+  {
+    "version": "50c55e0",
+    "title": "50c55e0",
     "aliases": [
       "latest"
     ]
