@@ -125,10 +125,10 @@ if istrue "$INBOUND"; then
   esac
   # Cloud inbound verification (optional but recommended)
   if istrue "${PHAXIO_INBOUND_VERIFY_SIGNATURE:-true}"; then ok "Phaxio inbound signature verification enabled"; else warn "PHAXIO_INBOUND_VERIFY_SIGNATURE=false"; fi
-  if [[ -n "${SINCH_INBOUND_BASIC_USER:-}" || -n "${SINCH_INBOUND_HMAC_SECRET:-}" ]]; then
-    ok "Sinch inbound verification configured (Basic/HMAC)"
+  if [[ -n "${SINCH_INBOUND_BASIC_USER:-}" ]]; then
+    ok "Sinch inbound Basic auth configured"
   else
-    warn "Sinch inbound verification not configured (set SINCH_INBOUND_BASIC_USER/PASS and/or SINCH_INBOUND_HMAC_SECRET)"
+    warn "Sinch inbound Basic auth not configured (set SINCH_INBOUND_BASIC_USER/PASS if desired)"
   fi
 else
   title "Inbound (disabled)"

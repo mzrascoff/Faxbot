@@ -488,7 +488,7 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
                 </Stack>
                 <Alert severity="warning" sx={{ borderRadius: 2 }}>
                   <Typography variant="caption">
-                    Ensure this is HTTPS and publicly reachable. Configure signature verification in Settings if required.
+                    Ensure this is HTTPS and publicly reachable. Configure webhook verification if your provider supports signatures (Phaxio). For Sinch inbound, use Basic auth.
                   </Typography>
                 </Alert>
               </Stack>

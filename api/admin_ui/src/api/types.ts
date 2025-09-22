@@ -64,6 +64,8 @@ export interface Settings {
     project_id: string;
     api_key: string;
     api_secret: string;
+    base_url?: string;
+    auth_method?: string;
     configured: boolean;
   };
   signalwire?: {
@@ -120,9 +122,7 @@ export interface Settings {
       verify_signature: boolean;
     };
     sinch?: {
-      verify_signature: boolean;
       basic_auth_configured: boolean;
-      hmac_configured: boolean;
     };
   };
   features?: {
@@ -144,11 +144,20 @@ export interface DiagnosticsResult {
   timestamp: string;
   backend: string;
   checks: Record<string, any>;
+  traits?: {
+    active: { outbound: string; inbound: string };
+    registry: Record<string, { id?: string; kind?: string; traits?: Record<string, any> }>;
+  };
   summary: {
     healthy: boolean;
     critical_issues: string[];
     warnings: string[];
   };
+}
+
+export interface ProvidersInfo {
+  active: { outbound: string; inbound: string };
+  registry: Record<string, { id?: string; kind?: string; traits?: Record<string, any> }>;
 }
 
 export interface ValidationResult {

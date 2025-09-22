@@ -182,9 +182,10 @@ async def enforce_local_admin(request: Request, call_next):
         # Feature flag gate
         if os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() != "true":
             return Response(content="Admin console disabled", status_code=404)
-        # Block proxied access by default (defensive)
+        # Block proxied access by default (defensive), unless explicitly allowed for demo/testing
         h = request.headers
-        if "x-forwarded-for" in h or "x-real-ip" in h:
+        allow_tunnel_ui = os.getenv("ADMIN_UI_ALLOW_TUNNEL", "false").lower() in {"1","true","yes"}
+        if ("x-forwarded-for" in h or "x-real-ip" in h) and not allow_tunnel_ui:
             return Response(content="Admin console not available through proxy", status_code=403)
         # Local access policy
         # Allow loopback; when running inside a container, also allow private bridge IPs (RFC1918)
@@ -192,10 +193,11 @@ async def enforce_local_admin(request: Request, call_next):
         try:
             import ipaddress
             ip = ipaddress.ip_address(client_ip)
+            # Treat RFC1918 and CGNAT (100.64.0.0/10, e.g., Tailscale) as local-like
+            cgnat = ipaddress.ip_network('100.64.0.0/10')
         except Exception:
             return Response(content="Forbidden", status_code=403)
-        in_container = os.path.exists("/.dockerenv")
-        allow = ip.is_loopback or (in_container and ip.is_private)
+        allow = ip.is_loopback or ip.is_private or (ip.version == 4 and ip in cgnat) or allow_tunnel_ui
         if not allow:
             return Response(content="Forbidden", status_code=403)
     response = await call_next(request)
@@ -252,13 +254,18 @@ async def on_startup():
     init_db()
     # Ensure data dir
     ensure_dir(settings.fax_data_dir)
-    # Validate Ghostscript availability — required for all configurations
+    # Validate Ghostscript availability — required only when provider traits demand it
     _gs_missing = shutil.which("gs") is None
-    if _gs_missing and not settings.fax_disabled:
-        if str(os.getenv("FAXBOT_TEST_MODE", "false")).lower() in {"1","true","yes"}:
-            print("[warn] Ghostscript (gs) not found; allowed via FAXBOT_TEST_MODE for unit tests only")
-        else:
-            raise RuntimeError("Ghostscript (gs) not found. Install 'ghostscript' — it is required for fax file processing.")
+    if not settings.fax_disabled:
+        try:
+            needs_gs = providerHasTrait("any", "requires_ghostscript") or providerHasTrait("any", "requires_tiff")
+        except Exception:
+            needs_gs = False
+        if needs_gs and _gs_missing:
+            if str(os.getenv("FAXBOT_TEST_MODE", "false")).lower() in {"1","true","yes"}:
+                print("[warn] Ghostscript (gs) not found; allowed via FAXBOT_TEST_MODE for unit tests only")
+            else:
+                raise RuntimeError("Ghostscript (gs) not found. Install 'ghostscript' — required for this backend (TIFF/GS conversions).")
     # Security posture warnings
     if not settings.require_api_key and not settings.api_key and not settings.fax_disabled:
         print("[warn] API auth is not enforced (REQUIRE_API_KEY=false and API_KEY unset); /fax requests are unauthenticated. Set API_KEY or REQUIRE_API_KEY for production.")
@@ -289,6 +296,16 @@ async def on_startup():
     if not settings.fax_disabled and providerHasTrait("any", "requires_ami"):
         asyncio.create_task(ami_client.connect())
         ami_client.on_fax_result(_handle_fax_result)
+
+    # Auto‑tunnel: Cloudflare URL discovery (dev/non‑HIPAA only)
+    try:
+        auto_enabled = (os.getenv("AUTO_TUNNEL_ENABLED", "false").lower() in {"1","true","yes"})
+        provider_env = (os.getenv("TUNNEL_PROVIDER", "").lower())
+        # Run when explicitly enabled or provider=cloudflare
+        if auto_enabled or provider_env == "cloudflare":
+            asyncio.create_task(_auto_tunnel_cloudflare_watcher())
+    except Exception:
+        pass
 
 
 def _handle_fax_result(event):
@@ -518,10 +535,16 @@ def get_admin_config():
     """Return sanitized effective configuration for operators.
     Does not include secrets. Requires admin auth (bootstrap env key or keys:manage).
     """
+    # Ensure latest env-backed settings are reflected on every request
+    try:
+        reload_settings()
+    except Exception:
+        pass
     backend = settings.fax_backend
     ob = active_outbound()
     ib = active_inbound()
     # Configured flags
+    from .config import get_provider_registry
     cfg = {
         "backend": backend,
         "hybrid": {
@@ -562,6 +585,14 @@ def get_admin_config():
             "retention_days": settings.inbound_retention_days,
             "token_ttl_minutes": settings.inbound_token_ttl_minutes,
         },
+        # Traits registry exposed for clients (Admin UI, iOS) to gate UX by capabilities
+        "traits": {
+            "active": {
+                "outbound": ob,
+                "inbound": ib,
+            },
+            "registry": get_provider_registry(),
+        },
         "storage": {
             "backend": settings.storage_backend,
             "s3_bucket": (settings.s3_bucket[:4] + "…" if settings.s3_bucket else ""),
@@ -589,6 +620,41 @@ def get_admin_config():
             "plugin_install_enabled": settings.feature_plugin_install,
         }
     return cfg
+
+
+# Provider traits and active backends — lightweight helper for clients
+@app.get("/admin/providers", dependencies=[Depends(require_admin)])
+def get_admin_providers():
+    from .config import get_provider_registry, active_outbound, active_inbound
+    try:
+        reload_settings()
+    except Exception:
+        pass
+    return {
+        "schema_version": 1,
+        "active": {
+            "outbound": active_outbound(),
+            "inbound": active_inbound(),
+        },
+        "registry": get_provider_registry(),
+    }
+
+
+@app.get("/admin/traits/validate", dependencies=[Depends(require_admin)])
+def validate_traits_registry():
+    """Return provider traits registry with any schema issues identified.
+    Clients and CI can use this to assert trait correctness.
+    """
+    from .config import get_provider_registry, get_traits_schema_issues
+    try:
+        reload_settings()
+    except Exception:
+        pass
+    return {
+        "schema_version": 1,
+        "registry": get_provider_registry(),
+        "issues": get_traits_schema_issues(),
+    }
 
 
 @app.get("/admin/settings", dependencies=[Depends(require_admin)])
@@ -624,6 +690,8 @@ def get_admin_settings():
             "project_id": settings.sinch_project_id,
             "api_key": mask_secret(settings.sinch_api_key),
             "api_secret": mask_secret(settings.sinch_api_secret),
+            "base_url": os.getenv("SINCH_BASE_URL", ""),
+            "auth_method": settings.sinch_auth_method,
             "configured": bool(settings.sinch_project_id and settings.sinch_api_key and settings.sinch_api_secret),
         },
         "signalwire": {
@@ -677,9 +745,7 @@ def get_admin_settings():
                 "verify_signature": settings.phaxio_inbound_verify_signature,
             },
             "sinch": {
-                "verify_signature": settings.sinch_inbound_verify_signature,
                 "basic_auth_configured": bool(settings.sinch_inbound_basic_user),
-                "hmac_configured": bool(settings.sinch_inbound_hmac_secret),
             },
         },
         "limits": {
@@ -688,6 +754,9 @@ def get_admin_settings():
             "rate_limit_rpm": settings.max_requests_per_minute,
             "inbound_list_rpm": settings.inbound_list_rpm,
             "inbound_get_rpm": settings.inbound_get_rpm,
+        },
+        "tunnel": {
+            "provider": (os.getenv("TUNNEL_PROVIDER") or str(_TUNNEL_STATE.get("provider") or "none")).lower(),
         },
     }
 
@@ -728,10 +797,41 @@ async def validate_settings(payload: ValidateSettingsRequest):
         else:
             results["checks"]["auth"] = False
     elif payload.backend == "sinch":
-        # v1 presence-only
-        results["checks"]["auth"] = bool(
-            payload.sinch_project_id and payload.sinch_api_key and payload.sinch_api_secret
-        )
+        # Presence + fast auth ping
+        present = bool(payload.sinch_project_id and payload.sinch_api_key and payload.sinch_api_secret)
+        results["checks"]["auth_present"] = present
+        if present:
+            try:
+                import httpx
+                base = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com/v3").rstrip("/")
+                # Prefer OAuth if enabled
+                token = None
+                if (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth"):
+                    try:
+                        auth_base = os.getenv("SINCH_AUTH_BASE_URL", "https://auth.sinch.com/oauth2/token")
+                        data = {"grant_type": "client_credentials"}
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            tr = await client.post(auth_base, data=data, auth=(payload.sinch_api_key, payload.sinch_api_secret))
+                        if tr.status_code < 400:
+                            token = (tr.json() or {}).get("access_token")
+                    except Exception:
+                        token = None
+                url = f"{base}/projects/{payload.sinch_project_id}/services/default"
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(url, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (payload.sinch_api_key, payload.sinch_api_secret))
+                ok = (resp.status_code < 400)
+                # Fallback probe for tenants without services endpoint
+                if not ok:
+                    url2 = f"{base}/projects/{payload.sinch_project_id}/faxes?limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        r2 = await client.get(url2, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (payload.sinch_api_key, payload.sinch_api_secret))
+                    ok = (r2.status_code < 400)
+                results["checks"]["auth"] = ok
+            except Exception as e:
+                results["checks"]["auth"] = False
+                results["checks"]["error"] = str(e)
+        else:
+            results["checks"]["auth"] = False
     elif payload.backend == "sip":
         if all([payload.ami_host, payload.ami_username, payload.ami_password]):
             try:
@@ -796,6 +896,9 @@ class UpdateSettingsRequest(BaseModel):
     sinch_project_id: Optional[str] = None
     sinch_api_key: Optional[str] = None
     sinch_api_secret: Optional[str] = None
+    sinch_base_url: Optional[str] = None
+    sinch_auth_method: Optional[str] = None  # 'basic' | 'oauth'
+    sinch_auth_base_url: Optional[str] = None  # token endpoint
 
     # SignalWire
     signalwire_space_url: Optional[str] = None
@@ -821,10 +924,8 @@ class UpdateSettingsRequest(BaseModel):
     inbound_token_ttl_minutes: Optional[int] = None
     asterisk_inbound_secret: Optional[str] = None
     phaxio_inbound_verify_signature: Optional[bool] = None
-    sinch_inbound_verify_signature: Optional[bool] = None
     sinch_inbound_basic_user: Optional[str] = None
     sinch_inbound_basic_pass: Optional[str] = None
-    sinch_inbound_hmac_secret: Optional[str] = None
 
     # Audit / rate limiting
     audit_log_enabled: Optional[bool] = None
@@ -839,6 +940,9 @@ class UpdateSettingsRequest(BaseModel):
     # Inbound rate limits
     inbound_list_rpm: Optional[int] = None
     inbound_get_rpm: Optional[int] = None
+
+    # Tunnel
+    tunnel_provider: Optional[str] = None  # none|cloudflare|wireguard|tailscale
 
 
 def _set_env_bool(key: str, value: Optional[bool]):
@@ -888,6 +992,12 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     _set_env_opt("OAUTH_JWKS_URL", payload.oauth_jwks_url)
     _set_env_bool("ENABLE_MCP_HTTP", payload.enable_mcp_http)
     _set_env_opt("MAX_FILE_SIZE_MB", payload.max_file_size_mb)
+    # Tunnel
+    if payload.tunnel_provider is not None:
+        prov = str(payload.tunnel_provider or "none").lower()
+        if prov not in {"none", "cloudflare", "wireguard", "tailscale"}:
+            raise HTTPException(400, detail="Invalid tunnel provider")
+        _set_env_opt("TUNNEL_PROVIDER", prov)
 
     # Phaxio
     _set_env_opt("PHAXIO_API_KEY", payload.phaxio_api_key)
@@ -902,6 +1012,10 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     _set_env_opt("SINCH_PROJECT_ID", payload.sinch_project_id)
     _set_env_opt("SINCH_API_KEY", payload.sinch_api_key)
     _set_env_opt("SINCH_API_SECRET", payload.sinch_api_secret)
+    _set_env_opt("SINCH_BASE_URL", payload.sinch_base_url)
+    if payload.sinch_auth_method is not None:
+        _set_env_opt("SINCH_AUTH_METHOD", str(payload.sinch_auth_method).lower())
+    _set_env_opt("SINCH_AUTH_BASE_URL", payload.sinch_auth_base_url)
 
     # SignalWire
     _set_env_opt("SIGNALWIRE_SPACE_URL", payload.signalwire_space_url)
@@ -927,10 +1041,9 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     _set_env_opt("INBOUND_TOKEN_TTL_MINUTES", payload.inbound_token_ttl_minutes)
     _set_env_opt("ASTERISK_INBOUND_SECRET", payload.asterisk_inbound_secret)
     _set_env_bool("PHAXIO_INBOUND_VERIFY_SIGNATURE", payload.phaxio_inbound_verify_signature)
-    _set_env_bool("SINCH_INBOUND_VERIFY_SIGNATURE", payload.sinch_inbound_verify_signature)
     _set_env_opt("SINCH_INBOUND_BASIC_USER", payload.sinch_inbound_basic_user)
     _set_env_opt("SINCH_INBOUND_BASIC_PASS", payload.sinch_inbound_basic_pass)
-    _set_env_opt("SINCH_INBOUND_HMAC_SECRET", payload.sinch_inbound_hmac_secret)
+    # No HMAC verification for Sinch fax inbound
 
     # Audit / rate limiting
     _set_env_bool("AUDIT_LOG_ENABLED", payload.audit_log_enabled)
@@ -1352,56 +1465,7 @@ _ACTIONS_REGISTRY: Dict[str, Dict[str, Any]] = {
         "timeout": 5,
         "backend": ["*"]
     },
-    # Tunnel helpers (local-only admin actions)
-    "tunnel_status_cloudflared_logs_tail": {
-        "label": "Cloudflared logs (tail 50)",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker logs faxbot-cloudflared 2>&1 | tail -n 50"],
-        "timeout": 5,
-        "backend": ["*"]
-    },
-    "tunnel_start_cloudflared": {
-        "label": "Start Cloudflared (compose profile)",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose --profile cloudflare up -d cloudflared"],
-        "timeout": 20,
-        "backend": ["*"]
-    },
-    "tunnel_stop_cloudflared": {
-        "label": "Stop Cloudflared",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose stop cloudflared || true"],
-        "timeout": 15,
-        "backend": ["*"]
-    },
-    "tunnel_start_wireguard": {
-        "label": "Start WireGuard client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose --profile wireguard up -d wireguard"],
-        "timeout": 20,
-        "backend": ["*"]
-    },
-    "tunnel_stop_wireguard": {
-        "label": "Stop WireGuard client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose stop wireguard || true"],
-        "timeout": 15,
-        "backend": ["*"]
-    },
-    "tunnel_start_tailscale": {
-        "label": "Start Tailscale client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose --profile tailscale up -d tailscale"],
-        "timeout": 20,
-        "backend": ["*"]
-    },
-    "tunnel_stop_tailscale": {
-        "label": "Stop Tailscale client",
-        "kind": "shell",
-        "cmd": ["sh", "-lc", "docker compose stop tailscale || true"],
-        "timeout": 15,
-        "backend": ["*"]
-    },
+    # Tunnel helpers (local-only admin actions) — keep only safe file reads
 }
 
 
@@ -1543,6 +1607,25 @@ def admin_tunnel_status() -> TunnelStatusOut:
         local_ip = socket.gethostbyname(socket.gethostname())
     except Exception:
         pass
+    # Dev-only Cloudflare URL discovery (optional): parse a known log path if HIPAA off
+    discovered_url = None
+    if not _hipaa_posture_enabled() and not public_url:
+        try:
+            log_path = os.getenv("CLOUDFLARE_LOG_PATH", os.getenv("CLOUDFLARED_LOG_PATH", "/faxdata/cloudflared/cloudflared.log"))
+            if os.path.exists(log_path):
+                with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                import re as _re
+                m = _re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", content)
+                if m:
+                    discovered_url = m.group(0)
+                    _TUNNEL_STATE.update({"public_url": discovered_url, "provider": "cloudflare", "enabled": True, "last_checked": datetime.utcnow(), "error": None})
+                    public_url = discovered_url
+                    provider = "cloudflare"
+                    status = "connected"
+        except Exception:
+            pass
+
     return TunnelStatusOut(
         enabled=enabled,
         provider=provider,
@@ -1586,11 +1669,11 @@ def admin_tunnel_config(payload: TunnelConfigIn) -> TunnelStatusOut:
 
 @app.post("/admin/tunnel/test", dependencies=[Depends(require_admin)])
 def admin_tunnel_test() -> TunnelTestOut:
-    # Perform a bounded local probe; do not reach out to public endpoints from here
+    # Prefer testing the public tunnel URL when available; else test local/public_api_url
     try:
         import http.client
         from urllib.parse import urlparse as _up
-        url = settings.public_api_url or "http://localhost:8080"
+        url = (_TUNNEL_STATE.get("public_url") or settings.public_api_url or "http://localhost:8080").rstrip("/")
         p = _up(url)
         host = p.hostname or "localhost"
         port = p.port or (443 if p.scheme == "https" else 80)
@@ -1618,8 +1701,90 @@ def admin_tunnel_pair() -> PairOut:
     return PairOut(code=code, expires_at=expires)
 
 
+class RegisterSinchOut(BaseModel):
+    success: bool
+    webhook_url: Optional[str] = None
+    provider_response: Optional[dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+@app.post("/admin/tunnel/register-sinch", dependencies=[Depends(require_admin)])
+def admin_tunnel_register_sinch() -> RegisterSinchOut:
+    """Programmatically register the current public webhook URL with Sinch Fax.
+
+    Non-HIPAA users may rely on Cloudflare Quick Tunnels; HIPAA users typically
+    configure a stable PUBLIC_API_URL. This endpoint prefers the active tunnel
+    URL when available and otherwise falls back to PUBLIC_API_URL.
+    """
+    # Determine webhook base
+    public_url = _TUNNEL_STATE.get("public_url") or (settings.public_api_url or "").rstrip("/")
+    if not public_url:
+        return RegisterSinchOut(success=False, error="No public URL available (tunnel inactive and PUBLIC_API_URL unset)")
+
+    webhook_url = f"{public_url}/sinch-inbound"
+
+    # Validate backend and credentials
+    if active_inbound() != "sinch":
+        return RegisterSinchOut(success=False, error="Inbound backend is not Sinch; switch inbound to Sinch to register its webhook")
+    project_id = (settings.sinch_project_id or "").strip()
+    api_key = (settings.sinch_api_key or "").strip()
+    api_secret = (settings.sinch_api_secret or "").strip()
+    if not (project_id and api_key and api_secret):
+        return RegisterSinchOut(success=False, error="Missing Sinch credentials (project_id/api_key/api_secret)")
+
+    # Resolve base URL
+    base_url = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com/v3").rstrip("/")
+    api_url = f"{base_url}/projects/{project_id}/services/default"
+
+    payload = {
+        "incomingFaxWebhook": {
+            "url": webhook_url,
+            "eventTypes": ["INCOMING_FAX", "FAX_COMPLETED"],
+        }
+    }
+
+    try:
+        import httpx  # local import to avoid startup penalty
+        with httpx.Client(timeout=15.0, headers={"Content-Type": "application/json"}) as client:
+            resp = client.patch(api_url, json=payload, auth=(api_key, api_secret))
+            if resp.status_code in (200, 201):
+                data = {}
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {"status_code": resp.status_code}
+                return RegisterSinchOut(success=True, webhook_url=webhook_url, provider_response=data)
+            return RegisterSinchOut(success=False, webhook_url=webhook_url, error=f"Sinch API error {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        return RegisterSinchOut(success=False, webhook_url=webhook_url, error=str(e)[:200])
+
+
+@app.get("/admin/tunnel/cloudflared/logs", dependencies=[Depends(require_admin)])
+def admin_tunnel_cloudflared_logs(lines: int = Query(default=50, ge=1, le=500)):
+    """Read last N lines from the Cloudflared log file on disk.
+    This avoids shelling out and works with the sidecar volume mount.
+    """
+    log_path = os.getenv("CLOUDFLARE_LOG_PATH", os.getenv("CLOUDFLARED_LOG_PATH", "/faxdata/cloudflared/cloudflared.log"))
+    try:
+        from collections import deque
+        dq = deque(maxlen=int(lines))
+        with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+            for line in f:
+                dq.append(line.rstrip('\n'))
+        return {"items": list(dq), "path": log_path}
+    except FileNotFoundError:
+        raise HTTPException(404, detail="Cloudflared log file not found")
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
 @app.get("/admin/inbound/callbacks", dependencies=[Depends(require_admin)])
 def admin_inbound_callbacks():
+    # Reload to reflect current inbound backend and auth flags
+    try:
+        reload_settings()
+    except Exception:
+        pass
     base = settings.public_api_url.rstrip("/")
     backend = active_inbound()
     out: dict[str, Any] = {"backend": backend, "callbacks": []}
@@ -1634,11 +1799,10 @@ def admin_inbound_callbacks():
         out["callbacks"].append({
             "name": "Sinch Fax Inbound",
             "url": f"{base}/sinch-inbound",
-            "auth": {
-                "basic": bool(settings.sinch_inbound_basic_user),
-                "hmac": bool(settings.sinch_inbound_hmac_secret),
-            },
-            "notes": "Set webhook in Sinch Fax console. Optionally use Basic and/or HMAC.",
+            "auth": {"basic": bool(settings.sinch_inbound_basic_user)},
+            "notes": "Set webhook in Sinch Fax Customer Dashboard. Sinch webhooks are not provider‑signed; you may enforce Basic auth.",
+            "content_types": ["application/json", "multipart/form-data"],
+            "preferred_content_type": "application/json",
         })
     elif backend == "signalwire":
         out["callbacks"].append({
@@ -1649,7 +1813,7 @@ def admin_inbound_callbacks():
     elif backend == "sip":
         out["callbacks"].append({
             "name": "Asterisk Internal",
-            "url": f"/_internal/asterisk/inbound",
+            "url": "/_internal/asterisk/inbound",
             "header": "X-Internal-Secret",
             "secret_configured": bool(settings.asterisk_inbound_secret),
             "notes": "Call from dialplan/AGI on the private network only.",
@@ -1678,12 +1842,22 @@ def admin_inbound_simulate(payload: SimulateInboundIn):
     job_id = uuid.uuid4().hex
     data_dir = settings.fax_data_dir
     ensure_dir(data_dir)
-    # Create a tiny placeholder PDF
+    # Create a valid small PDF for simulation
     pdf_path = os.path.join(data_dir, f"{job_id}.pdf")
-    with open(pdf_path, "wb") as f:
-        f.write(b"%PDF-1.4\n% inbound simulation\n%%EOF")
+    try:
+        from .conversion import write_valid_text_pdf  # type: ignore
+        write_valid_text_pdf(pdf_path, [
+            "Inbound simulation (Faxbot)",
+            f"Backend: {backend}",
+            f"To: {payload.to or ''} From: {payload.fr or ''}",
+        ])
+    except Exception:
+        # Fallback minimal but valid PDF generation without reportlab context
+        with open(pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4\n% Faxbot inbound simulation\n%%EOF")
     size_bytes = os.path.getsize(pdf_path)
-    sha256_hex = hashlib.sha256(b"%PDF-1.4\n% inbound simulation\n%%EOF").hexdigest()
+    with open(pdf_path, "rb") as _f:
+        sha256_hex = hashlib.sha256(_f.read()).hexdigest()
     storage = get_storage()
     stored_uri = storage.put_pdf(pdf_path, f"{job_id}.pdf")
     try:
@@ -1851,7 +2025,9 @@ async def admin_refresh_job(job_id: str):
 
 @app.post("/admin/diagnostics/run", dependencies=[Depends(require_admin)])
 async def run_diagnostics():
-    """Run bounded, non-destructive diagnostics for v1."""
+    """Run bounded, non-destructive diagnostics. Backend‑isolated: only report
+    checks relevant to the active outbound/inbound providers and required traits.
+    """
     ob = active_outbound()
     ib = active_inbound()
     diag: dict[str, Any] = {
@@ -1861,40 +2037,8 @@ async def run_diagnostics():
         "inbound_backend": ib,
         "checks": {},
     }
-    # Legacy single-backend flags (kept for compatibility in UI until hybrid UI lands)
-    if settings.fax_backend == "phaxio":
-        diag["checks"]["phaxio"] = {
-            "api_key_set": bool(settings.phaxio_api_key),
-            "api_secret_set": bool(settings.phaxio_api_secret),
-            "callback_url_set": bool(settings.phaxio_status_callback_url),
-            "signature_verification": settings.phaxio_verify_signature,
-            "public_url_https": settings.public_api_url.startswith("https://"),
-        }
-    elif settings.fax_backend == "sinch":
-        diag["checks"]["sinch"] = {
-            "project_id_set": bool(settings.sinch_project_id),
-            "api_key_set": bool(settings.sinch_api_key),
-            "api_secret_set": bool(settings.sinch_api_secret),
-        }
-    elif settings.fax_backend == "sip":
-        sip_checks: dict[str, Any] = {
-            "ami_host": settings.ami_host,
-            "ami_port": settings.ami_port,
-            "ami_password_not_default": settings.ami_password != "changeme",
-            "station_id_set": bool(settings.fax_station_id),
-        }
-        # Probe AMI reachability best-effort
-        try:
-            from .ami import test_ami_connection
-            sip_checks["ami_reachable"] = await test_ami_connection(
-                settings.ami_host, settings.ami_port, settings.ami_username, settings.ami_password
-            )
-        except Exception as e:
-            sip_checks["ami_reachable"] = False
-            sip_checks["ami_error"] = str(e)
-        diag["checks"]["sip"] = sip_checks
 
-    # Hybrid per-direction checks (trait-driven)
+    # Per-direction checks (trait-driven)
     # Outbound
     out: dict[str, Any] = {"backend": ob, "requires_ami": providerHasTrait("outbound", "requires_ami")}
     if ob == "phaxio":
@@ -1902,6 +2046,32 @@ async def run_diagnostics():
         out["public_url_https"] = settings.public_api_url.startswith("https://")
     elif ob == "sinch":
         out["auth_configured"] = bool(settings.sinch_project_id and settings.sinch_api_key and settings.sinch_api_secret)
+        # Optional live ping (fast): verify credentials reach a basic resource
+        try:
+            if out["auth_configured"]:
+                base = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com/v3").rstrip("/")
+                url = f"{base}/projects/{settings.sinch_project_id}/services/default"
+                import httpx
+                token = None
+                if (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth"):
+                    try:
+                        from .sinch_service import get_sinch_service  # local import to avoid cycles
+                        svc = get_sinch_service()
+                        if svc is not None:
+                            token = await svc.get_access_token()
+                    except Exception:
+                        token = None
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(url, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (settings.sinch_api_key, settings.sinch_api_secret))
+                ok = (resp.status_code < 400)
+                if not ok:
+                    url2 = f"{base}/projects/{settings.sinch_project_id}/faxes?limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        r2 = await client.get(url2, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (settings.sinch_api_key, settings.sinch_api_secret))
+                    ok = (r2.status_code < 400)
+                out["auth_valid"] = ok
+        except Exception:
+            out.setdefault("auth_valid", None)
     elif ob == "signalwire":
         out["auth_configured"] = bool(settings.signalwire_space_url and settings.signalwire_project_id and settings.signalwire_api_token)
     elif ob == "documo":
@@ -1933,7 +2103,6 @@ async def run_diagnostics():
             inbound["signature_verification"] = settings.phaxio_inbound_verify_signature
         if ib == "sinch":
             inbound["basic_auth_configured"] = bool(settings.sinch_inbound_basic_user)
-            inbound["hmac_configured"] = bool(settings.sinch_inbound_hmac_secret)
     diag["checks"]["inbound"] = inbound
 
     # System checks
@@ -1999,16 +2168,7 @@ async def run_diagnostics():
         else:
             diag["checks"]["storage"] = {"type": "local", "warning": "Local storage only suitable for development"}
 
-    # Inbound flags
-    if settings.inbound_enabled:
-        inbound = {"enabled": True, "retention_days": settings.inbound_retention_days}
-        if settings.fax_backend == "phaxio":
-            inbound["signature_verification"] = settings.phaxio_inbound_verify_signature
-        elif settings.fax_backend == "sinch":
-            inbound["auth_configured"] = bool(settings.sinch_inbound_basic_user or settings.sinch_inbound_hmac_secret)
-        elif settings.fax_backend == "sip":
-            inbound["asterisk_secret_set"] = bool(settings.asterisk_inbound_secret)
-        diag["checks"]["inbound"] = inbound
+    # Remove duplicate/global inbound block; handled above for active inbound
 
     # Security summary
     diag["checks"]["security"] = {
@@ -2081,7 +2241,7 @@ async def run_diagnostics():
     except Exception:
         pass
 
-    # Summary
+    # Summary (backend‑isolated)
     critical: list[str] = []
     warnings: list[str] = []
     if ob == "phaxio":
@@ -2100,11 +2260,18 @@ async def run_diagnostics():
         inbound = diag["checks"].get("inbound", {})
         if not inbound.get("asterisk_secret_set"):
             critical.append("ASTERISK_INBOUND_SECRET not set for inbound SIP")
-    # Ghostscript is required for all backends
+    # Ghostscript: only critical when tiff conversion is required (self-hosted paths)
     if not sys.get("ghostscript"):
-        critical.append("Ghostscript (gs) not installed — required for fax file processing")
+        if providerHasTrait("any", "requires_tiff"):
+            critical.append("Ghostscript (gs) not installed — required for fax file processing")
+        else:
+            warnings.append("Ghostscript not found; OK for pure cloud backends with PDF pass-through")
     if not sys.get("fax_data_writable"):
-        critical.append("Cannot write to fax data dir")
+        # Critical when inbound enabled or storage needed; otherwise warn
+        if settings.inbound_enabled or providerHasTrait("inbound", "needs_storage"):
+            critical.append("Cannot write to fax data dir")
+        else:
+            warnings.append("fax data dir not writable; OK when no inbound/storage")
     if not sys.get("database_connected"):
         critical.append("Database connection failed")
     # Plugin warnings
@@ -2116,6 +2283,12 @@ async def run_diagnostics():
                     warnings.append(f"Plugin {m.get('id')}: {issue}")
     except Exception:
         pass
+    # Attach traits so clients can render consistently across screens
+    try:
+        from .config import get_provider_registry
+        diag["traits"] = {"registry": get_provider_registry(), "active": {"outbound": ob, "inbound": ib}}
+    except Exception:
+        pass
     diag["summary"] = {"healthy": len(critical) == 0, "critical_issues": critical, "warnings": warnings}
     return diag
 
@@ -2123,15 +2296,14 @@ async def run_diagnostics():
 @app.get("/admin/settings/export", dependencies=[Depends(require_admin)])
 def export_settings_env():
     """Generate a .env snippet for current settings (secrets redacted)."""
+    # Keep this export faithful to explicit env overrides so copy/paste is accurate
     lines: List[str] = []
-    ob = active_outbound()
-    ib = active_inbound()
     lines.append(f"FAX_BACKEND={settings.fax_backend}")
     # Include dual-backend envs only when explicitly set
     if os.getenv("FAX_OUTBOUND_BACKEND"):
-        lines.append(f"FAX_OUTBOUND_BACKEND={ob}")
+        lines.append(f"FAX_OUTBOUND_BACKEND={os.getenv('FAX_OUTBOUND_BACKEND')}")
     if os.getenv("FAX_INBOUND_BACKEND"):
-        lines.append(f"FAX_INBOUND_BACKEND={ib}")
+        lines.append(f"FAX_INBOUND_BACKEND={os.getenv('FAX_INBOUND_BACKEND')}")
     lines.append(f"REQUIRE_API_KEY={str(settings.require_api_key).lower()}")
     lines.append(f"ENFORCE_PUBLIC_HTTPS={str(settings.enforce_public_https).lower()}")
     lines.append("# NOTE: Secrets are redacted below. Fill in actual values before use.")
@@ -2162,6 +2334,12 @@ def export_settings_env():
         lines.append(
             f"SINCH_API_SECRET={(settings.sinch_api_secret[:8] + '…') if settings.sinch_api_secret else ''}"
         )
+        if os.getenv("SINCH_BASE_URL"):
+            lines.append(f"SINCH_BASE_URL={os.getenv('SINCH_BASE_URL')}")
+        if os.getenv("SINCH_AUTH_METHOD"):
+            lines.append(f"SINCH_AUTH_METHOD={os.getenv('SINCH_AUTH_METHOD')}")
+        if os.getenv("SINCH_AUTH_BASE_URL"):
+            lines.append(f"SINCH_AUTH_BASE_URL={os.getenv('SINCH_AUTH_BASE_URL')}")
     return {
         "env_content": "\n".join(lines),
         "requires_restart": True,
@@ -2185,6 +2363,8 @@ def _export_settings_full_env() -> str:
     kv["ENFORCE_PUBLIC_HTTPS"] = "true" if settings.enforce_public_https else "false"
     kv["FAX_DISABLED"] = "true" if settings.fax_disabled else "false"
     kv["PUBLIC_API_URL"] = settings.public_api_url
+    if os.getenv("TUNNEL_PROVIDER"):
+        kv["TUNNEL_PROVIDER"] = os.getenv("TUNNEL_PROVIDER", "none").lower()
     kv["MAX_FILE_SIZE_MB"] = str(settings.max_file_size_mb)
     # Security / audit
     kv["AUDIT_LOG_ENABLED"] = "true" if settings.audit_log_enabled else "false"
@@ -2205,6 +2385,11 @@ def _export_settings_full_env() -> str:
         kv["SINCH_PROJECT_ID"] = settings.sinch_project_id or ""
         kv["SINCH_API_KEY"] = settings.sinch_api_key or ""
         kv["SINCH_API_SECRET"] = settings.sinch_api_secret or ""
+        if os.getenv("SINCH_BASE_URL"):
+            kv["SINCH_BASE_URL"] = os.getenv("SINCH_BASE_URL", "")
+        kv["SINCH_AUTH_METHOD"] = (os.getenv("SINCH_AUTH_METHOD") or settings.sinch_auth_method or "basic").lower()
+        if os.getenv("SINCH_AUTH_BASE_URL"):
+            kv["SINCH_AUTH_BASE_URL"] = os.getenv("SINCH_AUTH_BASE_URL", "")
     # Backend: SIP/Asterisk
     if settings.fax_backend == "sip":
         kv["ASTERISK_AMI_HOST"] = settings.ami_host
@@ -2220,12 +2405,9 @@ def _export_settings_full_env() -> str:
     if settings.asterisk_inbound_secret:
         kv["ASTERISK_INBOUND_SECRET"] = settings.asterisk_inbound_secret
     kv["PHAXIO_INBOUND_VERIFY_SIGNATURE"] = "true" if settings.phaxio_inbound_verify_signature else "false"
-    kv["SINCH_INBOUND_VERIFY_SIGNATURE"] = "true" if settings.sinch_inbound_verify_signature else "false"
     if settings.sinch_inbound_basic_user:
         kv["SINCH_INBOUND_BASIC_USER"] = settings.sinch_inbound_basic_user
         kv["SINCH_INBOUND_BASIC_PASS"] = settings.sinch_inbound_basic_pass or ""
-    if settings.sinch_inbound_hmac_secret:
-        kv["SINCH_INBOUND_HMAC_SECRET"] = settings.sinch_inbound_hmac_secret
     kv["INBOUND_LIST_RPM"] = str(settings.inbound_list_rpm)
     kv["INBOUND_GET_RPM"] = str(settings.inbound_get_rpm)
     # Storage
@@ -2354,9 +2536,12 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
     # Convert to PDF if needed
     if is_text or (file.filename and file.filename.lower().endswith(".txt")):
         if settings.fax_disabled:
-            # Test mode - skip conversion
-            with open(pdf_path, "wb") as f:
-                f.write(b"%PDF-1.4\ntest\n%%EOF")
+            # Test mode - still generate a valid PDF using ReportLab
+            from .conversion import write_valid_text_pdf  # type: ignore
+            write_valid_text_pdf(pdf_path, [
+                "Faxbot test TXT→PDF",
+                f"Source: {os.path.basename(str(orig_path))}",
+            ])
         else:
             txt_to_pdf(orig_path, pdf_path)
     else:
@@ -2480,6 +2665,212 @@ def admin_revoke_api_key(key_id: str):
     if not ok:
         raise HTTPException(404, detail="Key not found")
     return {"status": "ok"}
+
+# ===== WireGuard configuration & QR (admin-only) =====
+
+def _wg_conf_path() -> str:
+    # Ensure parent directory exists
+    path = settings.wireguard_conf_path or "/faxdata/wireguard/wg.conf"
+    try:
+        ensure_dir(os.path.dirname(path))
+    except Exception:
+        pass
+    return path
+
+
+def _wg_validate_conf_text(text: str) -> None:
+    # Basic sanity checks for a WireGuard config file
+    t = (text or "").strip()
+    if not t:
+        raise HTTPException(400, detail="Empty configuration")
+    # Require [Interface] section and at least one key
+    if "[Interface]" not in t:
+        raise HTTPException(400, detail="Missing [Interface] section")
+    if "PrivateKey" not in t:
+        raise HTTPException(400, detail="Missing PrivateKey in [Interface]")
+    if "[Peer]" not in t:
+        raise HTTPException(400, detail="Missing [Peer] section")
+
+
+class WGImportOut(BaseModel):
+    ok: bool
+
+
+@app.post("/admin/tunnel/wg/import", dependencies=[Depends(require_admin)])
+async def admin_wg_import_conf(request: Request, file: Optional[UploadFile] = File(default=None), content: Optional[str] = Form(default=None)) -> WGImportOut:  # type: ignore
+    # Accept either multipart file upload or raw text via 'content' field
+    try:
+        conf_text: Optional[str] = None
+        # Size cap for incoming conf (bytes)
+        try:
+            max_bytes = int(os.getenv("MAX_WG_CONF_BYTES", "65536"))
+        except Exception:
+            max_bytes = 65536
+        if file is not None:
+            raw = await file.read()
+            if raw and len(raw) > max_bytes:
+                raise HTTPException(413, detail="WireGuard configuration too large")
+            conf_text = raw.decode("utf-8", errors="replace")
+        elif content is not None:
+            conf_text = str(content)
+            if len(conf_text.encode("utf-8")) > max_bytes:
+                raise HTTPException(413, detail="WireGuard configuration too large")
+        else:
+            # Try JSON payload with {"content": "..."}
+            try:
+                data = await request.json()
+                conf_text = str(data.get("content", ""))
+                if len(conf_text.encode("utf-8")) > max_bytes:
+                    raise HTTPException(413, detail="WireGuard configuration too large")
+            except Exception:
+                conf_text = None
+        if conf_text is None:
+            raise HTTPException(400, detail="No configuration provided")
+        _wg_validate_conf_text(conf_text)
+        path = _wg_conf_path()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(conf_text)
+        try:
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
+        return WGImportOut(ok=True)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@app.get("/admin/tunnel/wg/conf", dependencies=[Depends(require_admin)])
+def admin_wg_get_conf():
+    path = _wg_conf_path()
+    if not os.path.exists(path):
+        raise HTTPException(404, detail="WireGuard configuration not found")
+    # Download as text file
+    filename = os.path.basename(path) or "wg.conf"
+    return FileResponse(path, media_type="text/plain", filename=filename)
+
+
+class WgDeleteOut(BaseModel):
+    ok: bool
+
+
+@app.delete("/admin/tunnel/wg/conf", dependencies=[Depends(require_admin)])
+def admin_wg_delete_conf() -> WgDeleteOut:
+    path = _wg_conf_path()
+    if not os.path.exists(path):
+        return WgDeleteOut(ok=True)
+    try:
+        os.remove(path)
+        return WgDeleteOut(ok=True)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+class WgQrOut(BaseModel):
+    png_base64: Optional[str] = None
+    svg_base64: Optional[str] = None
+
+
+@app.post("/admin/tunnel/wg/qr", dependencies=[Depends(require_admin)])
+def admin_wg_qr() -> WgQrOut:
+    """Render the stored WireGuard configuration as a QR (SVG base64)."""
+    path = _wg_conf_path()
+    if not os.path.exists(path):
+        raise HTTPException(404, detail="WireGuard configuration not found")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        _wg_validate_conf_text(content)
+        # Preferred: SVG (no native deps)
+        try:
+            import io
+            import segno  # type: ignore
+            qr = segno.make(content, error='M')
+            buf = io.BytesIO()
+            qr.save(buf, kind='svg')
+            svg_bytes = buf.getvalue()
+            import base64 as _b64
+            b64 = _b64.b64encode(svg_bytes).decode("ascii")
+            return WgQrOut(svg_base64=b64)
+        except Exception as e2:
+            raise HTTPException(500, detail=f"Failed to render QR: {str(e2)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Provide actionable note if renderPM is unavailable
+        raise HTTPException(500, detail=f"Failed to render QR: {str(e)}")
+
+
+# ===== Auto‑tunnel helpers (Cloudflare) =====
+_CF_URL_RE = re.compile(r"https://[a-z0-9.-]+\.trycloudflare\.com", re.IGNORECASE)
+
+
+async def _auto_tunnel_cloudflare_watcher():
+    """Dev/non‑HIPAA: discover Cloudflare Quick Tunnel URL from a mounted log file
+    and auto‑inject into runtime settings (no persistence) so the Admin Console and
+    webhooks "just work" without manual pasting. Never runs under HIPAA posture.
+    """
+    # Lazy import to avoid circulars at import time
+    global _TUNNEL_STATE  # type: ignore
+    try:
+        while True:
+            try:
+                # Respect HIPAA posture strictly
+                if settings.enforce_public_https:
+                    await asyncio.sleep(15)
+                    continue
+                provider = (os.getenv("TUNNEL_PROVIDER", "") or "").lower()
+                if provider and provider != "cloudflare" and not (os.getenv("AUTO_TUNNEL_ENABLED", "false").lower() in {"1","true","yes"}):
+                    await asyncio.sleep(10)
+                    continue
+
+                log_path = os.getenv("CLOUDFLARE_LOG_PATH", "/faxdata/cloudflared/cloudflared.log")
+                url_found = None
+                try:
+                    with open(log_path, "rb") as f:
+                        # Read last ~64KB to keep bounded
+                        try:
+                            f.seek(-65536, os.SEEK_END)
+                        except Exception:
+                            pass
+                        chunk = f.read().decode("utf-8", errors="replace")
+                        m = None
+                        for m in _CF_URL_RE.finditer(chunk):
+                            url_found = m.group(0)
+                        # url_found will be last match if any
+                except FileNotFoundError:
+                    url_found = None
+                except Exception:
+                    url_found = None
+
+                # Update in‑memory state and optionally runtime settings
+                if url_found and (not _TUNNEL_STATE.get("public_url") or _TUNNEL_STATE.get("public_url") != url_found):
+                    _TUNNEL_STATE.update({
+                        "enabled": True,
+                        "provider": "cloudflare",
+                        "public_url": url_found,
+                        "error": None,
+                        "last_checked": datetime.utcnow(),
+                    })
+                    # Auto‑load into runtime settings when PUBLIC_API_URL is local/default or override is allowed
+                    current = (settings.public_api_url or "").strip()
+                    allow_override = os.getenv("AUTO_TUNNEL_OVERRIDE", "true").lower() in {"1","true","yes"}
+                    is_local = current.startswith("http://localhost") or current.startswith("http://127.0.0.1") or current == ""
+                    if allow_override and is_local:
+                        os.environ["PUBLIC_API_URL"] = url_found
+                        try:
+                            reload_settings()
+                        except Exception:
+                            pass
+                        audit_event("auto_tunnel_public_url_set", provider="cloudflare")
+                await asyncio.sleep(5)
+            except Exception:
+                # Never crash the watcher; back off
+                await asyncio.sleep(10)
+    except Exception:
+        # Fail closed silently
+        return
 
 
 class RotateAPIKeyOut(BaseModel):
@@ -3223,12 +3614,10 @@ async def phaxio_inbound(request: Request):
     ensure_dir(data_dir)
     local_pdf = os.path.join(data_dir, f"{job_id}.pdf")
     if pdf_bytes is None:
-        # Minimal placeholder PDF so record exists; operators can re-fetch if needed
-        with open(local_pdf, "wb") as f:
-            f.write(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
-        size_bytes = len(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
+        # Do not write placeholders; record an error and skip storing a file
+        size_bytes = None
         pages_int = None
-        sha256_hex = hashlib.sha256(b"%PDF-1.4\n% placeholder inbound\n%%EOF").hexdigest()
+        sha256_hex = None
     else:
         with open(local_pdf, "wb") as f:
             f.write(pdf_bytes)
@@ -3278,6 +3667,11 @@ async def phaxio_inbound(request: Request):
 
 @app.post("/sinch-inbound")
 async def sinch_inbound(request: Request):
+    # Ensure latest env (tests may set FAX_DATA_DIR etc.)
+    try:
+        reload_settings()
+    except Exception:
+        pass
     if not settings.inbound_enabled:
         raise HTTPException(404, detail="Inbound not enabled")
     if os.getenv("FAX_INBOUND_BACKEND") and active_inbound() != "sinch":
@@ -3299,17 +3693,23 @@ async def sinch_inbound(request: Request):
         if not ok:
             raise HTTPException(401, detail="Invalid basic auth")
     # Verify HMAC if configured
-    if settings.sinch_inbound_hmac_secret:
-        provided = request.headers.get("X-Sinch-Signature", "")
-        secret = settings.sinch_inbound_hmac_secret.encode()
-        digest = hmac.new(secret, raw, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(digest, (provided or "").strip().lower()):
-            raise HTTPException(401, detail="Invalid signature")
+    # Note: Sinch Fax API does not provide HMAC signatures for fax webhooks.
+    # We intentionally do not support HMAC verification here to avoid false expectations.
 
+    # Accept JSON or multipart form
+    data: dict[str, Any] = {}
+    ctype = (request.headers.get("content-type") or "").lower()
     try:
         data = await request.json()
     except Exception:
-        data = {}
+        if "multipart/form-data" in ctype or "application/x-www-form-urlencoded" in ctype:
+            try:
+                form = await request.form()
+                data = {k: (form.get(k)) for k in form.keys()}  # type: ignore
+            except Exception:
+                data = {}
+        else:
+            data = {}
 
     provider_sid = data.get("id") or data.get("fax_id")
     from_number = data.get("from") or data.get("from_number")
@@ -3319,8 +3719,10 @@ async def sinch_inbound(request: Request):
     file_url = data.get("file_url") or data.get("media_url")
 
     if not provider_sid:
-        return {"status": "ignored"}
+        # Treat as a failure so provider consoles show an error during test
+        return JSONResponse({"detail": "invalid payload: missing id"}, status_code=400)
 
+    duplicate_evt = False
     with SessionLocal() as db:
         from .db import InboundEvent  # type: ignore
         evt = InboundEvent(id=uuid.uuid4().hex, provider_sid=str(provider_sid), event_type="sinch-inbound", created_at=datetime.utcnow())
@@ -3329,38 +3731,69 @@ async def sinch_inbound(request: Request):
             db.commit()
         except Exception:
             db.rollback()
-            return {"status": "ok"}
+            duplicate_evt = True
 
     pdf_bytes: Optional[bytes] = None
+    pdf_error: Optional[str] = None
     if file_url:
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.get(str(file_url))
-                if resp.status_code == 200:
-                    pdf_bytes = resp.content
-        except Exception:
-            pdf_bytes = None
+            headers = {"Accept": "application/pdf, application/octet-stream"}
+            auth = None
+            # Prefer OAuth if enabled
+            use_oauth = (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth")
+            token = None
+            if use_oauth:
+                try:
+                    svc = get_sinch_service()
+                    if svc is not None:
+                        token = await svc.get_access_token()
+                        headers["Authorization"] = f"Bearer {token}"
+                except Exception:
+                    token = None
+            if token is None and settings.sinch_api_key and settings.sinch_api_secret:
+                auth = (settings.sinch_api_key, settings.sinch_api_secret)
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                resp = await client.get(str(file_url), auth=auth, headers=headers)
+                headers_obj = getattr(resp, "headers", {}) or {}
+                try:
+                    ct = (headers_obj.get("content-type") or "").lower()
+                except Exception:
+                    ct = ""
+                if resp.status_code == 200 and getattr(resp, "content", None):
+                    content = resp.content
+                    # Validate PDF signature (%PDF-) regardless of content-type quirks
+                    if content[:5] == b"%PDF-" or "application/pdf" in ct or "octet-stream" in ct:
+                        pdf_bytes = content
+                    else:
+                        pdf_error = f"unexpected_content_type:{ct or 'unknown'}"
+                else:
+                    pdf_error = f"http_status:{resp.status_code}"
+        except Exception as e:
+            pdf_error = f"exception:{type(e).__name__}"
 
     job_id = uuid.uuid4().hex
     data_dir = settings.fax_data_dir
     ensure_dir(data_dir)
     local_pdf = os.path.join(data_dir, f"{job_id}.pdf")
-    if pdf_bytes is None:
-        with open(local_pdf, "wb") as f:
-            f.write(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
-        size_bytes = len(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
-        pages_int = None
-        sha256_hex = hashlib.sha256(b"%PDF-1.4\n% placeholder inbound\n%%EOF").hexdigest()
-    else:
+    pages_int = None
+    if pdf_bytes is not None:
         with open(local_pdf, "wb") as f:
             f.write(pdf_bytes)
         size_bytes = len(pdf_bytes)
-        pages_int = None
         sha256_hex = hashlib.sha256(pdf_bytes).hexdigest()
+    else:
+        # Do not write an invalid placeholder; record error and continue
+        size_bytes = None
+        sha256_hex = None
 
     storage = get_storage()
-    stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
+    stored_uri = None
+    if pdf_bytes is not None:
+        stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
+    else:
+        # When we failed to fetch media but this is a duplicate event, try to keep existing file path
+        stored_uri = None
 
     pdf_token = secrets.token_urlsafe(32)
     expires_at = datetime.utcnow() + timedelta(minutes=max(1, settings.inbound_token_ttl_minutes))
@@ -3368,30 +3801,47 @@ async def sinch_inbound(request: Request):
 
     with SessionLocal() as db:
         from .db import InboundFax  # type: ignore
-        fx = InboundFax(
-            id=job_id,
-            from_number=(str(from_number) if from_number else None),
-            to_number=(str(to_number) if to_number else None),
-            status=str(status),
-            backend="sinch",
-            inbound_backend=active_inbound(),
-            provider_sid=str(provider_sid),
-            pages=int(pages) if pages else pages_int,
-            size_bytes=size_bytes,
-            sha256=sha256_hex,
-            pdf_path=stored_uri,
-            tiff_path=None,
-            mailbox_label=None,
-            retention_until=retention_until,
-            pdf_token=pdf_token,
-            pdf_token_expires_at=expires_at,
-            created_at=datetime.utcnow(),
-            received_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        db.add(fx)
-        db.commit()
-    audit_event("inbound_received", job_id=job_id, backend="sinch")
+        existing = db.query(InboundFax).filter(InboundFax.provider_sid == str(provider_sid)).first()
+        now = datetime.utcnow()
+        if existing:
+            # Update existing record to keep path fresh/idempotent
+            if stored_uri:
+                existing.pdf_path = stored_uri
+            existing.size_bytes = size_bytes
+            existing.sha256 = sha256_hex
+            existing.pages = int(pages) if pages else pages_int
+            existing.status = str(status)
+            existing.error = pdf_error
+            existing.updated_at = now
+            if not existing.received_at:
+                existing.received_at = now
+            db.commit()
+        else:
+            fx = InboundFax(
+                id=job_id,
+                from_number=(str(from_number) if from_number else None),
+                to_number=(str(to_number) if to_number else None),
+                status=str(status),
+                backend="sinch",
+                inbound_backend=active_inbound(),
+                provider_sid=str(provider_sid),
+                pages=int(pages) if pages else pages_int,
+                size_bytes=size_bytes,
+                sha256=sha256_hex,
+                pdf_path=stored_uri,
+                tiff_path=None,
+                mailbox_label=None,
+                retention_until=retention_until,
+                pdf_token=pdf_token,
+                pdf_token_expires_at=expires_at,
+                created_at=now,
+                received_at=now,
+                updated_at=now,
+                error=pdf_error,
+            )
+            db.add(fx)
+            db.commit()
+    audit_event("inbound_received", job_id=job_id, backend="sinch", pdf_error=pdf_error)
     return {"status": "ok"}
 # ===== Global error logging =====
 @app.exception_handler(HTTPException)
@@ -3773,6 +4223,39 @@ async def admin_terminal_websocket(
     api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
     """WebSocket terminal for Admin Console - requires admin authentication."""
+    # Local-only gate (Terminal is a local admin tool)
+    if os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() not in {"1","true","yes"}:
+        await websocket.accept()
+        await websocket.send_text(json.dumps({'type': 'error', 'message': 'Terminal disabled (ENABLE_LOCAL_ADMIN=false)'}))
+        await websocket.close(code=1008, reason="Admin console disabled")
+        return
+    # Block proxied access unless explicitly allowed for demo/testing
+    try:
+        allow_tunnel_ui = os.getenv("ADMIN_UI_ALLOW_TUNNEL", "false").lower() in {"1","true","yes"}
+        # Starlette exposes headers on websocket scope
+        h = dict(websocket.headers or [])
+        if ("x-forwarded-for" in h or "x-real-ip" in h) and not allow_tunnel_ui:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({'type': 'error', 'message': 'Terminal not available through proxy'}))
+            await websocket.close(code=1008, reason="Admin console not available through proxy")
+            return
+        # Local IP policy (loopback or private/VPN ranges such as RFC1918 and CGNAT 100.64.0.0/10)
+        client_ip = websocket.client.host if websocket.client else ""
+        import ipaddress
+        ip = ipaddress.ip_address(client_ip) if client_ip else None
+        cgnat = ipaddress.ip_network('100.64.0.0/10')
+        allow = (ip.is_loopback if ip else False) or ((ip.is_private if ip else False)) or (ip and ip.version == 4 and ip in cgnat) or allow_tunnel_ui
+        if not allow:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({'type': 'error', 'message': 'Forbidden'}))
+            await websocket.close(code=1008, reason="Forbidden")
+            return
+    except Exception:
+        # Fail closed if we cannot determine client
+        await websocket.accept()
+        await websocket.send_text(json.dumps({'type': 'error', 'message': 'Forbidden'}))
+        await websocket.close(code=1008, reason="Forbidden")
+        return
     # Check admin authentication
     if not api_key or api_key != settings.api_key:
         # Try to get API key from query params for WebSocket auth

@@ -12,6 +12,7 @@ import {
   InputAdornment,
   IconButton,
   Tooltip,
+  MenuItem,
 } from '@mui/material';
 import { Visibility, VisibilityOff, InfoOutlined } from '@mui/icons-material';
 
@@ -19,6 +20,7 @@ interface ResponsiveSettingItemProps {
   icon?: React.ReactNode;
   label: string;
   value?: string;
+  currentValue?: string;
   helperText?: string;
   placeholder?: string;
   onChange?: (value: string) => void;
@@ -34,6 +36,7 @@ export function ResponsiveSettingItem({
   icon,
   label,
   value,
+  currentValue,
   helperText,
   placeholder,
   onChange,
@@ -59,9 +62,6 @@ export function ResponsiveSettingItem({
           value={value || ''}
           onChange={(e) => onChange?.(e.target.value)}
           placeholder={placeholder}
-          SelectProps={{
-            native: true,
-          }}
           size="small"
           sx={{
             '& .MuiOutlinedInput-root': {
@@ -71,9 +71,9 @@ export function ResponsiveSettingItem({
           }}
         >
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <MenuItem key={opt.value} value={opt.value}>
               {opt.label}
-            </option>
+            </MenuItem>
           ))}
         </TextField>
       );
@@ -146,7 +146,7 @@ export function ResponsiveSettingItem({
           </Box>
 
           {/* Current value if exists */}
-          {showCurrentValue && value && (
+          {showCurrentValue && (currentValue ?? value) && (
             <Typography
               variant="caption"
               sx={{
@@ -160,7 +160,7 @@ export function ResponsiveSettingItem({
                 wordBreak: 'break-all',
               }}
             >
-              Current: {type === 'password' ? '••••••••••••' : (value.length > 30 ? `${value.substring(0, 30)}...` : value)}
+              Current: {type === 'password' ? '••••••••••••' : (((currentValue ?? value) as string).length > 30 ? `${(currentValue ?? value)!.substring(0, 30)}...` : (currentValue ?? value))}
             </Typography>
           )}
 
@@ -217,7 +217,7 @@ export function ResponsiveSettingItem({
           )}
         </Box>
 
-        {showCurrentValue && value && (
+        {showCurrentValue && (currentValue ?? value) && (
           <Typography
             variant="caption"
             sx={{
@@ -225,7 +225,7 @@ export function ResponsiveSettingItem({
               fontFamily: type === 'password' ? 'monospace' : 'inherit',
             }}
           >
-            Current: {type === 'password' ? '••••••••••••' : value}
+            Current: {type === 'password' ? '••••••••••••' : (currentValue ?? value)}
           </Typography>
         )}
 

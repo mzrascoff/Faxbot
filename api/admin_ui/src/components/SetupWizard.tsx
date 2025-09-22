@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -64,11 +64,12 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   const [validationResults, setValidationResults] = useState<any>(null);
   const [envContent, setEnvContent] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
+  const [registeringSinch, setRegisteringSinch] = useState(false);
+  const [registerResult, setRegisterResult] = useState<string | null>(null);
   const [verifyingInbound, setVerifyingInbound] = useState(false);
   const [verifyFound, setVerifyFound] = useState<any | null>(null);
   const [callbacks, setCallbacks] = useState<any | null>(null);
   const ob = config.outbound_backend || config.backend;
-  const ib = config.inbound_backend;
 
   const steps = ['Choose Providers', 'Configure Credentials', 'Security Settings', 'Apply & Export'];
 
@@ -81,8 +82,48 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   };
 
   const handleConfigChange = (field: string, value: any) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+    setConfig(prev => {
+      const next = { ...prev, [field]: value } as WizardConfig;
+      if (field === 'outbound_backend') {
+        next.backend = String(value);
+      }
+      if (field === 'backend' && !next.outbound_backend) {
+        next.outbound_backend = String(value);
+      }
+      return next;
+    });
   };
+
+  // Load current server settings to avoid defaulting to Phaxio every time
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await client.getSettings();
+        const effectiveOutbound = (s?.hybrid?.outbound_backend || s?.backend?.type || 'phaxio').toLowerCase();
+        const effectiveInbound = (s?.hybrid?.inbound_backend || '').toLowerCase();
+        const next: WizardConfig = {
+          backend: effectiveOutbound,
+          outbound_backend: effectiveOutbound,
+          inbound_backend: effectiveInbound || undefined,
+          require_api_key: Boolean(s?.security?.require_api_key ?? true),
+          enforce_public_https: Boolean((s as any)?.security?.enforce_https ?? true),
+          audit_log_enabled: Boolean((s as any)?.audit_log_enabled ?? false),
+          pdf_token_ttl_minutes: Number((s?.limits?.pdf_token_ttl_minutes ?? 60)),
+        };
+        // Provider-specific hints
+        if (effectiveOutbound === 'phaxio') {
+          next.phaxio_api_key = s?.phaxio?.api_key ? '' : '';
+          next.phaxio_api_secret = s?.phaxio?.api_secret ? '' : '';
+          next.public_api_url = s?.phaxio?.callback_url ? String(s?.phaxio?.callback_url).replace(/\/phaxio-callback$/, '') : (s as any)?.security?.public_api_url;
+        } else if (effectiveOutbound === 'sinch') {
+          next.sinch_project_id = s?.sinch?.project_id || '';
+        }
+        setConfig(prev => ({ ...prev, ...next }));
+      } catch {
+        // keep defaults
+      }
+    })();
+  }, [client]);
 
   const handleValidate = async () => {
     setValidating(true);
@@ -195,9 +236,10 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     setEnvContent('');
     setValidationResults(null);
     try {
+      const effectiveBackend = (config.outbound_backend || config.backend);
       const payload: any = {
-        backend: config.backend,
-        outbound_backend: config.outbound_backend || config.backend,
+        backend: effectiveBackend,
+        outbound_backend: effectiveBackend,
         require_api_key: config.require_api_key,
         enforce_public_https: config.enforce_public_https,
         pdf_token_ttl_minutes: config.pdf_token_ttl_minutes,
@@ -214,6 +256,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         payload.sinch_project_id = config.sinch_project_id;
         payload.sinch_api_key = config.sinch_api_key;
         payload.sinch_api_secret = config.sinch_api_secret;
+        if ((config as any).sinch_base_url) payload.sinch_base_url = (config as any).sinch_base_url;
       } else if (ob === 'signalwire') {
         (payload as any).signalwire_space_url = (config as any).signalwire_space_url;
         (payload as any).signalwire_project_id = (config as any).signalwire_project_id;
@@ -315,7 +358,9 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             )}
             {(config.inbound_backend||config.backend) === 'sinch' && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                Inbound webhook will be <code>/sinch-inbound</code>. Basic and/or HMAC optional.
+                Inbound webhook will be <code>/sinch-inbound</code>. Sinch webhooks are not provider‑signed; enforce Basic auth in Faxbot and consider IP allowlisting. Outbound API calls use OAuth 2.0 (Bearer).
+                <br/>
+                Access keys live in the <a href="https://dashboard.sinch.com/settings/access-keys" target="_blank" rel="noreferrer">Sinch Customer (Build) Dashboard</a>. Other Sinch portals do not expose Fax API access keys.
               </Alert>
             )}
             {(config.inbound_backend||config.backend) === 'sip' && (
@@ -383,6 +428,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             {ob === 'sinch' && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    See <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</a> or the <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API docs</a>.
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
                   <TextField
                     label="Project ID"
                     value={config.sinch_project_id || ''}
@@ -403,6 +453,16 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                     label="API Secret"
                     value={config.sinch_api_secret || ''}
                     onChange={(value) => handleConfigChange('sinch_api_secret', value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Base URL (optional)"
+                    value={(config as any).sinch_base_url || ''}
+                    onChange={(e) => handleConfigChange('sinch_base_url', e.target.value)}
+                    placeholder="https://us.fax.api.sinch.com/v3"
+                    helperText="Override region endpoint if your account uses a non-default region"
                     fullWidth
                   />
                 </Grid>
@@ -529,7 +589,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             {/* Provider Connect */}
             {(ob === 'phaxio' || ob === 'sinch') && (
               <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>Connect {config.backend.toUpperCase()} Inbound</Typography>
+                <Typography variant="subtitle1" gutterBottom>Connect {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} Inbound</Typography>
                 <Button variant="outlined" onClick={loadCallbacks} sx={{ mr: 1 }}>Show Callback URL</Button>
                 {callbacks && callbacks.callbacks && callbacks.callbacks[0] && (
                   <Paper sx={{ p: 2, mt: 2 }}>
@@ -538,6 +598,25 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
                   <Button variant="outlined" onClick={() => navigator.clipboard.writeText(callbacks.callbacks[0].url)}>Copy</Button>
                   <Button variant="outlined" onClick={async () => { try { await client.simulateInbound({ backend: config.backend }); setSnack('Simulated inbound received'); } catch(e:any){ setSnack(e?.message||'Simulation failed'); } }}>Simulate Inbound</Button>
+                </Box>
+                {callbacks.callbacks[0].preferred_content_type && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    Preferred content type: <strong>{callbacks.callbacks[0].preferred_content_type}</strong>. Also supported: {(callbacks.callbacks[0].content_types||[]).filter((t:string)=>t!==callbacks.callbacks[0].preferred_content_type).join(', ') || 'n/a'}.
+                  </Alert>
+                )}
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button variant="outlined" onClick={() => {
+                    const url = String(callbacks.callbacks[0].url||'');
+                    const cmd = `curl -i -X POST '${url}' -H 'Content-Type: application/json' -d '{"id":"test_webhook","from":"+15551234567","to":"+15551234567","status":"received"}'`;
+                    navigator.clipboard.writeText(cmd);
+                    setSnack('Copied: curl JSON test');
+                  }}>Copy curl (JSON test)</Button>
+                  <Button variant="outlined" onClick={() => {
+                    const url = String(callbacks.callbacks[0].url||'');
+                    const cmd = `curl -i -X POST '${url}' -F id=test_webhook -F from=+15551234567 -F to=+15551234567 -F status=received`;
+                    navigator.clipboard.writeText(cmd);
+                    setSnack('Copied: curl multipart test');
+                  }}>Copy curl (multipart test)</Button>
                 </Box>
                 <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                   <Button variant="contained" onClick={startVerifyInbound} disabled={verifyingInbound}>
@@ -551,14 +630,13 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                   )}
                 </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Paste this URL into your {config.backend.toUpperCase()} console for inbound fax delivery.
-                      {"  •  "}
-                      <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/phaxio-setup.html`} target="_blank" rel="noreferrer">Faxbot: Phaxio Setup</a>
-                      {"  •  "}
-                      <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API Docs</a>
-                      {"  •  "}
-                      <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/`} target="_blank" rel="noreferrer">Faxbot Docs</a>
+                      Paste this URL into your {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} console for inbound fax delivery. For Sinch, set the webhook content type to application/json. Learn more:
                     </Typography>
+                    <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <Button size="small" variant="outlined" href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</Button>
+                      <Button size="small" variant="outlined" href={`https://developers.sinch.com/docs/fax/api-reference/`} target="_blank" rel="noreferrer">Sinch Fax API Docs</Button>
+                      <Button size="small" variant="outlined" href={`https://dashboard.sinch.com/settings/access-keys`} target="_blank" rel="noreferrer">Sinch Access Keys</Button>
+                    </Box>
                   </Paper>
                 )}
               </Box>
@@ -621,11 +699,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 <TextField
                   label="PDF Token TTL (minutes)"
                   type="number"
-                  value={config.pdf_token_ttl_minutes || 60}
-                  onChange={(e) => handleConfigChange('pdf_token_ttl_minutes', parseInt(e.target.value))}
+                  value={60}
                   fullWidth
                   size="small"
-                  helperText="How long tokenized PDF URLs remain valid"
+                  disabled
+                  helperText="Fixed: 60 minutes"
                 />
               </Grid>
             </Grid>
@@ -663,7 +741,33 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               >
                 Generate .env
               </Button>
+              {(config.inbound_backend === 'sinch' || (!config.inbound_backend && ob === 'sinch')) && (
+                <Button
+                  variant="outlined"
+                  sx={{ ml: 1 }}
+                  disabled={registeringSinch}
+                  onClick={async () => {
+                    setRegisteringSinch(true);
+                    setRegisterResult(null);
+                    try {
+                      const res = await (client as any).registerSinchWebhook?.();
+                      if (res?.success) setRegisterResult(`Registered: ${res.webhook_url || ''}`);
+                      else setRegisterResult(`Failed: ${res?.error || 'Unknown error'}`);
+                    } catch (e: any) {
+                      setRegisterResult(`Failed: ${e?.message || 'Unknown error'}`);
+                    } finally { setRegisteringSinch(false); }
+                  }}
+                >
+                  {registeringSinch ? <CircularProgress size={20} /> : 'Register with Sinch'}
+                </Button>
+              )}
             </Box>
+
+            {registerResult && (
+              <Alert severity={registerResult.startsWith('Registered') ? 'success' : 'error'} sx={{ mb: 2 }} onClose={() => setRegisterResult(null)}>
+                {registerResult}
+              </Alert>
+            )}
 
             {validationResults && (
               <Paper sx={{ p: 2, mb: 2 }}>

@@ -492,7 +492,7 @@ async def run_diagnostics():
             diagnostics["checks"]["inbound"]["signature_verification"] = settings.phaxio_inbound_verify_signature
         elif settings.fax_backend == "sinch":
             diagnostics["checks"]["inbound"]["auth_configured"] = bool(
-                settings.sinch_inbound_basic_user or settings.sinch_inbound_hmac_secret
+                settings.sinch_inbound_basic_user
             )
     
     # Security posture

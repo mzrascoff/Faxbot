@@ -1,0 +1,23 @@
+site_name: Faxbot Documentation
+theme:
+  name: mkdocs
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+plugins:
+  - search
+  - mike:
+      version_selector: true
+      css_dir: css
+      javascript_dir: js
+      canonical_version: latest
+nav:
+  - Home: index.md
+  - Features:
+    - Cloudflare Tunnel: tunnel.md
+    - Email to Fax: email-fax.md
+    - VPN Support: vpn.md
+  - API: api.md
+  - Setup: setup.md

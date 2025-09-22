@@ -1,0 +1,25 @@
+[changelog]
+header = """
+# Changelog\n
+All notable changes between branches will be documented here.\n
+"""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | upper_first }}
+    {% for commit in commits %}
+    - {{ commit.message | upper_first }}
+    {%- endfor %}
+{% endfor %}\n
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+commit_parsers = [
+    { pattern = "^feat", group = "Features"},
+    { pattern = "^fix", group = "Bug Fixes"},
+    { pattern = "^doc", group = "Documentation"},
+    { pattern = "^perf", group = "Performance"},
+    { pattern = "^refactor", group = "Refactor"},
+]

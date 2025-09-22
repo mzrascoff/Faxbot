@@ -24,7 +24,7 @@ import type { HealthStatus } from '../api/types';
 
 interface DashboardProps {
   client: AdminAPIClient;
-  onNavigate?: (tabIndex: number) => void;
+  onNavigate?: (to: number | string) => void;
 }
 
 function Dashboard({ client, onNavigate }: DashboardProps) {
@@ -143,7 +143,7 @@ function Dashboard({ client, onNavigate }: DashboardProps) {
                   },
                   transition: 'all 0.2s ease-in-out',
                 }}
-                onClick={() => onNavigate?.(9)} // Navigate to Diagnostics tab (index 9)
+                onClick={() => onNavigate?.('tools/diagnostics')}
               >
               <CardContent sx={{ pb: { xs: 1, sm: 2 } }}>
                 <Box display="flex" alignItems="center" mb={{ xs: 1, sm: 2 }}>
@@ -255,7 +255,7 @@ function Dashboard({ client, onNavigate }: DashboardProps) {
                   },
                   transition: 'all 0.2s ease-in-out',
                 }}
-                onClick={() => onNavigate?.(6)} // Navigate to Settings tab (index 6)
+                onClick={() => onNavigate?.(4)} // Navigate to Settings tab (index 4)
               >
                 <CardContent sx={{ pb: { xs: 1, sm: 2 } }}>
                   <Typography variant="h6" component="h2" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>

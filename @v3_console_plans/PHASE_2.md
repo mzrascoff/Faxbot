@@ -349,7 +349,7 @@ Why this is the better path
 
 What goes where
 - Core (this repo)
-  - REST API endpoints, validation, size/type limits, HMAC verification
+  - REST API endpoints, validation, size/type limits, webhook verification (provider-supported)
   - All backends (Phaxio/Sinch/SIP) send + receive plumbing
   - Webhook handlers per backend (kept isolated by backend)
   - File processing (TXT→PDF, TIFF handling for SIP), tokenized file access, audit hooks
@@ -363,7 +363,8 @@ What goes where
 
 Receiving capability recommendation
 - Implement inbound fax support in core (benefits all users and keeps backend logic centralized):
-  - Phaxio/Sinch: Add inbound webhook endpoint with HMAC/signature verification; create records and tokenized file access.
+  - Phaxio: Add inbound webhook with HMAC verification; create records and tokenized file access.
+  - Sinch: Add inbound webhook with optional Basic auth (no HMAC signatures for fax inbound).
   - SIP/Asterisk: Add inbound dialplan/AMI/AGI handler to receive T.38, convert to PDF, store artifact, and expose list/detail endpoints.
 - Keep backend docs strictly separated per AGENTS.md (no mixed instructions).
 

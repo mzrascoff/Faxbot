@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
@@ -84,6 +85,10 @@ class Settings(BaseModel):
     sinch_project_id: str = Field(default_factory=lambda: os.getenv("SINCH_PROJECT_ID", ""))
     sinch_api_key: str = Field(default_factory=lambda: os.getenv("SINCH_API_KEY", os.getenv("PHAXIO_API_KEY", "")))
     sinch_api_secret: str = Field(default_factory=lambda: os.getenv("SINCH_API_SECRET", os.getenv("PHAXIO_API_SECRET", "")))
+    # Outbound auth method: 'basic' (default) or 'oauth'
+    sinch_auth_method: str = Field(default_factory=lambda: os.getenv("SINCH_AUTH_METHOD", "basic").lower())
+    # OAuth token endpoint base (region-aware). Default global endpoint.
+    sinch_auth_base_url: str = Field(default_factory=lambda: os.getenv("SINCH_AUTH_BASE_URL", "https://auth.sinch.com/oauth2/token"))
 
     # SignalWire (Compatibility Fax API)
     signalwire_space_url: str = Field(default_factory=lambda: os.getenv("SIGNALWIRE_SPACE_URL", ""))
@@ -131,10 +136,8 @@ class Settings(BaseModel):
     inbound_token_ttl_minutes: int = Field(default_factory=lambda: int(os.getenv("INBOUND_TOKEN_TTL_MINUTES", "60")))
     asterisk_inbound_secret: str = Field(default_factory=lambda: os.getenv("ASTERISK_INBOUND_SECRET", ""))
     phaxio_inbound_verify_signature: bool = Field(default_factory=lambda: os.getenv("PHAXIO_INBOUND_VERIFY_SIGNATURE", "true").lower() in {"1", "true", "yes"})
-    sinch_inbound_verify_signature: bool = Field(default_factory=lambda: os.getenv("SINCH_INBOUND_VERIFY_SIGNATURE", "true").lower() in {"1", "true", "yes"})
     sinch_inbound_basic_user: str = Field(default_factory=lambda: os.getenv("SINCH_INBOUND_BASIC_USER", ""))
     sinch_inbound_basic_pass: str = Field(default_factory=lambda: os.getenv("SINCH_INBOUND_BASIC_PASS", ""))
-    sinch_inbound_hmac_secret: str = Field(default_factory=lambda: os.getenv("SINCH_INBOUND_HMAC_SECRET", ""))
 
     # Storage backend for inbound artifacts
     storage_backend: str = Field(default_factory=lambda: os.getenv("STORAGE_BACKEND", "local"))  # local | s3
@@ -150,6 +153,9 @@ class Settings(BaseModel):
 
     # Admin console options
     admin_allow_restart: bool = Field(default_factory=lambda: os.getenv("ADMIN_ALLOW_RESTART", "false").lower() in {"1","true","yes"})
+
+    # Tunnels / WireGuard helpers
+    wireguard_conf_path: str = Field(default_factory=lambda: os.getenv("WIREGUARD_CONF_PATH", "/faxdata/wireguard/wg.conf"))
 
     # MCP (embedded) settings
     enable_mcp_sse: bool = Field(default_factory=lambda: os.getenv("ENABLE_MCP_SSE", "false").lower() in {"1","true","yes"})
@@ -199,13 +205,18 @@ CANONICAL_TRAIT_KEYS: set[str] = {
 }
 
 
+def _repo_root() -> Path:
+    # api/app/config.py → repo root is three levels up
+    return Path(__file__).resolve().parents[2]
+
+
 def _traits_file_path() -> str:
-    # Project-relative config folder
-    return os.path.join(os.getcwd(), "config", "provider_traits.json")
+    # Always resolve relative to repository root (stable across cwd changes)
+    return str(_repo_root() / "config" / "provider_traits.json")
 
 
 def _providers_dir() -> str:
-    return os.path.join(os.getcwd(), "config", "providers")
+    return str(_repo_root() / "config" / "providers")
 
 
 def _read_json(path: str) -> Any:

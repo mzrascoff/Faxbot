@@ -1,25 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Stack, Typography } from '@mui/material';
-import { Cloud, Security, VpnKey, VpnLock } from '@mui/icons-material';
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Stack, Typography } from '@mui/material';
+import { Link as LinkIcon, Security, VpnKey, VpnLock } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
 import type { TunnelStatus } from '../api/types';
-import { ResponsiveFormSection, ResponsiveSelect, ResponsiveTextField } from './common/ResponsiveFormFields';
+import { ResponsiveFormSection, ResponsiveSelect, ResponsiveTextField, ResponsiveFileUpload } from './common/ResponsiveFormFields';
 import { SmoothLoader, InlineLoader } from './common/SmoothLoader';
 
-type Props = { client: AdminAPIClient; docsBase?: string; hipaaMode?: boolean };
+type Props = { client: AdminAPIClient; docsBase?: string; hipaaMode?: boolean; inboundBackend?: string; sinchConfigured?: boolean };
 
 export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
   const [status, setStatus] = useState<TunnelStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [testing, setTesting] = useState<boolean>(false);
+  const [registering, setRegistering] = useState<boolean>(false);
   const [pairDialog, setPairDialog] = useState<{ open: boolean; code?: string; expires_at?: string }>({ open: false });
   const [logsLoading, setLogsLoading] = useState<boolean>(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [isSinchActive, setIsSinchActive] = useState<boolean>(false);
+  const [inboundEnabled, setInboundEnabled] = useState<boolean>(false);
+  const [notice, setNotice] = useState<{ severity: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const [provider, setProvider] = useState<'none' | 'cloudflare' | 'wireguard' | 'tailscale'>('none');
   const [wg, setWg] = useState<{ endpoint?: string; server_key?: string; client_ip?: string; dns?: string }>({});
   const [ts, setTs] = useState<{ auth_key?: string; hostname?: string }>({});
+  const [wgFile, setWgFile] = useState<File | null>(null);
+  const [wgHasConf, setWgHasConf] = useState<boolean>(false);
+  const [wgQr, setWgQr] = useState<{ open: boolean; png?: string }>({ open: false });
 
   const learnMoreUrl = useMemo(() => `${docsBase || ''}/networking/tunnels`, [docsBase]);
 
@@ -30,17 +37,88 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
       setStatus(s);
       setProvider(s.provider);
     } catch (e: any) {
-      console.error('Tunnel status error', e);
+      setNotice({ severity: 'error', message: e?.message || 'Failed to load tunnel status' });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchStatus(); }, []);
+  // Load persisted provider from admin settings (round-trip across restarts)
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await client.getSettings();
+        const persistedProvider = (s as any)?.tunnel?.provider as string | undefined;
+        if (persistedProvider && ['none','cloudflare','wireguard','tailscale'].includes(persistedProvider)) {
+          setProvider(persistedProvider as any);
+        }
+      } catch {}
+    })();
+  }, [client]);
+
+  // Probe if a WireGuard conf is stored
+  useEffect(() => {
+    const probe = async () => {
+      if (provider !== 'wireguard') { setWgHasConf(false); return; }
+      try {
+        // Try a HEAD by attempting to fetch and discarding body
+        const blob = await client.wgDownloadConf();
+        setWgHasConf(blob.size > 0);
+      } catch (_) {
+        setWgHasConf(false);
+      }
+    };
+    probe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await client.getSettings();
+        const inbound = (s?.hybrid?.inbound_backend || s?.backend?.type || '').toLowerCase();
+        setIsSinchActive(inbound === 'sinch');
+        setInboundEnabled(Boolean(s?.inbound?.enabled));
+      } catch {
+        // no-op
+      }
+    })();
+  }, [client]);
+
+  // Auto-register Sinch webhook when tunnel URL changes (non-HIPAA only)
+  useEffect(() => {
+    const maybeAutoRegister = async () => {
+      try {
+        if (!status?.public_url) return;
+        if (!isSinchActive || !inboundEnabled) return;
+        if (hipaaMode) return;
+        const key = 'last_registered_sinch_url';
+        const last = localStorage.getItem(key) || '';
+        if (last === status.public_url) return;
+        setRegistering(true);
+        const res = await (client as any).registerSinchWebhook?.();
+        if (res?.success) {
+          localStorage.setItem(key, status.public_url);
+          setNotice({ severity: 'success', message: 'Sinch webhook auto-registered to current tunnel URL.' });
+        } else if (res?.error) {
+          setNotice({ severity: 'error', message: `Auto-registration failed: ${res.error}` });
+        }
+      } catch (e: any) {
+        setNotice({ severity: 'error', message: e?.message || 'Auto-registration failed' });
+      } finally {
+        setRegistering(false);
+      }
+    };
+    maybeAutoRegister();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status?.public_url, isSinchActive, inboundEnabled, hipaaMode]);
 
   const applyConfig = async () => {
     setSaving(true);
     try {
+      // Persist provider via admin settings so it survives restarts
+      await client.updateSettings({ tunnel_provider: provider });
+      // Also update in-memory state for immediate UX
       const payload: any = {
         enabled: provider !== 'none',
         provider,
@@ -64,13 +142,10 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
     setTesting(true);
     try {
       const res = await client.testTunnel();
-      if (!res.ok) {
-        alert(`Connectivity check failed: ${res.message || 'Unknown error'}`);
-      } else {
-        alert(`Connectivity OK${res.target ? ` (${res.target})` : ''}`);
-      }
+      if (!res.ok) setNotice({ severity: 'error', message: `Connectivity check failed: ${res.message || 'Unknown error'}` });
+      else setNotice({ severity: 'success', message: `Connectivity OK${res.target ? ` (${res.target})` : ''}` });
     } catch (e: any) {
-      alert(e?.message || 'Test failed');
+      setNotice({ severity: 'error', message: e?.message || 'Test failed' });
     } finally {
       setTesting(false);
     }
@@ -81,7 +156,20 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
       const res = await client.createTunnelPairing();
       setPairDialog({ open: true, code: res.code, expires_at: res.expires_at });
     } catch (e: any) {
-      alert(e?.message || 'Could not create pairing code');
+      setNotice({ severity: 'error', message: e?.message || 'Could not create pairing code' });
+    }
+  };
+
+  const registerSinch = async () => {
+    setRegistering(true);
+    try {
+      const res = await (client as any).registerSinchWebhook?.();
+      if (!res?.success) setNotice({ severity: 'error', message: `Registration failed: ${res?.error || 'Unknown error'}` });
+      else setNotice({ severity: 'success', message: `Registered webhook: ${res.webhook_url || ''}` });
+    } catch (e: any) {
+      setNotice({ severity: 'error', message: e?.message || 'Registration failed' });
+    } finally {
+      setRegistering(false);
     }
   };
 
@@ -90,11 +178,11 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
   const fetchLogs = async () => {
     setLogsLoading(true); setLogs([]);
     try {
-      const res = await (client as any).runAction?.('tunnel_status_cloudflared_logs_tail');
-      const out = (res?.stdout || '').split('\n').slice(-50);
-      setLogs(out);
+      const res = await client.getTunnelCloudflaredLogs(50);
+      setLogs(res.items || []);
     } catch (e: any) {
-      setLogs([`[error] ${(e?.message || 'Failed to run action')}`]);
+      setLogs([`[error] ${(e?.message || 'Failed to read Cloudflared logs')}`]);
+      setNotice({ severity: 'error', message: e?.message || 'Failed to read Cloudflared logs' });
     } finally {
       setLogsLoading(false);
     }
@@ -102,9 +190,14 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
 
   return (
     <Box>
+      {notice && (
+        <Alert severity={notice.severity} onClose={() => setNotice(null)} sx={{ mb: 2 }}>
+          {notice.message}
+        </Alert>
+      )}
       <ResponsiveFormSection
         title="VPN Tunnel"
-        subtitle="Secure remote access required for iOS connectivity. Choose a provider that matches your security needs."
+        subtitle="Secure external access for non‑HIPAA setups and private VPN for HIPAA. Choose a provider that matches your security needs."
         icon={<VpnLock />}
       >
         <Stack spacing={2}>
@@ -123,8 +216,11 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
             {(!status || status?.status === 'disabled') && (
               <Chip color="default" label="Disabled" size="small" sx={{ mr: 1 }} />
             )}
-            {status?.public_url && (
-              <Chip icon={<Cloud fontSize="small" />} label={status.public_url} size="small" variant="outlined" />
+            {/* Intentionally do not display the public URL to keep implementation details abstracted. */}
+            {status?.status === 'connected' && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Connected via public URL
+              </Typography>
             )}
           </Box>
 
@@ -146,6 +242,93 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
           {provider === 'wireguard' && (
             <Box>
               <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>WireGuard</Typography>
+              <ResponsiveFileUpload
+                label="Import .conf"
+                helperText="Upload your device-specific WireGuard .conf to display as a QR. The file is stored securely and can be deleted."
+                accept=".conf,text/plain"
+                onFileSelect={(f) => setWgFile(f)}
+              />
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                <Button
+                  variant="outlined"
+                  disabled={!wgFile}
+                  onClick={async () => {
+                    if (!wgFile) return;
+                    try {
+                      setSaving(true);
+                      await client.wgImportConfFile(wgFile);
+                      setWgHasConf(true);
+                      setWgFile(null);
+                      setNotice({ severity: 'success', message: 'WireGuard configuration imported' });
+                    } catch (e: any) {
+                      setNotice({ severity: 'error', message: e?.message || 'Import failed' });
+                    } finally { setSaving(false); }
+                  }}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Upload
+                </Button>
+                <Button
+                  variant="outlined"
+                  disabled={!wgHasConf}
+                  onClick={async () => {
+                    try {
+                      const res = await client.wgGetQr();
+                      const dataUrl = res?.svg_base64
+                        ? `data:image/svg+xml;base64,${res.svg_base64}`
+                        : res?.png_base64
+                        ? `data:image/png;base64,${res.png_base64}`
+                        : '';
+                      if (!dataUrl) throw new Error('QR not available');
+                      setWgQr({ open: true, png: dataUrl });
+                    } catch (e: any) {
+                      setNotice({ severity: 'error', message: e?.message || 'Could not generate QR' });
+                    }
+                  }}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Show QR
+                </Button>
+                <Button
+                  variant="outlined"
+                  disabled={!wgHasConf}
+                  onClick={async () => {
+                    try {
+                      const blob = await client.wgDownloadConf();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'wg.conf';
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    } catch (e: any) {
+                      setNotice({ severity: 'error', message: e?.message || 'Download failed' });
+                    }
+                  }}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Download .conf
+                </Button>
+                <Button
+                  variant="text"
+                  color="error"
+                  disabled={!wgHasConf}
+                  onClick={async () => {
+                    try {
+                      await client.wgDeleteConf();
+                      setWgHasConf(false);
+                      setNotice({ severity: 'success', message: 'WireGuard configuration deleted' });
+                    } catch (e: any) {
+                      setNotice({ severity: 'error', message: e?.message || 'Delete failed' });
+                    }
+                  }}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Delete configuration
+                </Button>
+              </Box>
               <ResponsiveTextField
                 label="Endpoint"
                 value={wg.endpoint || ''}
@@ -208,12 +391,20 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
               Test Connectivity
               <InlineLoader loading={testing} />
             </Button>
-            <Button variant="outlined" onClick={pairIOS} sx={{ borderRadius: 2 }}>
-              Generate iOS Pairing Code
+          <Button variant="outlined" onClick={pairIOS} sx={{ borderRadius: 2 }}>
+            Generate iOS Pairing Code
+          </Button>
+          {isSinchActive && inboundEnabled && (
+            <Button variant="outlined" onClick={registerSinch} disabled={registering} startIcon={<LinkIcon fontSize="small" />} sx={{ borderRadius: 2 }}>
+              Register with Sinch
+              <InlineLoader loading={registering} />
             </Button>
+          )}
+          {provider === 'cloudflare' && !cloudflareDisabled && (
             <Button variant="text" onClick={fetchLogs} disabled={logsLoading} sx={{ borderRadius: 2 }}>
               View Cloudflared Logs (tail)
             </Button>
+          )}
             <Box sx={{ ml: 'auto' }}>
               <Link href={learnMoreUrl} target="_blank" rel="noreferrer">Learn more</Link>
             </Box>
@@ -222,7 +413,7 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
         <SmoothLoader loading={loading} variant="linear" />
       </ResponsiveFormSection>
 
-      {logs.length > 0 && (
+      {provider === 'cloudflare' && !cloudflareDisabled && logs.length > 0 && (
         <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, mb: 2 }}>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Cloudflared logs (last 50 lines)</Typography>
           <Box component="pre" sx={{ m: 0, p: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.8rem' }}>
@@ -249,6 +440,24 @@ export default function TunnelSettings({ client, docsBase, hipaaMode }: Props) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPairDialog({ open: false })}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* WireGuard QR dialog */}
+      <Dialog open={wgQr.open} onClose={() => setWgQr({ open: false })}>
+        <DialogTitle>WireGuard QR</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Scan this QR in the WireGuard app to import the configuration.
+          </Typography>
+          {wgQr.png && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
+              <img src={wgQr.png} alt="WireGuard QR" style={{ maxWidth: 320, width: '100%' }} />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWgQr({ open: false })}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

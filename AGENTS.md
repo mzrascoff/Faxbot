@@ -68,6 +68,20 @@ Developer notes
 - Keep copy short and plain; reserve deep detail for the docs site.
 - Avoid logging sensitive data in UI or network tabs; surface IDs/metadata only.
 
+Traits-first guardrails (CRITICAL)
+- The provider traits registry (`config/provider_traits.json` + manifests) is the single source of truth for capabilities.
+- Do NOT gate UI/logic using backend name strings. Always query traits via:
+  - Server: `providerHasTrait(direction, key)` and `providerTraitValue()` in `api/app/config.py`
+  - Admin UI/iOS: call `GET /admin/providers` or read `traits` from `/admin/config` or `/admin/diagnostics/run`.
+- Treat trait fields like `requires_ami`, `needs_storage`, and `inbound_verification` as informational indicators, not pass/fail, unless a trait explicitly demands a check.
+- Never show SIP/Asterisk AMI guidance unless the active provider’s inbound/outbound traits include `requires_ami=true`.
+- All new screens must guard content with traits; PRs that compare backend ids directly will be rejected.
+
+iOS and external apps
+- The iOS app MUST source provider capabilities from `/admin/providers` or `/admin/config` `traits` section.
+- The app must not hard-code backend assumptions (e.g., AMI, HMAC). Instead, map features from traits.
+- If traits are absent, default to safest UX (hide AMI, require HTTPS messaging, mask secrets).
+
 ## Admin Console Frontend Style Guide (dev branch)
 
 Scope: This governs all work under `api/admin_ui/` (Vite + React + TS + MUI) and its Electron shell under `api/admin_ui/electron/`. Follow these rules precisely so new UI matches the current implementation.

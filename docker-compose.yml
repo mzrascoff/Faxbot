@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   api:
@@ -12,11 +11,17 @@ services:
       - ENABLE_LOCAL_ADMIN=true
       - ADMIN_ALLOW_RESTART=true
       # Optional: auto-load persisted .env settings on startup
-      - ENABLE_PERSISTED_SETTINGS=true
+      - ENABLE_PERSISTED_SETTINGS=false
       # Persist DB to volume so jobs/keys/inbox survive rebuilds
       - DATABASE_URL=sqlite:////faxdata/faxbot.db
+      # Auto-tunnel (dev/non-HIPAA): enable Cloudflare URL auto-detect from sidecar logs
+      - AUTO_TUNNEL_ENABLED=true
+      - AUTO_TUNNEL_OVERRIDE=true
+      - CLOUDFLARED_LOG_PATH=/faxdata/cloudflared/cloudflared.log
     volumes:
       - faxdata:/faxdata
+      # Mount Cloudflare logs (from sidecar) read-only so the API can auto-detect the public URL
+      - ./cloudflared-logs:/faxdata/cloudflared:ro
     ports:
       - "8080:8080"
     # Note: Asterisk dependency is optional - only needed for SIP backend
@@ -114,6 +119,19 @@ services:
       - mcp
     stdin_open: true
     tty: true
+
+  # Optional: Cloudflare Quick Tunnel sidecar (dev/non-HIPAA)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: faxbot-cloudflared
+    command: tunnel --no-autoupdate --url http://api:8080 --logfile /logs/cloudflared.log --loglevel info
+    depends_on:
+      - api
+    volumes:
+      - ./cloudflared-logs:/logs
+    profiles:
+      - cloudflare
+    restart: unless-stopped
 
 volumes:
   faxdata:

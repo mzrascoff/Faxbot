@@ -2475,9 +2475,9 @@ class WebhookManager:
         return valid
     
     def _verify_sinch_signature(self, headers: Dict[str, str], body: bytes) -> bool:
-        """HMAC verification for Sinch
+        """Sinch inbound verification (Note)
         
-        Sinch supports both Basic auth and HMAC
+        Sinch fax inbound uses Basic auth; HMAC signatures are not provided by Sinch.
         """
         import base64
         
@@ -2498,9 +2498,10 @@ class WebhookManager:
                 return hmac.compare_digest(provided_auth, expected_auth)
         
         # Check HMAC signature
+        # Note: Sinch does not send this header for fax inbound; kept for legacy reference only.
         signature = headers.get('X-Sinch-Signature', '')
         if signature:
-            secret = os.getenv('SINCH_INBOUND_HMAC_SECRET', '')
+            # Sinch inbound does not include HMAC signatures; use Basic auth or IP allowlists instead.
             if secret:
                 expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
                 return hmac.compare_digest(signature, expected)
@@ -5668,9 +5669,9 @@ async def test_hipaa_audit_trail():
 
 @pytest.mark.asyncio
 async def test_webhook_signature_verification():
-    """Test HMAC verification for webhooks"""
+    """Test webhook verification where supported"""
     # Test Phaxio HMAC
-    # Test Sinch HMAC
+    # Test Sinch Basic auth (Sinch fax inbound does not include HMAC signatures)
     pass
 ```
 

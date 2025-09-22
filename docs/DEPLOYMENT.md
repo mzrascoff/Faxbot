@@ -35,7 +35,7 @@ Environment configuration
   - `INBOUND_ENABLED=true`
   - SIP/Asterisk: `ASTERISK_INBOUND_SECRET=<random>` (keep internal; rotate regularly)
   - Phaxio: `PHAXIO_INBOUND_VERIFY_SIGNATURE=true` (HMAC with `PHAXIO_API_SECRET`)
-  - Sinch: `SINCH_INBOUND_BASIC_USER/PASS`, `SINCH_INBOUND_HMAC_SECRET`
+  - Sinch: `SINCH_INBOUND_BASIC_USER/PASS` (Sinch inbound webhooks are not provider‑signed; enforce Basic auth and IP allowlists)
 - Rate limits (defense in depth)
   - App level: `MAX_REQUESTS_PER_MINUTE`, `INBOUND_LIST_RPM`, `INBOUND_GET_RPM`
   - Edge/WAF/proxy: enforce additional limits and IP allowlists.
@@ -80,7 +80,7 @@ Subprocessor matrix (typical small‑hospital deployment)
 | Cloud IaaS/PaaS (compute/LB) | AWS/GCP/Azure | Possible (network, disks, backups) | Yes | Run API behind TLS; restrict access; use HIPAA‑eligible services only. |
 | Object storage | S3 or S3‑compatible (KMS) | Yes (artifact PDFs/TIFFs) | Yes | Enforce SSE‑KMS, bucket policies, lifecycle rules. |
 | Relational database | Managed Postgres | Possible (metadata) | Yes | Encrypt at rest, TLS in transit, backups with PITR. |
-| Fax transport provider | Phaxio/Sinch | Yes (fax content, numbers) | Yes | Enable webhook signature verification; disable provider storage if policy requires. |
+| Fax transport provider | Phaxio/Sinch | Yes (fax content, numbers) | Yes | Enable webhook signature verification where supported (Phaxio). For Sinch inbound, use Basic auth and IP allowlists; disable provider storage if policy requires. |
 | SIP trunk provider (self‑hosted path) | Bandwidth/Twilio/etc. | Yes (fax media) | Yes | Limit ports/IPs; T.38; keep AMI internal; no public exposure. |
 | Logging/monitoring | SIEM/OTEL backend | Avoid storing PHI | Prefer BAA | Log IDs/metadata only; scrub numbers/content. |
 | Email/helpdesk | Support desk | Avoid PHI | Prefer BAA or forbid PHI | In contracts, forbid sending PHI to support unless covered by BAA. |
@@ -133,5 +133,5 @@ Cookie guidance (if your UI uses sessions)
 
 Operational checks
 - Enforce TLS everywhere; redirect HTTP→HTTPS.
-- Validate webhooks with HMAC/signatures; IP allowlist if available.
+- Validate webhooks when the provider supports signatures (e.g., Phaxio). For Sinch inbound, use Basic auth and IP allowlists.
 - Ensure no PHI in logs; log IDs and generic metadata only.
