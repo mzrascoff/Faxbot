@@ -73,17 +73,53 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
+      - name: Export secrets to env
+        run: |
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+          echo "OPEN_AI_KEY=${{ secrets.OPEN_AI_KEY }}" >> $GITHUB_ENV
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+
       - name: Run LLM to produce patch
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPEN_AI_KEY: ${{ secrets.OPEN_AI_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # Fallback to legacy secret name if needed
+          export OPENAI_API_KEY="${OPENAI_API_KEY:-$OPEN_AI_KEY}"
+          if [ -z "$OPENAI_API_KEY" ] && [ "$${{ inputs.provider }}" = "openai" ]; then
+            echo "OPENAI_API_KEY not configured (nor OPEN_AI_KEY)." >&2
+            exit 1
+          fi
           python scripts/docs_ai/generate_docs_from_diff.py --base ${{ inputs.base_ref }} --llm ${{ inputs.provider }}
+
+      - name: Upload LLM patch artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkdocs-docs-llm-patch
+          path: mkdocs-docs-llm.patch
+          if-no-files-found: ignore
 
       - name: Apply patch to mkdocs branch
         run: |
           git checkout mkdocs
-          git apply --index mkdocs-docs-llm.patch || echo "No patch applied"
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          if [ -f mkdocs-docs-llm.patch ]; then
+            if git apply --index mkdocs-docs-llm.patch; then
+              echo "Patch applied"
+            else
+              echo "git apply failed; attempting --reject and continuing"
+              git apply --reject mkdocs-docs-llm.patch || true
+            fi
+          fi
+          # Stage any fallback proposal Markdown the generator may have created
+          git ls-files --others --exclude-standard | rg '^docs/ai-proposal-' || true
+          if ls docs/ai-proposal-*.md 1>/dev/null 2>&1; then
+            git add docs/ai-proposal-*.md
+          fi
+          git status --porcelain
           git commit -m "docs(ai): apply LLM-suggested updates" || echo "Nothing to commit"
 
       - name: Create PR to mkdocs
@@ -93,4 +129,3 @@ jobs:
           base: mkdocs
           title: "docs(ai): proposed updates from LLM"
           body: "Automated proposal from Docs Autopilot. Review carefully."
-

@@ -162,8 +162,26 @@ Constraints:
     patch = call_llm(prompt, args.llm)
     # Save raw output
     out_raw = ROOT / "mkdocs-docs-llm.patch"
-    out_raw.write_text(patch, encoding="utf-8")
+    out_raw.write_text(patch or "", encoding="utf-8")
     print(f"LLM patch saved: {out_raw}")
+
+    # Fallback: if not a recognizable unified diff, write proposal markdown for manual review
+    head = (patch or "")[:64].lower()
+    looks_like_diff = any(x in head for x in ["diff --git", "*** begin patch", "index ", "--- ", "+++ "])
+    if not looks_like_diff:
+        from datetime import datetime
+        md = ROOT / "docs" / f"ai-proposal-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.md"
+        md.parent.mkdir(parents=True, exist_ok=True)
+        md.write_text(patch or "(empty)", encoding="utf-8")
+        print(f"Wrote fallback proposal: {md}")
+        if args.apply:
+            try:
+                run(f"git add {shlex.quote(str(md))}")
+                print("Staged proposal markdown.")
+            except Exception as e:
+                print(f"Failed staging proposal: {e}")
+        return
+
     if args.apply:
         try:
             run(f"git apply --index {shlex.quote(str(out_raw))}")
@@ -174,4 +192,3 @@ Constraints:
 
 if __name__ == "__main__":
     main()
-

@@ -31,7 +31,7 @@ nav:
 
   - AI Integration: ai-integration/index.md
   - Backends:
-    - Phaxio: backends/phaxio-setup.md
+    - Phaxio: PHAXIO_SETUP.md
     - Sinch: SINCH_SETUP.md
     - SIP/Asterisk: SIP_SETUP.md
   - Security: SECURITY.md
