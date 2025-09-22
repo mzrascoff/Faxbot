@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
 import { useTraits } from '../hooks/useTraits';
-import { getProviderDisplayName, getProviderIcon } from '../utils/providerIcons';
+import { getProviderIcon } from '../utils/providerIcons';
 import {
   ResponsiveTextField,
   ResponsiveCheckbox,

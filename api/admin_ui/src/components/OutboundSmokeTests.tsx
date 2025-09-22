@@ -14,7 +14,6 @@ import {
   IconButton,
   Tooltip,
   useTheme,
-  useMediaQuery,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -29,7 +28,7 @@ import {
 } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
 import { useTraits } from '../hooks/useTraits';
-import { getProviderDisplayName } from '../utils/providerIcons';
+import { getProviderDisplayName, getProviderIcon } from '../utils/providerIcons';
 import { ResponsiveFormSection } from './common/ResponsiveFormFields';
 
 interface OutboundSmokeTestsProps {
@@ -68,6 +67,7 @@ const TEST_TYPES = [
 ];
 
 export default function OutboundSmokeTests({ client }: OutboundSmokeTestsProps) {
+  const theme = useTheme();
   const { active } = useTraits();
 
   const [testJobs, setTestJobs] = useState<TestJob[]>([]);
@@ -121,12 +121,12 @@ export default function OutboundSmokeTests({ client }: OutboundSmokeTestsProps) 
     } else if (type === 'pdf') {
       // Generate a simple PDF
       const pdfContent = generateSimplePdf(`Faxbot Test PDF - ${providerName}`);
-      const blob = new Blob([pdfContent.buffer], { type: 'application/pdf' });
+      const blob = new Blob([new Uint8Array(pdfContent)], { type: 'application/pdf' });
       return new File([blob], 'faxbot_test.pdf', { type: 'application/pdf' });
     } else {
       // Generate a PDF with graphics (image test)
       const pdfContent = generateGraphicsPdf(`Faxbot Graphics Test - ${providerName}`);
-      const blob = new Blob([pdfContent.buffer], { type: 'application/pdf' });
+      const blob = new Blob([new Uint8Array(pdfContent)], { type: 'application/pdf' });
       return new File([blob], 'faxbot_image_test.pdf', { type: 'application/pdf' });
     }
   };

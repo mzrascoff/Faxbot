@@ -14,7 +14,6 @@ import {
   Tooltip,
   Collapse,
   useTheme,
-  useMediaQuery,
 } from '@mui/material';
 import {
   ContentCopy as CopyIcon,
@@ -32,7 +31,6 @@ import { ResponsiveFormSection } from './common/ResponsiveFormFields';
 
 interface InboundWebhookTesterProps {
   client: AdminAPIClient;
-  docsBase?: string;
 }
 
 interface TestResult {
@@ -43,7 +41,8 @@ interface TestResult {
   raw_response?: any;
 }
 
-export default function InboundWebhookTester({ client, docsBase }: InboundWebhookTesterProps) {
+export default function InboundWebhookTester({ client: _client }: InboundWebhookTesterProps) {
+  const theme = useTheme();
   const { active, traitValue, getWebhookUrl, getSamplePayload, getProviderHeaders } = useTraits();
 
   const [testPayload, setTestPayload] = useState('');

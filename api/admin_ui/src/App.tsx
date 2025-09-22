@@ -698,10 +698,10 @@ function AppContent() {
                 <Box>
                   <Diagnostics client={client!} onNavigate={handleTabChange} docsBase={adminConfig?.branding?.docs_base} />
                   <Box sx={{ mt: 4 }}>
-                    <OutboundSmokeTests client={client!} docsBase={adminConfig?.branding?.docs_base} />
+                    <OutboundSmokeTests client={client!} />
                   </Box>
                   <Box sx={{ mt: 4 }}>
-                    <InboundWebhookTester client={client!} docsBase={adminConfig?.branding?.docs_base} />
+                    <InboundWebhookTester client={client!} />
                   </Box>
                 </Box>
               )}
@@ -732,7 +732,6 @@ function AppContent() {
           // Refresh the page or reload config
           window.location.reload();
         }}
-        docsBase={adminConfig?.branding?.docs_base}
       />
     </Box>
   );
