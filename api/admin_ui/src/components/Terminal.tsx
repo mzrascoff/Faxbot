@@ -110,18 +110,18 @@ const Terminal: React.FC<TerminalProps> = ({ apiKey }) => {
 
     // Open terminal in the DOM element
     term.open(terminalRef.current);
-    
-    // Ensure the terminal captures keyboard input
+    // Ensure the terminal captures keyboard input consistently
     try {
-      term.focus();
       term.attachCustomKeyEventHandler(() => true);
+      // Initial focus after mount
+      setTimeout(() => { try { term.focus(); } catch {} }, 0);
     } catch {}
-    
+    // Focus on user interaction
     try {
-      // Focus on click just in case
-      terminalRef.current?.addEventListener('click', () => {
-        try { term.focus(); } catch {}
-      });
+      const focusFn = () => { try { term.focus(); } catch {} };
+      terminalRef.current?.addEventListener('click', focusFn);
+      terminalRef.current?.addEventListener('mousedown', focusFn);
+      terminalRef.current?.addEventListener('focus', focusFn);
     } catch {}
     
     // Initial fit
@@ -210,7 +210,16 @@ const Terminal: React.FC<TerminalProps> = ({ apiKey }) => {
       wsRef.current = null;
       // Provide a more helpful message on auth failure
       if (ev?.code === 1008) {
-        setError(ev.reason || 'Unauthorized (admin scope required)');
+        const reason = (ev.reason || '').toLowerCase();
+        if (reason.includes('proxy')) {
+          setError('Terminal blocked via proxy. Open locally or enable ADMIN_UI_ALLOW_TUNNEL=true.');
+        } else if (reason.includes('forbidden')) {
+          setError('Forbidden (local-only). Connect from loopback/private/VPN IP or allow tunnels.');
+        } else if (reason.includes('unauthorized')) {
+          setError('Unauthorized. Use an admin API key (keys:manage).');
+        } else {
+          setError(ev.reason || 'Unauthorized (admin scope required)');
+        }
       } else if (ev?.reason) {
         setError(ev.reason);
       }
@@ -509,6 +518,7 @@ const Terminal: React.FC<TerminalProps> = ({ apiKey }) => {
                 backgroundColor: theme.palette.mode === 'dark' ? '#0B0F14' : '#1e1e1e',
               },
               cursor: connected ? 'text' : 'default',
+              outline: 'none',
             }}
             tabIndex={0}
             onClick={() => { try { termRef.current?.focus(); } catch {} }}
@@ -539,6 +549,11 @@ const Terminal: React.FC<TerminalProps> = ({ apiKey }) => {
                 >
                   Reconnect
                 </Button>
+                {error?.toLowerCase().includes('proxy') && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Tip: Run locally/VPN or set <code>ADMIN_UI_ALLOW_TUNNEL=true</code>, then restart.
+                  </Typography>
+                )}
               </Box>
             </Fade>
           )}

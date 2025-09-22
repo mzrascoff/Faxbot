@@ -206,6 +206,14 @@ Quick references
 - App shell: `api/admin_ui/src/App.tsx`:1
 - Electron: `api/admin_ui/electron/main.js`:1, `api/admin_ui/electron/preload.js`:1
 
+Anchor mapping for precise help links (Docs → UI)
+- The Admin Console Diagnostics and Settings consume JSON anchor maps from the docs site to deep-link directly to exact sentences.
+- Location (docs site): `${docsBase}/anchors/<provider>.json` (e.g., anchors/sinch.json).
+- Schema: a flat object `{ "topic-key": "https://.../page#anchor-id" }`.
+- Examples of topic keys we use today:
+  - Sinch: `sinch-build-access-keys-location`, `sinch-oauth-client-credentials-flow`, `sinch-regional-base-url`, `sinch-inbound-webhook-url`, `sinch-inbound-basic-auth`, `sinch-troubleshoot-auth-fail`, `sinch-troubleshoot-inbound-fail`, `sinch-register-webhook-limitations`.
+- If an anchor mapping is present, the UI will prefer it over generic links. Keep these JSON files up to date as docs evolve to avoid stale or vague tips.
+
 ### How To Add A New Screen
 
 1) Create the component

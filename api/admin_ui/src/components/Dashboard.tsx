@@ -255,7 +255,7 @@ function Dashboard({ client, onNavigate }: DashboardProps) {
                   },
                   transition: 'all 0.2s ease-in-out',
                 }}
-                onClick={() => onNavigate?.(4)} // Navigate to Settings tab (index 4)
+                onClick={() => onNavigate?.('settings/security')}
               >
                 <CardContent sx={{ pb: { xs: 1, sm: 2 } }}>
                   <Typography variant="h6" component="h2" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
@@ -282,7 +282,7 @@ function Dashboard({ client, onNavigate }: DashboardProps) {
 
           {/* Config Overview */}
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ cursor: 'pointer' }} onClick={() => onNavigate?.('settings/settings')}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>Config Overview</Typography>
                 <Grid container spacing={1}>
@@ -303,7 +303,7 @@ function Dashboard({ client, onNavigate }: DashboardProps) {
 
           {/* MCP Overview */}
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ cursor: 'pointer' }} onClick={() => onNavigate?.('settings/mcp')}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>MCP Overview</Typography>
                 <Grid container spacing={1} alignItems="center">
@@ -339,7 +339,7 @@ function Dashboard({ client, onNavigate }: DashboardProps) {
           {/* Plugins (feature-gated) */}
           {cfg?.v3_plugins?.enabled && (
             <Grid item xs={12} md={6}>
-              <Card>
+              <Card sx={{ cursor: 'pointer' }} onClick={() => onNavigate?.('tools/plugins')}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>Plugins</Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -355,7 +355,7 @@ function Dashboard({ client, onNavigate }: DashboardProps) {
 
           {/* SDK & Quickstart */}
           <Grid item xs={12} md={cfg?.v3_plugins?.enabled ? 6 : 12}>
-            <Card>
+            <Card sx={{ cursor: 'pointer' }} onClick={() => onNavigate?.('send')}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>SDK & Quickstart</Typography>
                 <Typography variant="body2">Base URL: {window.location.origin}</Typography>
@@ -376,7 +376,7 @@ PY`}</Box>
 
           {/* Last Updated */}
           <Grid item xs={12}>
-            <Card>
+            <Card sx={{ cursor: 'pointer' }} onClick={() => onNavigate?.('tools/diagnostics')}>
               <CardContent>
                 <Typography variant="body2" color="text.secondary">
                   Last updated: {new Date(health.timestamp).toLocaleString()}

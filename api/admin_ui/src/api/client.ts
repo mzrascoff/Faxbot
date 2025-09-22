@@ -227,6 +227,14 @@ export class AdminAPIClient {
     return res.json();
   }
 
+  async purgeInboundBySid(providerSid: string): Promise<{ ok: boolean; deleted_faxes: number; deleted_events: number }>{
+    const res = await this.fetch('/admin/inbound/purge-by-sid', {
+      method: 'DELETE',
+      body: JSON.stringify({ provider_sid: providerSid })
+    });
+    return res.json();
+  }
+
   async simulateInbound(opts: { backend?: string; fr?: string; to?: string; pages?: number; status?: string } = {}): Promise<{ id: string; status: string }> {
     const res = await this.fetch('/admin/inbound/simulate', {
       method: 'POST',

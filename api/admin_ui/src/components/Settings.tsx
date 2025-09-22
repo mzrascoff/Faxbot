@@ -354,6 +354,7 @@ function Settings({ client }: SettingsProps) {
           </ResponsiveFormSection>
 
           {/* Security Settings */}
+          <Box id="settings-security" />
           <ResponsiveFormSection
             title="Security Settings"
             subtitle="Configure authentication and HIPAA compliance"
@@ -451,6 +452,7 @@ function Settings({ client }: SettingsProps) {
 
           {/* Backend-Specific Configuration */}
           {active?.outbound === 'phaxio' && (
+                  <Box id="settings-phaxio" />
                   <ResponsiveSettingSection
                     title="PHAXIO Configuration"
                     subtitle="Configure your Phaxio API credentials and settings"
@@ -503,6 +505,7 @@ function Settings({ client }: SettingsProps) {
                 )}
 
                 {active?.outbound === 'sinch' && (
+                  <Box id="settings-sinch" />
                   <ResponsiveSettingSection
                     title="Sinch Fax API v3 Configuration"
                     subtitle="Outbound API uses OAuth 2.0 (Bearer). Inbound webhooks are not provider‑signed; you may enforce Basic auth on your endpoint."
@@ -648,6 +651,7 @@ function Settings({ client }: SettingsProps) {
                 )}
 
                 {active?.outbound === 'sip' && (
+                  <Box id="settings-sip" />
                   <ResponsiveSettingSection
                     title="SIP / Asterisk Configuration"
                     subtitle="Configure your Asterisk AMI connection settings"
@@ -761,6 +765,7 @@ function Settings({ client }: SettingsProps) {
           </ResponsiveFormSection>
 
           {/* Inbound Receiving */}
+          <Box id="settings-inbound" />
           <ResponsiveFormSection
             title="Inbound Receiving"
             subtitle="Configure inbound fax receiving and storage settings"
@@ -1013,6 +1018,7 @@ function Settings({ client }: SettingsProps) {
               </Card>
             </Grid>
           )}
+          <Box id="settings-storage" />
           <ResponsiveFormSection
             title="Storage Configuration"
             subtitle="Configure file storage backend and S3 settings"

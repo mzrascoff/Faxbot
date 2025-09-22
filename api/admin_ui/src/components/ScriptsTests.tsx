@@ -157,6 +157,9 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
   const [actions, setActions] = useState<Array<{ id: string; label: string }>>([]);
   const [actionOutput, setActionOutput] = useState<Record<string, string>>({});
   const [activeActionTab, setActiveActionTab] = useState<string>('');
+  const [purgeSid, setPurgeSid] = useState<string>('');
+  const [purgeResult, setPurgeResult] = useState<string>('');
+  const [purging, setPurging] = useState<boolean>(false);
 
   const theme = useTheme();
 
@@ -247,6 +250,21 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
     } catch (e: any) {
       setError(e?.message || 'Failed to fetch callbacks');
     } finally { setBusyInfo(false); }
+  };
+
+  const runPurgeInbound = async () => {
+    setError(''); setPurging(true); setPurgeResult('');
+    try {
+      if (!purgeSid.trim()) throw new Error('Enter a provider_sid');
+      const res = await (client as any).purgeInboundBySid?.(purgeSid.trim());
+      if (res && res.ok) {
+        setPurgeResult(`Deleted faxes=${res.deleted_faxes}, events=${res.deleted_events}`);
+      } else {
+        setPurgeResult('No items deleted');
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Purge failed');
+    } finally { setPurging(false); }
   };
 
   const generateSecret = () => {
@@ -529,6 +547,12 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
                 </Button>
               </Stack>
               <ConsoleBox lines={infoLines} loading={busyInfo} />
+              <Typography variant="subtitle2" sx={{ mt: 1 }}>Database Helpers</Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                <ResponsiveTextField label="provider_sid" value={purgeSid} onChange={setPurgeSid} placeholder="fax_123 or provider-specific id" />
+                <Button variant="contained" onClick={runPurgeInbound} disabled={purging} sx={{ borderRadius: 2 }}>{purging ? 'Purging…' : 'Purge Inbound by SID'}</Button>
+                {purgeResult && <Chip size="small" color="info" variant="outlined" label={purgeResult} />}
+              </Stack>
             </Stack>
           </ResponsiveFormSection>
         </Grid>

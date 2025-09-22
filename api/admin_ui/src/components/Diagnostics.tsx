@@ -66,11 +66,54 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const [testJobId, setTestJobId] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<string[]>(['summary']);
+  const [anchors, setAnchors] = useState<Record<string, string>>({});
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { active, registry } = useTraits();
+  const thirdParty: Record<string, string> = {
+    'sinch-build-access-keys-location': 'https://dashboard.sinch.com/settings/access-keys',
+    'sinch-oauth-client-credentials-flow': 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/',
+    'sinch-regional-base-url': 'https://developers.sinch.com/docs/fax/api-reference/#global-url',
+    'sinch-inbound-webhook-url': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Notifications/#incoming-fax-event-webhook',
+    'sinch-inbound-basic-auth': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Notifications/#incoming-fax-event-webhook',
+    'sinch-register-webhook-limitations': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Services/#create-a-service',
+    'sinch-troubleshoot-auth-fail': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Error-Messages/#http-error-codes',
+    'sinch-troubleshoot-inbound-fail': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Services/#create-a-service',
+    'enforce-https-phi': 'https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312',
+    'require-api-key-production': 'https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#https',
+    'audit-logging-hipaa': 'https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312',
+    'phaxio-webhook-hmac': 'https://www.phaxio.com/docs/security/callbacks',
+    'phaxio-status-callback-url': 'https://www.phaxio.com/docs/api/v1/send/sendCallback',
+  };
+
+  const hrefFor = (topic: string): string | undefined => (anchors[topic] || thirdParty[topic]);
+
+  // Load anchor mapping from docs site for precise deep links
+  useEffect(() => {
+    const loadAnchors = async () => {
+      try {
+        const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
+        const topics: string[] = [ 'security', 'diagnostics', 'inbound', 'storage', 'plugins', 'mcp' ];
+        const provs = [active?.outbound, active?.inbound].filter(Boolean) as string[];
+        for (const p of provs) { if (!topics.includes(p)) topics.push(p); }
+        topics.push('all');
+        for (const t of Array.from(new Set(topics))) {
+          try {
+            const res = await fetch(`${base}/anchors/${t}.json`, { cache: 'no-store' });
+            if (res.ok) {
+              const js = await res.json();
+              setAnchors(prev => ({ ...prev, ...js }));
+            }
+          } catch { /* ignore per-scope failure */ }
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    loadAnchors();
+  }, [docsBase, active?.outbound, active?.inbound]);
 
   const runDiagnostics = async () => {
     try {
@@ -203,9 +246,9 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     if (t.includes('phaxio')) {
       docs.push({ text: 'Phaxio Setup Guide', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/phaxio-setup.html` });
       docs.push({ text: 'Phaxio Console', href: 'https://console.phaxio.com' });
-      if (key === 'public_url_https' || key === 'callback_url_set') {
-        docs.push({ text: 'Webhook security requires HTTPS for PHI transmission.' });
-      }
+      const add = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
+      add('phaxio-webhook-hmac', 'Verify Phaxio inbound HMAC signatures');
+      add('phaxio-status-callback-url', 'Set status callback URL (HTTPS required)');
     }
     
     if (t.includes('sip')) {
@@ -217,9 +260,10 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     
     if (t.includes('security')) {
       docs.push({ text: 'Security Guide', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/security/` });
-      if (key === 'enforce_https') {
-        docs.push({ text: 'HIPAA requires encryption in transit. Enable ENFORCE_PUBLIC_HTTPS=true.' });
-      }
+      const addSec = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
+      addSec('enforce-https-phi', 'Enforce HTTPS for PHI (ENFORCE_PUBLIC_HTTPS)');
+      addSec('require-api-key-production', 'Require API keys (REQUIRE_API_KEY)');
+      addSec('audit-logging-hipaa', 'Enable audit logging');
     }
 
     if (t.includes('sinch')) {
@@ -227,6 +271,15 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       docs.push({ text: 'Sinch Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/' });
       docs.push({ text: 'OAuth 2.0 for Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/' });
       docs.push({ text: 'Sinch Customer Dashboard (Access Keys – Build)', href: 'https://dashboard.sinch.com/settings/access-keys' });
+      const add = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
+      add('sinch-build-access-keys-location', 'Where to find Sinch Fax access keys (Build)');
+      add('sinch-oauth-client-credentials-flow', 'How Faxbot mints OAuth2 access tokens');
+      add('sinch-regional-base-url', 'Regional base URL (SINCH_BASE_URL)');
+      add('sinch-inbound-webhook-url', 'Set the inbound webhook URL');
+      add('sinch-inbound-basic-auth', 'Enforce Basic auth for inbound webhooks');
+      add('sinch-troubleshoot-auth-fail', 'Troubleshooting auth failures in Diagnostics');
+      add('sinch-troubleshoot-inbound-fail', 'Troubleshooting inbound failures');
+      add('sinch-register-webhook-limitations', 'Limitations of auto “Register with Sinch”');
     }
     
     return docs;

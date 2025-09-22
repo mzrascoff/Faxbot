@@ -161,6 +161,22 @@ function AppContent() {
         setTabValue(5);
         setToolsTab(2);
         break;
+      case 'tools/terminal':
+        setTabValue(5);
+        setToolsTab(0);
+        break;
+      case 'tools/plugins':
+        setTabValue(5);
+        setToolsTab(3); // Plugins entry only present when enabled
+        break;
+      case 'tools/scripts':
+        setTabValue(5);
+        setToolsTab(adminConfig?.v3_plugins?.enabled ? 4 : 3);
+        break;
+      case 'tools/tunnels':
+        setTabValue(5);
+        setToolsTab(adminConfig?.v3_plugins?.enabled ? 5 : 4);
+        break;
       case 'settings/setup':
         setTabValue(4);
         setSettingsTab(0);
@@ -168,6 +184,70 @@ function AppContent() {
       case 'settings/settings':
         setTabValue(4);
         setSettingsTab(1);
+        break;
+      case 'settings/security':
+        setTabValue(4);
+        setSettingsTab(1);
+        setTimeout(() => {
+          const el = document.querySelector('#settings-security');
+          (el as any)?.scrollIntoView?.({ behavior: 'smooth' });
+        }, 150);
+        break;
+      case 'settings/phaxio':
+        setTabValue(4);
+        setSettingsTab(1);
+        setTimeout(() => {
+          const el = document.querySelector('#settings-phaxio');
+          (el as any)?.scrollIntoView?.({ behavior: 'smooth' });
+        }, 150);
+        break;
+      case 'settings/sinch':
+        setTabValue(4);
+        setSettingsTab(1);
+        setTimeout(() => {
+          const el = document.querySelector('#settings-sinch');
+          (el as any)?.scrollIntoView?.({ behavior: 'smooth' });
+        }, 150);
+        break;
+      case 'settings/sip':
+        setTabValue(4);
+        setSettingsTab(1);
+        setTimeout(() => {
+          const el = document.querySelector('#settings-sip');
+          (el as any)?.scrollIntoView?.({ behavior: 'smooth' });
+        }, 150);
+        break;
+      case 'settings/inbound':
+        setTabValue(4);
+        setSettingsTab(1);
+        setTimeout(() => {
+          const el = document.querySelector('#settings-inbound');
+          (el as any)?.scrollIntoView?.({ behavior: 'smooth' });
+        }, 150);
+        break;
+      case 'settings/storage':
+        setTabValue(4);
+        setSettingsTab(1);
+        setTimeout(() => {
+          const el = document.querySelector('#settings-storage');
+          (el as any)?.scrollIntoView?.({ behavior: 'smooth' });
+        }, 150);
+        break;
+      case 'settings/mcp':
+        setTabValue(4);
+        setSettingsTab(3);
+        break;
+      case 'jobs':
+        setTabValue(2);
+        break;
+      case 'send':
+        setTabValue(1);
+        break;
+      case 'inbound':
+        setTabValue(3);
+        break;
+      case 'dashboard':
+        setTabValue(0);
         break;
       default:
         setTabValue(0);

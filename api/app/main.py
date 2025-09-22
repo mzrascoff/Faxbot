@@ -705,6 +705,10 @@ def get_admin_settings():
             "type": settings.fax_backend,
             "disabled": settings.fax_disabled,
         },
+        "features": {
+            "v3_plugins": settings.feature_v3_plugins,
+            "plugin_install": settings.feature_plugin_install,
+        },
         "hybrid": {
             "outbound_backend": ob,
             "inbound_backend": ib,
