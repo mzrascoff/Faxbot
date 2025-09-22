@@ -172,21 +172,6 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { active, registry } = useTraits();
-  const thirdParty: Record<string, string> = {
-    'sinch-build-access-keys-location': 'https://dashboard.sinch.com/settings/access-keys',
-    'sinch-oauth-client-credentials-flow': 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/',
-    'sinch-regional-base-url': 'https://developers.sinch.com/docs/fax/api-reference/#global-url',
-    'sinch-inbound-webhook-url': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Notifications/#incoming-fax-event-webhook',
-    'sinch-inbound-basic-auth': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Notifications/#incoming-fax-event-webhook',
-    'sinch-register-webhook-limitations': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Services/#create-a-service',
-    'sinch-troubleshoot-auth-fail': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Error-Messages/#http-error-codes',
-    'sinch-troubleshoot-inbound-fail': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Services/#create-a-service',
-    'enforce-https-phi': 'https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312',
-    'require-api-key-production': 'https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#https',
-    'audit-logging-hipaa': 'https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312',
-    'phaxio-webhook-hmac': 'https://www.phaxio.com/docs/security/callbacks',
-    'phaxio-status-callback-url': 'https://www.phaxio.com/docs/api/v1/send/sendCallback',
-  };
 
   // const hrefFor = (topic: string): string | undefined => (anchors[topic] || thirdParty[topic]);
 

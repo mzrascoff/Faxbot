@@ -56,6 +56,26 @@ function Inbound({ client, docsBase }: InboundProps) {
   const [callbacks, setCallbacks] = useState<any | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [copySnackbar, setCopySnackbar] = useState<string>('');
+  // Precise help anchors (lightweight resolver for inbound failures)
+  const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
+  const anchor = (topic: string) => `${base}/anchors/diagnostics.json`; // loader is not available here; use known pages below
+  const anchors: Record<string,string> = {
+    // Our docs pages
+    'inbound-overview': `${base}/inbound/`,
+    'phaxio-inbound-setup': `${base}/backends/phaxio-setup.html#phaxio-inbound-setup`,
+    'phaxio-webhook-hmac': `${base}/backends/phaxio-setup.html#phaxio-hmac-signature`,
+    'sinch-inbound-webhook': `${base}/backends/sinch-setup.html#sinch-inbound-webhook`,
+    'sinch-inbound-basic-auth': `${base}/backends/sinch-setup.html#sinch-inbound-basic-auth`,
+    'sip-ami-setup': `${base}/backends/sipsetup.html#sip-ami-setup`,
+    'sip-ami-security': `${base}/backends/sipsetup.html#sip-ami-security`,
+  };
+  const thirdParty: Record<string,string> = {
+    'phaxio-webhook-hmac': 'https://www.phaxio.com/docs/security/callbacks',
+    'sinch-inbound-webhook': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Notifications/#incoming-fax-event-webhook',
+    'sinch-inbound-basic-auth': 'https://developers.sinch.com/docs/voice/api-reference/voice/tag/Webhooks/#authentication',
+    'sip-ami-setup': 'https://medium.com/@lohaniprashant/asterisk-manager-interface-ami-setup-and-configuration-9b4f8d5bf9f9',
+    'sip-ami-security': 'https://medium.com/@lohaniprashant/asterisk-manager-interface-ami-setup-and-configuration-9b4f8d5bf9f9',
+  };
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -134,6 +154,8 @@ function Inbound({ client, docsBase }: InboundProps) {
         return 'default';
     }
   };
+
+  const failedCount = faxes.filter(f => String(f.status).toLowerCase().includes('fail')).length;
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -589,6 +611,37 @@ same => n,System(curl -s -X POST -H "Content-Type: application/json" -H "X-Inter
                 </Table>
               </TableContainer>
               
+              {failedCount > 0 && (
+                <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                  <Alert severity="error" sx={{ borderRadius: 2 }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                      {failedCount} inbound fax{failedCount>1?'es':''} failed — troubleshooting
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      Most failures are due to webhook configuration or auth. Use the links below for your active inbound provider.
+                    </Typography>
+                    {active?.inbound === 'sinch' && (
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <Button size="small" variant="outlined" href={anchors['sinch-inbound-webhook'] || thirdParty['sinch-inbound-webhook']} target="_blank" rel="noreferrer">Sinch: Inbound webhook</Button>
+                        <Button size="small" variant="outlined" href={anchors['sinch-inbound-basic-auth'] || thirdParty['sinch-inbound-basic-auth']} target="_blank" rel="noreferrer">Sinch: Callback auth</Button>
+                      </Stack>
+                    )}
+                    {active?.inbound === 'phaxio' && (
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <Button size="small" variant="outlined" href={anchors['phaxio-inbound-setup']} target="_blank" rel="noreferrer">Phaxio: Inbound setup</Button>
+                        <Button size="small" variant="outlined" href={anchors['phaxio-webhook-hmac'] || thirdParty['phaxio-webhook-hmac']} target="_blank" rel="noreferrer">Phaxio: Verify HMAC</Button>
+                      </Stack>
+                    )}
+                    {active?.inbound === 'sip' && (
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <Button size="small" variant="outlined" href={anchors['sip-ami-setup'] || thirdParty['sip-ami-setup']} target="_blank" rel="noreferrer">Asterisk: AMI setup</Button>
+                        <Button size="small" variant="outlined" href={anchors['sip-ami-security'] || thirdParty['sip-ami-security']} target="_blank" rel="noreferrer">AMI security</Button>
+                      </Stack>
+                    )}
+                  </Alert>
+                </Box>
+              )}
+
               {faxes.length > 0 && (
                 <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                   <Typography variant="caption" color="text.secondary">

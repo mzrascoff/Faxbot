@@ -622,7 +622,7 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
               {/* Local Parser (explicit label to avoid confusion) */}
               {inboundEnabled && (
                 <Box sx={{ mt: 2 }}>
-                  <InboundWebhookTester client={client} docsBase={docsBase} />
+                  <InboundWebhookTester client={client} />
                 </Box>
               )}
               <Typography variant="subtitle2" sx={{ mt: 1 }}>Database Helpers</Typography>
