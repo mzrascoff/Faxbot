@@ -16,10 +16,14 @@ jobs:
           python-version: '3.x'
       - name: Install deps
         run: pip install -r requirements.txt
-      - name: Deploy with mike
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Deploy with mike (gh-pages -> latest)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(git rev-parse --short "$GITHUB_SHA")
-          mike deploy --push --branch gh-pages --update-aliases "$VERSION" latest
-          mike set-default --push --branch gh-pages latest
+          mike deploy --branch gh-pages --remote origin --push --update-aliases "$VERSION" latest
+          mike set-default --branch gh-pages --remote origin --push latest
