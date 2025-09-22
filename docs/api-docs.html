@@ -127,10 +127,10 @@
         <div class="section">
             <h2>🔧 If Nothing Works</h2>
             <p>Download the spec file directly:</p>
-            <a href="/Faxbot/openapi.json" download="faxbot-openapi.json" class="button warning">
+            <a href="/openapi.json" download="faxbot-openapi.json" class="button warning">
                 📥 Download JSON
             </a>
-            <a href="/Faxbot/openapi.yaml" download="faxbot-openapi.yaml" class="button warning">
+            <a href="/openapi.yaml" download="faxbot-openapi.yaml" class="button warning">
                 📥 Download YAML
             </a>
             <p>Then import the downloaded file into your tool.</p>
@@ -161,8 +161,8 @@
 
         // Test both formats
         setTimeout(() => {
-            testUrl('https://faxbot.github.io/Faxbot/openapi.json', 'JSON');
-            testUrl('https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml', 'YAML');
+            testUrl('https://docs.faxbot.net/openapi.json', 'JSON');
+            testUrl('https://docs.faxbot.net/openapi.yaml', 'YAML');
         }, 1000);
     </script>
 </body>

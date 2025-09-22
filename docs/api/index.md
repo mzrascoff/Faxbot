@@ -12,10 +12,10 @@ Complete REST API documentation for Faxbot.
 
 ## OpenAPI Specification
 
-- **[📋 Copy & Paste API Docs](/Faxbot/api-docs.html)** - **GUARANTEED TO WORK** with any tool
-- **[OpenAPI JSON](/Faxbot/openapi.json)** - Standard JSON format (most compatible)
-- **[OpenAPI YAML](/Faxbot/openapi.yaml)** - YAML format
-- **[🔍 Swagger UI](https://petstore.swagger.io/?url=https://faxbot.github.io/Faxbot/openapi.json)** - Interactive API explorer
+- **[📋 Copy & Paste API Docs](/api-docs.html)** - **GUARANTEED TO WORK** with any tool
+- **[OpenAPI JSON](/openapi.json)** - Standard JSON format (most compatible)
+- **[OpenAPI YAML](/openapi.yaml)** - YAML format
+- **[🔍 Swagger UI](https://petstore.swagger.io/?url=https://docs.faxbot.net/openapi.json)** - Interactive API explorer
 
 ## Quick Start
 
