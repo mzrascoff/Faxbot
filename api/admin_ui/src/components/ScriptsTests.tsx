@@ -28,7 +28,7 @@ import {
   CheckCircle as CheckIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import AdminAPIClient from '../api/client';
+import AdminAPIClient from '../api/client';\nimport { useTraits } from '../hooks/useTraits';
 import { ResponsiveFormSection, ResponsiveTextField } from './common/ResponsiveFormFields';
 
 interface Props {
@@ -140,6 +140,7 @@ const ConsoleBox: React.FC<{ lines: string[]; loading?: boolean; title?: string 
 };
 
 const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
+  const { active, hasTrait } = useTraits();
   const [error, setError] = useState<string>('');
   const [busyAuth, setBusyAuth] = useState<boolean>(false);
   const [busyInbound, setBusyInbound] = useState<boolean>(false);
@@ -416,7 +417,7 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
         )}
 
         {/* Backend-specific helpers */}
-        {backend === 'sip' && (
+        {active?.outbound === 'sip' && (
           <Grid item xs={12} lg={6}>
             <ResponsiveFormSection
               title="SIP/Asterisk: Inbound Secret"
@@ -461,7 +462,7 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
           </Grid>
         )}
 
-        {backend === 'phaxio' && (
+        {active?.outbound === 'phaxio' && (
           <Grid item xs={12} lg={6}>
             <ResponsiveFormSection
               title="Phaxio: Set Callback URL"
@@ -499,9 +500,9 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
         {/* Inbound Callbacks Info */}
         <Grid item xs={12}>
           <ResponsiveFormSection
-            title={backend === 'phaxio' ? 'Phaxio Inbound Callback' : 
-                   backend === 'sinch' ? 'Sinch Inbound Callback' : 
-                   backend === 'sip' ? 'Asterisk Inbound (internal)' : 'Inbound Callback'}
+            title={active?.inbound === 'phaxio' ? 'Phaxio Inbound Callback' : 
+                   active?.inbound === 'sinch' ? 'Sinch Inbound Callback' : 
+                   active?.inbound === 'sip' ? 'Asterisk Inbound (internal)' : 'Inbound Callback'}
             subtitle="View current callback configuration"
             icon={<InfoIcon />}
           >

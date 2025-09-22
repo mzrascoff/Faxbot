@@ -38,7 +38,7 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import AdminAPIClient from '../api/client';
+import AdminAPIClient from '../api/client';\nimport { useTraits } from '../hooks/useTraits';
 import type { InboundFax } from '../api/types';
 import { ResponsiveFormSection } from './common/ResponsiveFormFields';
 
@@ -48,6 +48,7 @@ interface InboundProps {
 }
 
 function Inbound({ client, docsBase }: InboundProps) {
+  const { active } = useTraits();
   const [faxes, setFaxes] = useState<InboundFax[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -396,7 +397,7 @@ function Inbound({ client, docsBase }: InboundProps) {
             </Box>
           )}
 
-          {callbacks && callbacks.backend === 'sip' && (
+          {callbacks && active?.inbound === 'sip' && (
             <Box>
               <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
                 Asterisk Inbound Configuration

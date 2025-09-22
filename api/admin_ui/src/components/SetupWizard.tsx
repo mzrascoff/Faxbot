@@ -19,7 +19,8 @@ import {
   Paper,
 } from '@mui/material';
 import { Chip } from '@mui/material';
-import AdminAPIClient from '../api/client';\nimport { useTraits } from '../hooks/useTraits';
+import AdminAPIClient from '../api/client';
+import { useTraits } from '../hooks/useTraits';
 import SecretInput from './common/SecretInput';
 
 interface SetupWizardProps {
@@ -52,7 +53,7 @@ interface WizardConfig {
 }
 
 function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
-  const { active, hasTrait } = useTraits();
+  const { active, hasTrait, traitValue, getWebhookUrl } = useTraits();
   const [activeStep, setActiveStep] = useState(0);
   const [config, setConfig] = useState<WizardConfig>({
     backend: 'phaxio',
@@ -352,19 +353,19 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 Requires FreeSWITCH with mod_spandsp and gateway; configure result hook to post back status
               </Alert>
             )}
-            {(config.inbound_backend||config.backend) === 'phaxio' && (
+            {traitValue('inbound', 'inbound_verification') === 'hmac' && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                Inbound webhook will be <code>/phaxio-inbound</code>. Enable HMAC verification in provider.
+                Inbound webhook will be <code>{getWebhookUrl('inbound')}</code>. Enable HMAC verification in provider.
               </Alert>
             )}
-            {(config.inbound_backend||config.backend) === 'sinch' && (
+            {traitValue('inbound', 'inbound_verification') === 'basic' && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                Inbound webhook will be <code>/sinch-inbound</code>. Sinch webhooks are not provider‑signed; enforce Basic auth in Faxbot and consider IP allowlisting. Outbound API calls use OAuth 2.0 (Bearer).
+                Inbound webhook will be <code>{getWebhookUrl('inbound')}</code>. Sinch webhooks use Basic auth; enforce in Faxbot and consider IP allowlisting.
                 <br/>
                 Access keys live in the <a href="https://dashboard.sinch.com/settings/access-keys" target="_blank" rel="noreferrer">Sinch Customer (Build) Dashboard</a>. Other Sinch portals do not expose Fax API access keys.
               </Alert>
             )}
-            {(config.inbound_backend||config.backend) === 'sip' && (
+            {traitValue('inbound', 'inbound_verification') === 'internal_secret' && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Inbound internal endpoint: <code>/_internal/asterisk/inbound</code> (private network only).
               </Alert>
@@ -742,7 +743,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               >
                 Generate .env
               </Button>
-              {(config.inbound_backend === 'sinch' || (!config.inbound_backend && ob === 'sinch')) && (
+              {hasTrait('outbound', 'supports_oauth') && (
                 <Button
                   variant="outlined"
                   sx={{ ml: 1 }}
