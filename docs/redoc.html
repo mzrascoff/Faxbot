@@ -1,0 +1,34 @@
+---
+layout: null
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Faxbot API — ReDoc</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    #redoc-container { height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="redoc-container"></div>
+  <script>
+    // Support ?spec=<url> override, else default to local YAML
+    const params = new URLSearchParams(window.location.search);
+    const specUrl = params.get('spec') || 'openapi.yaml';
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
+  <script>
+    Redoc.init(specUrl, {
+      hideDownloadButton: false,
+      expandResponses: '200,201,400,401,403,404,413,415',
+      pathInMiddlePanel: true,
+      theme: { colors: { primary: { main: '#0ea5e9' } } }
+    }, document.getElementById('redoc-container'));
+  </script>
+</body>
+</html>
+
