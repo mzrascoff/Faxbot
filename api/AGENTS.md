@@ -1,7 +1,5 @@
 # AGENTS.md - Critical Instructions for AI Assistants
 
-Important: When you create a useful developer script or helper, add it to this file under "Quick Scripts" so it’s discoverable and maintained. Avoid one-off hacks that get lost.
-
 
 There has **NEVER** been an open source, locally hostable fax server API with AI assistant integration. **EVER.** None of this exists in any AI training data. You **CANNOT** make assumptions about how this works, what patterns to follow, or what "normal" looks like.
 
@@ -47,13 +45,6 @@ v3 UI additions
 - Curated registry search: discover available plugins; remote install is disabled by default and requires explicit approval when enabled.
 - Contextual help per active provider: tips and “Learn more” links are plugin‑specific; no cross‑backend leakage.
 - Scripts & Tests: backend‑aware quick actions; no CLI required. Local‑only Terminal is also available (see Security notes).
-
-## Quick Scripts (keep updated)
-
-- One‑command refresh script (local)
-  - `scripts/publish-api-docs.sh`
-  - Fetches `/openapi.json`, converts YAML, updates `../faxbot.net/public/api/v1`, commits, and pushes (Netlify auto‑deploys).
-
 
 Acceptance criteria (per screen or feature)
 - Inline explanation for each field or control (short helper text or tooltip).

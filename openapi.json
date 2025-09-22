@@ -137,6 +137,51 @@
         }
       }
     },
+    "/admin/traits/validate": {
+      "get": {
+        "summary": "Validate Traits Registry",
+        "description": "Return provider traits registry with any schema issues identified.\nClients and CI can use this to assert trait correctness.",
+        "operationId": "validate_traits_registry_admin_traits_validate_get",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/settings": {
       "get": {
         "summary": "Get Admin Settings",
@@ -1314,6 +1359,61 @@
         }
       }
     },
+    "/admin/inbound/purge-by-sid": {
+      "delete": {
+        "summary": "Admin Purge Inbound By Sid",
+        "description": "Admin-only utility to delete inbound_faxes and inbound_events by provider_sid.\nIntended for local/dev use to keep tests hermetic.",
+        "operationId": "admin_purge_inbound_by_sid_admin_inbound_purge_by_sid_delete",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurgeInboundBySidIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/fax-jobs": {
       "get": {
         "summary": "List Admin Jobs",
@@ -1786,6 +1886,16 @@
             "schema": {
               "type": "string",
               "title": "Job Id"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
             }
           },
           {
@@ -2599,6 +2709,51 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/inbound": {
+      "post": {
+        "summary": "Unified Inbound",
+        "description": "Unified inbound endpoint with provider autodetect.\n- provider query param OR header auto-detect (X-Phaxio-Signature / X-Sinch-Signature)\n- Returns canonical event shape and enforces signature in strict mode.",
+        "operationId": "unified_inbound_webhooks_inbound_post",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -3614,6 +3769,19 @@
         },
         "type": "object",
         "title": "PersistSettingsIn"
+      },
+      "PurgeInboundBySidIn": {
+        "properties": {
+          "provider_sid": {
+            "type": "string",
+            "title": "Provider Sid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_sid"
+        ],
+        "title": "PurgeInboundBySidIn"
       },
       "RegisterSinchOut": {
         "properties": {
