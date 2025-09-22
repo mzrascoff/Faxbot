@@ -31,6 +31,7 @@ import {
 import AdminAPIClient from '../api/client';
 import { useTraits } from '../hooks/useTraits';
 import { ResponsiveFormSection, ResponsiveTextField } from './common/ResponsiveFormFields';
+import InboundWebhookTester from './InboundWebhookTester';
 
 interface Props {
   client: AdminAPIClient;
@@ -160,6 +161,8 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
   const [purgeSid, setPurgeSid] = useState<string>('');
   const [purgeResult, setPurgeResult] = useState<string>('');
   const [purging, setPurging] = useState<boolean>(false);
+  const [sendImgBusy, setSendImgBusy] = useState<boolean>(false);
+  const [sendPdfBusy, setSendPdfBusy] = useState<boolean>(false);
 
   const theme = useTheme();
 
@@ -267,6 +270,57 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
     } finally { setPurging(false); }
   };
 
+  // Build a simple one-page PDF (copied from Diagnostics to keep UX consistent)
+  const buildSimplePdf = (text: string) => {
+    const parts: Uint8Array[] = [];
+    const enc = (s: string) => new TextEncoder().encode(s);
+    const o1 = enc('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+    const o2 = enc('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+    const o5 = enc('5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+    const streamContent = `BT /F1 24 Tf 72 720 Td (${text.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)')}) Tj ET`;
+    const o4Stream = enc(streamContent);
+    const o4 = enc(`4 0 obj\n<< /Length ${o4Stream.length} >>\nstream\n`);
+    const o4end = enc('\nendstream\nendobj\n');
+    const o3 = enc('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n');
+    let offset = 0; const add = (u: Uint8Array) => { parts.push(u); offset += u.length; };
+    const offsets: number[] = []; const addAndRemember = (u: Uint8Array) => { offsets.push(offset); add(u); };
+    addAndRemember(o1); addAndRemember(o2); addAndRemember(o3); addAndRemember(o4); add(o4Stream); add(o4end); addAndRemember(o5);
+    const xrefStart = offset;
+    const xref = `xref\n0 6\n0000000000 65535 f \n${offsets.map(o=>String(o).padStart(10,'0')+ ' 00000 n ').join('\n')}\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    add(enc(xref));
+    const total = parts.reduce((n,u)=>n+u.length,0); const out = new Uint8Array(total);
+    let p = 0; for (const u of parts) { out.set(u, p); p += u.length; }
+    return out;
+  };
+
+  const runSendTestImageFax = async () => {
+    setError(''); setSendImgBusy(true);
+    try {
+      const bytes = buildSimplePdf('Faxbot Test Image');
+      const ab = new ArrayBuffer(bytes.byteLength); new Uint8Array(ab).set(bytes);
+      const blob = new Blob([ab], { type: 'application/pdf' });
+      const file = new File([blob], 'faxbot_test_image.pdf', { type: 'application/pdf' });
+      const result = await client.sendFax(toNumber, file);
+      pushAuth(`[✓] Image Test queued: ${result.id} status=${result.status}`);
+    } catch (e:any) {
+      setError(e?.message || 'Test image fax failed to start');
+    } finally { setSendImgBusy(false); }
+  };
+
+  const runSendTestPdfFax = async () => {
+    setError(''); setSendPdfBusy(true);
+    try {
+      const bytes = buildSimplePdf('Faxbot Test PDF');
+      const ab = new ArrayBuffer(bytes.byteLength); new Uint8Array(ab).set(bytes);
+      const blob = new Blob([ab], { type: 'application/pdf' });
+      const file = new File([blob], 'faxbot_test.pdf', { type: 'application/pdf' });
+      const result = await client.sendFax(toNumber, file);
+      pushAuth(`[✓] PDF Test queued: ${result.id} status=${result.status}`);
+    } catch (e:any) {
+      setError(e?.message || 'Test PDF fax failed to start');
+    } finally { setSendPdfBusy(false); }
+  };
+
   const generateSecret = () => {
     try {
       if (window.crypto && (window.crypto as any).getRandomValues) {
@@ -350,11 +404,11 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
       )}
 
       <Grid container spacing={3}>
-        {/* Auth Smoke Test */}
+        {/* Outbound Smoke Tests */}
         <Grid item xs={12} lg={6}>
           <ResponsiveFormSection
-            title="Auth Smoke Test"
-            subtitle="Create key → send test → check status"
+            title="Outbound Smoke Tests"
+            subtitle="Send TXT/PDF/Image to test outbound config"
             icon={<KeyIcon />}
           >
             <Stack spacing={2}>
@@ -374,7 +428,25 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
                     startIcon={busyAuth ? <CircularProgress size={16} /> : <RunIcon />}
                     sx={{ borderRadius: 2, minWidth: 80 }}
                   >
-                    {busyAuth ? 'Running' : 'Run'}
+                    {busyAuth ? 'TXT…' : 'TXT Test'}
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    onClick={runSendTestPdfFax} 
+                    disabled={sendPdfBusy || busyInbound || busyInfo}
+                    startIcon={sendPdfBusy ? <CircularProgress size={16} /> : <RunIcon />}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {sendPdfBusy ? 'PDF…' : 'PDF Test'}
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    onClick={runSendTestImageFax} 
+                    disabled={sendImgBusy || busyInbound || busyInfo}
+                    startIcon={sendImgBusy ? <CircularProgress size={16} /> : <RunIcon />}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {sendImgBusy ? 'Image…' : 'Image Test'}
                   </Button>
                   <Button 
                     variant="outlined"
@@ -516,7 +588,7 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
           </Grid>
         )}
 
-        {/* Inbound Callbacks Info */}
+        {/* Inbound Callbacks Info + Local Parser Tester */}
         <Grid item xs={12}>
           <ResponsiveFormSection
             title={active?.inbound === 'phaxio' ? 'Phaxio Inbound Callback' : 
@@ -547,6 +619,12 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
                 </Button>
               </Stack>
               <ConsoleBox lines={infoLines} loading={busyInfo} />
+              {/* Local Parser (explicit label to avoid confusion) */}
+              {inboundEnabled && (
+                <Box sx={{ mt: 2 }}>
+                  <InboundWebhookTester client={client} docsBase={docsBase} />
+                </Box>
+              )}
               <Typography variant="subtitle2" sx={{ mt: 1 }}>Database Helpers</Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
                 <ResponsiveTextField label="provider_sid" value={purgeSid} onChange={setPurgeSid} placeholder="fax_123 or provider-specific id" />

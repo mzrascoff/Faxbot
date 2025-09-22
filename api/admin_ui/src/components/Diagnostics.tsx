@@ -67,6 +67,106 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<string[]>(['summary']);
   const [anchors, setAnchors] = useState<Record<string, string>>({});
+  // Third‑party precise links (fallback)
+  const thirdParty: Record<string, string> = {
+    // Sinch
+    'sinch-credentials': 'https://dashboard.sinch.com/settings/access-keys',
+    'sinch-oauth-client-credentials-flow': 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/',
+    'sinch-base-url': 'https://developers.sinch.com/docs/fax/api-reference/#global-url',
+    'sinch-status-updates': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Webhooks/',
+    'sinch-inbound-webhook': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Notifications/#incoming-fax-event-webhook',
+    'sinch-inbound-basic-auth': 'https://developers.sinch.com/docs/voice/api-reference/voice/tag/Webhooks/#authentication',
+    'sinch-register-webhook-limitations': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Services/#create-a-service',
+    'sinch-troubleshoot-auth-fail': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Error-Messages/#http-error-codes',
+    'sinch-troubleshoot-inbound-fail': 'https://developers.sinch.com/docs/fax/api-reference/fax/tag/Notifications/#incoming-fax-event-webhook',
+    // Security
+    'security-enforce-https': 'https://www.ecfr.gov/current/title-45/part-164/subpart/C/section-164.312',
+    'security-require-api-key': 'https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#authentication',
+    'security-audit-logging': 'https://www.ecfr.gov/current/title-45/part-164/subpart/C/section-164.312',
+    'enforce-https-phi': 'https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312',
+    'require-api-key-production': 'https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#https',
+    'audit-logging-hipaa': 'https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312',
+    // Phaxio
+    'phaxio-baa': 'https://www.phaxio.com/legal/hipaa',
+    'phaxio-disable-storage': 'https://www.phaxio.com/docs/account/settings/fax-storage',
+    'phaxio-hmac-signature': 'https://www.phaxio.com/docs/security/callbacks',
+    'phaxio-callback': 'https://www.phaxio.com/docs/api/v2/receive',
+    'phaxio-token-pdf': 'https://www.phaxio.com/docs/api/v2/faxes/content',
+    'phaxio-inbound-setup': 'https://www.phaxio.com/docs/api/v2/receive',
+    'phaxio-webhook-hmac': 'https://www.phaxio.com/docs/security/callbacks',
+    'phaxio-status-callback-url': 'https://www.phaxio.com/docs/api/v1/send/sendCallback',
+    // Storage
+    'storage-s3-endpoint': 'https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region',
+    'storage-s3-kms': 'https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html',
+    'storage-phi': 'https://www.hhs.gov/hipaa/for-professionals/privacy/laws-regulations/index.html',
+    'storage-file-retention': 'https://developers.sinch.com/docs/fax/api-reference/#tag/Faxes/operation/list-faxes',
+    // MCP
+    'mcp-overview': 'https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events',
+    'mcp-sse-auth': 'https://www.rfc-editor.org/rfc/rfc6750',
+    'mcp-rate-limits': 'https://developers.sinch.com/docs/voice/api-reference/#error-codes',
+    'mcp-error-handling': 'https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_errors',
+  };
+
+  // Internal provided anchors (fallback during docs rollout)
+  const providedAnchors: Record<string, string> = {
+    // phaxio
+    'phaxio-baa': 'https://dmontgomery40.github.io/Faxbot/backends/phaxiosetup.html#phaxio-baa',
+    'phaxio-disable-storage': 'https://dmontgomery40.github.io/Faxbot/backends/phaxio-setup.html#phaxio-disable-storage',
+    'phaxio-hmac-signature': 'https://dmontgomery40.github.io/Faxbot/backends/phaxio-setup.html#phaxio-hmac-signature',
+    'phaxio-callback': 'https://dmontgomery40.github.io/Faxbot/backends/phaxiosetup.html#phaxio-callback',
+    'phaxio-token-pdf': 'https://dmontgomery40.github.io/Faxbot/backends/phaxiosetup.html#phaxio-token-pdf',
+    'phaxio-inbound-setup': 'https://dmontgomery40.github.io/Faxbot/backends/phaxio-setup.html#phaxio-inbound-setup',
+    // sinch
+    'sinch-credentials': 'https://dmontgomery40.github.io/Faxbot/backends/sinchsetup.html#sinch-credentials',
+    'sinch-base-url': 'https://dmontgomery40.github.io/Faxbot/backends/sinchsetup.html#sinch-base-url',
+    'sinch-status-updates': 'https://dmontgomery40.github.io/Faxbot/backends/sinch-setup.html#sinch-status-updates',
+    'sinch-inbound-webhook': 'https://dmontgomery40.github.io/Faxbot/backends/sinch-setup.html#sinch-inbound-webhook',
+    // sip
+    'sip-ami-setup': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-ami-setup',
+    'sip-ami-security': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-ami-security',
+    'sip-t38-config': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-t38-config',
+    'sip-originate': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-originate',
+    'sip-inbound-secret': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-inbound-secret',
+    // signalwire
+    'signalwire-credentials': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-credentials',
+    'signalwire-callback': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-callback',
+    'signalwire-from': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-from',
+    'signalwire-limitations': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-limitations',
+    // freeswitch
+    'freeswitch-setup': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-setup',
+    'freeswitch-gateway': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-gateway',
+    'freeswitch-t38': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-t38',
+    'freeswitch-limitations': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-limitations',
+    // documo
+    'documo-setup': 'https://dmontgomery40.github.io/Faxbot/backends/documosetup.html#documo-setup',
+    'documo-sandbox': 'https://dmontgomery40.github.io/Faxbot/backends/documosetup.html#documo-sandbox',
+    'documo-limitations': 'https://dmontgomery40.github.io/Faxbot/backends/documosetup.html#documo-limitations',
+    // inbound
+    'inbound-enable': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-enable',
+    'inbound-retention': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-retention',
+    'inbound-token-ttl': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-token-ttl',
+    'inbound-rate-limits': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-rate-limits',
+    'inbound-access': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-access',
+    'inbound-webhook-test': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-webhook-test',
+    // security
+    'security-require-api-key': 'https://dmontgomery40.github.io/Faxbot/security.html#security-require-api-key',
+    'security-enforce-https': 'https://dmontgomery40.github.io/Faxbot/security.html#security-enforce-https',
+    'security-audit-logging': 'https://dmontgomery40.github.io/Faxbot/security.html#security-audit-logging',
+    'security-hipaa': 'https://dmontgomery40.github.io/Faxbot/security.html#security-hipaa',
+    'security-persisted-env': 'https://dmontgomery40.github.io/Faxbot/security.html#security-persisted-env',
+    // storage
+    'storage-local-vs-s3': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-local-vs-s3',
+    'storage-s3-kms': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-s3-kms',
+    'storage-s3-endpoint': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-s3-endpoint',
+    'storage-phi': 'https://dmontgomery40.github.io/Faxbot/storage.html#storagephi',
+    'storage-file-retention': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-file-retention',
+    // mcp
+    'mcp-overview': 'https://dmontgomery40.github.io/Faxbot/ai-integration/mcpintegration.html#mcp-overview',
+    'mcp-http': 'https://dmontgomery40.github.io/Faxbot/ai-integration/mcpintegration.html#mcp-http',
+    'mcp-sse-auth': 'https://dmontgomery40.github.io/Faxbot/ai-integration/mcpintegration.html#mcp-sse-auth',
+    'mcp-rate-limits': 'https://developers.sinch.com/docs/voice/api-reference/#error-codes',
+    'mcp-error-handling': 'https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_errors',
+  };
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -306,7 +406,26 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     return docs;
   };
 
+  const shouldShowSection = (title: string) => {
+    const t = (title || '').toLowerCase();
+    // Provider isolation
+    if (t.includes('sip')) {
+      // Show only if inbound requires AMI or active provider is SIP
+      const needsAmi = Boolean(registry?.[active?.inbound || '']?.traits?.requires_ami);
+      return needsAmi || active?.outbound === 'sip' || active?.inbound === 'sip';
+    }
+    if (t.includes('phaxio')) {
+      return active?.outbound === 'phaxio' || active?.inbound === 'phaxio';
+    }
+    if (t.includes('sinch')) {
+      return active?.outbound === 'sinch' || active?.inbound === 'sinch';
+    }
+    // Always show generic sections (system, security, storage, diagnostics)
+    return true;
+  };
+
   const renderCheckSection = (title: string, checks: Record<string, any>) => {
+    if (!shouldShowSection(title)) return null;
     const sectionKey = title.toLowerCase().replace(/\s+/g, '_');
     const isExpanded = expandedSections.includes(sectionKey);
 
