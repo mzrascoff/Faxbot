@@ -2,9 +2,7 @@
   {
     "version": "f29339c",
     "title": "f29339c",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "dcbcbdb",
@@ -15,6 +13,13 @@
     "version": "dcb5167",
     "title": "dcb5167",
     "aliases": []
+  },
+  {
+    "version": "249dc51",
+    "title": "249dc51",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "50c55e0",
