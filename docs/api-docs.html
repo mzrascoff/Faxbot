@@ -1,169 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Faxbot API Documentation</title>
+    <meta charset="utf-8">
+    <title>Faxbot API Reference</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .button { 
-            display: inline-block; 
-            padding: 12px 24px; 
-            background: #007bff; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 6px; 
-            margin: 10px 10px 10px 0;
-            font-weight: bold;
-        }
-        .button:hover { background: #0056b3; }
-        .success { background: #28a745; }
-        .warning { background: #ffc107; color: #212529; }
-        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
-        .section { margin: 30px 0; padding: 20px; border: 1px solid #dee2e6; border-radius: 8px; }
-        h1 { color: #333; }
-        h2 { color: #666; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 40px auto; max-width: 900px; padding: 0 16px; }
+        h1, h2 { margin-top: 1.25rem; }
+        a.button { display: inline-block; padding: 10px 16px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin: 6px 8px 6px 0; }
+        a.secondary { background: #374151; }
+        .muted { color: #6b7280; }
+        .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; background: #f9fafb; }
     </style>
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 Faxbot API Documentation</h1>
-        <p><strong>The first and only open-source, self-hostable fax API.</strong></p>
+    <h1>API Reference</h1>
+    <p class="muted">The live, always‑up‑to‑date API reference is hosted on the website.</p>
 
-        <div class="section">
-            <h2>📋 Copy & Paste URLs (100% Working)</h2>
-            <p>Use these URLs in any API documentation tool:</p>
-            
-            <h3>JSON Format (Recommended)</h3>
-            <pre>https://docs.faxbot.net/openapi.json</pre>
-            <a href="https://petstore.swagger.io/?url=https://docs.faxbot.net/openapi.json" class="button">
-                🔍 Open in Swagger UI
-            </a>
-            
-            <h3>YAML Format</h3>
-            <pre>https://docs.faxbot.net/openapi.yaml</pre>
-            <a href="https://petstore.swagger.io/?url=https://docs.faxbot.net/openapi.yaml" class="button">
-                🔍 Open YAML in Swagger UI
-            </a>
-        </div>
-
-        <div class="section">
-            <h2>🛠️ Tool-Specific Instructions</h2>
-            
-            <h3>Postman</h3>
-            <ol>
-                <li>Click "Import" → "Link"</li>
-                <li>Paste: <code>https://docs.faxbot.net/openapi.json</code></li>
-                <li>Click "Continue" → "Import"</li>
-            </ol>
-
-            <h3>Insomnia</h3>
-            <ol>
-                <li>File → Import/Export → Import Data → From URL</li>
-                <li>Paste: <code>https://docs.faxbot.net/openapi.json</code></li>
-            </ol>
-
-            <h3>Stoplight Studio</h3>
-            <ol>
-                <li>Create New Project → Import OpenAPI</li>
-                <li>Paste: <code>https://docs.faxbot.net/openapi.json</code></li>
-            </ol>
-
-            <h3>Redoc</h3>
-            <ol>
-                <li>Go to <a href="https://redocly.github.io/redoc/">redocly.github.io/redoc</a></li>
-                <li>Add <code>?url=https://docs.faxbot.net/openapi.json</code> to the URL</li>
-            </ol>
-        </div>
-
-        <div class="section">
-            <h2>⚡ Quick API Test</h2>
-            <p>Test the API directly:</p>
-            
-            <h3>Health Check</h3>
-            <pre>curl http://localhost:8080/health</pre>
-            
-            <h3>Send a Fax</h3>
-            <pre>curl -X POST "http://localhost:8080/fax" \
-  -H "X-API-Key: your_key_here" \
-  -F "to=+15551234567" \
-  -F "file=@document.pdf"</pre>
-            
-            <h3>Check Status</h3>
-            <pre>curl -H "X-API-Key: your_key_here" \
-  "http://localhost:8080/fax/{job_id}"</pre>
-        </div>
-
-        <div class="section">
-            <h2>📚 Core Endpoints</h2>
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr style="background: #f8f9fa;">
-                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Method</th>
-                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Endpoint</th>
-                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Description</th>
-                </tr>
-                <tr>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>POST</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>/fax</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;">Send a fax</td>
-                </tr>
-                <tr>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>GET</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>/fax/{id}</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;">Get fax status</td>
-                </tr>
-                <tr>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>GET</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>/health</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;">Health check</td>
-                </tr>
-                <tr>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>GET</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;"><code>/inbound</code></td>
-                    <td style="padding: 12px; border: 1px solid #dee2e6;">List received faxes</td>
-                </tr>
-            </table>
-        </div>
-
-        <div class="section">
-            <h2>🔧 If Nothing Works</h2>
-            <p>Download the spec file directly:</p>
-            <a href="/openapi.json" download="faxbot-openapi.json" class="button warning">
-                📥 Download JSON
-            </a>
-            <a href="/openapi.yaml" download="faxbot-openapi.yaml" class="button warning">
-                📥 Download YAML
-            </a>
-            <p>Then import the downloaded file into your tool.</p>
-        </div>
-
-        <div id="test-status"></div>
+    <div class="card">
+        <p>
+            <a href="https://faxbot.net/api/v1/" class="button">📚 View API (ReDoc)</a>
+            <a href="https://faxbot.net/api/v1/swagger" class="button secondary">🔍 Swagger UI</a>
+        </p>
+        <p>
+            Spec files: <a href="https://faxbot.net/api/v1/openapi.json">JSON</a> · <a href="https://faxbot.net/api/v1/openapi.yaml">YAML</a>
+        </p>
     </div>
 
-    <script>
-        // Test if our URLs actually work
-        function testUrl(url, format) {
-            fetch(url)
-                .then(response => {
-                    if (response.ok) {
-                        return response.text();
-                    }
-                    throw new Error(`HTTP ${response.status}`);
-                })
-                .then(data => {
-                    const statusDiv = document.getElementById('test-status');
-                    statusDiv.innerHTML += `<p style="color: #28a745;">✅ ${format} format is accessible and ready!</p>`;
-                })
-                .catch(error => {
-                    const statusDiv = document.getElementById('test-status');
-                    statusDiv.innerHTML += `<p style="color: #dc3545;">❌ ${format} format: ${error.message}</p>`;
-                });
-        }
-
-        // Test both formats
-        setTimeout(() => {
-            testUrl('https://docs.faxbot.net/openapi.json', 'JSON');
-            testUrl('https://docs.faxbot.net/openapi.yaml', 'YAML');
-        }, 1000);
-    </script>
+    <h2>Developers</h2>
+    <p>For local preview, you can still use repo helpers:</p>
+    <ul class="muted">
+        <li><code>./scripts/regenerate-openapi-yaml.sh http://localhost:8080</code></li>
+        <li><code>./scripts/preview-openapi-docs.sh</code> → <code>http://localhost:8081/swagger.html</code></li>
+    </ul>
 </body>
 </html>
+

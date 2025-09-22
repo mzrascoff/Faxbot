@@ -201,7 +201,8 @@ jobs:
     - name: Setup SSH key
       uses: webfactory/ssh-agent@v0.7.0
       with:
-        ssh-private-key: ${{ secrets.FAXBOT_NET_DEPLOY_KEY }}
+        # Prefer the secret name from API_DOCS_SETUP.md; fall back to legacy key if present
+        ssh-private-key: ${{ secrets.FAXBOT_NET_DEPLOY_TOKEN || secrets.FAXBOT_NET_DEPLOY_KEY }}
 
     - name: Checkout faxbot.net repo
       run: |
