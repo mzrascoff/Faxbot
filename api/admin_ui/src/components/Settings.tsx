@@ -75,6 +75,7 @@ function Settings({ client }: SettingsProps) {
         fax_disabled: data.backend?.disabled,
         inbound_enabled: data.inbound?.enabled,
         feature_plugin_install: data.features?.plugin_install,
+        sinch_base_url: (data as any)?.sinch?.base_url || '',
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch settings');
@@ -218,7 +219,8 @@ function Settings({ client }: SettingsProps) {
             <ResponsiveSettingItem
               icon={getStatusIcon(!settings.backend.disabled)}
               label="Outbound Provider"
-              value={(effectiveOutbound || 'phaxio').toUpperCase()}
+              value={(effectiveOutbound || 'phaxio')}
+              currentValue={(['sip','freeswitch'].includes((effectiveOutbound || '').toLowerCase()) ? 'Self-hosted' : 'Cloud-based')}
               helperText="Outbound handles sending. Changing providers may require restart and provider-specific config."
               onChange={(value) => handleForm('outbound_backend', value)}
               type="select"
@@ -236,7 +238,8 @@ function Settings({ client }: SettingsProps) {
             <ResponsiveSettingItem
               icon={<CloudIcon />}
               label="Inbound Provider"
-              value={(effectiveInbound || 'phaxio').toUpperCase()}
+              value={(effectiveInbound || 'phaxio')}
+              currentValue={(['sip','freeswitch'].includes((effectiveInbound || '').toLowerCase()) ? 'Self-hosted' : 'Cloud-based')}
               helperText="Inbound handles receiving/callbacks. Choose 'SIP/Asterisk' for internal posting or a cloud provider for webhooks."
               onChange={(value) => handleForm('inbound_backend', value)}
               type="select"
@@ -276,7 +279,7 @@ function Settings({ client }: SettingsProps) {
             <ResponsiveSettingItem
               icon={settings.security.require_api_key ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
               label="API Key Required"
-              value={settings.security.require_api_key ? 'Yes' : 'No'}
+              value={((form.require_api_key ?? settings.security.require_api_key) ? 'true' : 'false')}
               helperText="Enable in production; required for HIPAA. Mint DB-backed keys in the Keys tab and pass them as X-API-Key."
               onChange={(value) => handleForm('require_api_key', value === 'true')}
               type="select"
@@ -284,13 +287,13 @@ function Settings({ client }: SettingsProps) {
                 { value: 'true', label: 'Yes (Required for HIPAA)' },
                 { value: 'false', label: 'No (Dev only)' }
               ]}
-              showCurrentValue={true}
+              showCurrentValue={false}
             />
             
             <ResponsiveSettingItem
               icon={settings.security.enforce_https ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
               label="HTTPS Enforced"
-              value={settings.security.enforce_https ? 'Yes' : 'No'}
+              value={((form.enforce_public_https ?? settings.security.enforce_https) ? 'true' : 'false')}
               helperText="Required for PHI. PUBLIC_API_URL must be HTTPS for cloud providers to fetch PDFs securely."
               onChange={(value) => handleForm('enforce_public_https', value === 'true')}
               type="select"
@@ -298,13 +301,13 @@ function Settings({ client }: SettingsProps) {
                 { value: 'true', label: 'Yes (Required for PHI)' },
                 { value: 'false', label: 'No (Dev only)' }
               ]}
-              showCurrentValue={true}
+              showCurrentValue={false}
             />
             
             <ResponsiveSettingItem
               icon={settings.security.audit_enabled ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
               label="Audit Logging"
-              value={settings.security.audit_enabled ? 'Enabled' : 'Disabled'}
+              value={((form.audit_log_enabled ?? settings.security.audit_enabled) ? 'true' : 'false')}
               helperText="Enable structured logs for admin actions and fax lifecycle. Set AUDIT_LOG_FILE to persist; view in Logs tab."
               onChange={(value) => handleForm('audit_log_enabled', value === 'true')}
               type="select"
@@ -312,13 +315,13 @@ function Settings({ client }: SettingsProps) {
                 { value: 'true', label: 'Enabled (HIPAA requirement)' },
                 { value: 'false', label: 'Disabled' }
               ]}
-              showCurrentValue={true}
+              showCurrentValue={false}
             />
             
             <ResponsiveSettingItem
               icon={persistedEnabled ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
               label="Load persisted .env at startup"
-              value={persistedEnabled ? 'Enabled' : 'Disabled'}
+              value={((form.enable_persisted_settings ?? persistedEnabled) ? 'true' : 'false')}
               helperText='Loads /faxdata/faxbot.env at boot. Use "Save .env to server" after applying changes to keep them across restarts.'
               onChange={(value) => handleForm('enable_persisted_settings', value === 'true')}
               type="select"
@@ -326,8 +329,29 @@ function Settings({ client }: SettingsProps) {
                 { value: 'true', label: 'Enabled' },
                 { value: 'false', label: 'Disabled' }
               ]}
-              showCurrentValue={true}
+              showCurrentValue={false}
             />
+
+            {/* Inline posture warning: HTTPS enforced but PUBLIC_API_URL not HTTPS (cloud backends) */}
+            {(() => {
+              try {
+                const effectiveOb = (effectiveOutbound || '').toLowerCase();
+                const httpsEnforced = Boolean(form.enforce_public_https ?? settings.security.enforce_https);
+                const url = String(form.public_api_url || settings.security.public_api_url || '');
+                const isCloud = ['phaxio', 'sinch', 'signalwire', 'documo'].includes(effectiveOb);
+                if (!httpsEnforced || !isCloud || !url) return null;
+                const isHttps = url.startsWith('https://');
+                const isLocal = url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1');
+                if (!isHttps && !isLocal) {
+                  return (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      ENFORCE_PUBLIC_HTTPS is enabled, but PUBLIC_API_URL is not HTTPS. Use an HTTPS URL or disable for non‑PHI dev.
+                    </Alert>
+                  );
+                }
+              } catch {}
+              return null;
+            })()}
           </ResponsiveFormSection>
 
           {/* VPN Tunnel (iOS connectivity) */}
@@ -391,6 +415,119 @@ function Settings({ client }: SettingsProps) {
                       placeholder="https://localhost:8080/phaxio-callback"
                       onChange={(value) => handleForm('public_api_url', value)}
                       showCurrentValue={!!settings.phaxio.callback_url}
+                    />
+                  </ResponsiveSettingSection>
+                )}
+
+                {settings.backend.type === 'sinch' && (
+                  <ResponsiveSettingSection
+                    title="Sinch Fax API v3 Configuration"
+                    subtitle="Outbound API uses OAuth 2.0 (Bearer). Inbound webhooks are not provider‑signed; you may enforce Basic auth on your endpoint."
+                  >
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                      <Chip
+                        label="Faxbot: Sinch Setup"
+                        component="a"
+                        href={`${docsBase}/backends/sinch-setup.html`}
+                        target="_blank"
+                        rel="noreferrer"
+                        clickable
+                        size="small"
+                        variant="outlined"
+                      />
+                      <Chip
+                        label="Sinch Fax API Docs"
+                        component="a"
+                        href={`https://developers.sinch.com/docs/fax/api-reference/`}
+                        target="_blank"
+                        rel="noreferrer"
+                        clickable
+                        size="small"
+                        variant="outlined"
+                      />
+                      <Chip
+                        label="OAuth 2.0 Auth"
+                        component="a"
+                        href={`https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/`}
+                        target="_blank"
+                        rel="noreferrer"
+                        clickable
+                        size="small"
+                        variant="outlined"
+                      />
+                      <Chip
+                        label="Sinch Customer Dashboard (Access Keys)"
+                        component="a"
+                        href={`https://dashboard.sinch.com/settings/access-keys`}
+                        target="_blank"
+                        rel="noreferrer"
+                        clickable
+                        size="small"
+                        variant="outlined"
+                      />
+                    </Box>
+                    <ResponsiveSettingItem
+                      icon={getStatusIcon(true)}
+                      label="Outbound Auth Method"
+                      value={(form.sinch_auth_method || (settings as any)?.sinch?.auth_method || 'basic')}
+                      helperText="Choose OAuth 2.0 for HIPAA‑aligned deployments; Basic remains available for compatibility."
+                      onChange={(value) => handleForm('sinch_auth_method', value)}
+                      type="select"
+                      options={[
+                        { value: 'basic', label: 'Basic (Key/Secret)' },
+                        { value: 'oauth', label: 'OAuth 2.0 (Bearer) — Recommended' },
+                      ]}
+                      showCurrentValue={false}
+                    />
+                    <ResponsiveSettingItem
+                      icon={getStatusIcon(!!settings?.sinch?.project_id)}
+                      label="Project ID"
+                      value={settings?.sinch?.project_id || ''}
+                      helperText="Your Sinch Fax project ID (used with key/secret to mint OAuth 2.0 access tokens for API calls)"
+                      placeholder="SINCH_PROJECT_ID"
+                      onChange={(value) => handleForm('sinch_project_id', value)}
+                      showCurrentValue={!!settings?.sinch?.project_id}
+                    />
+
+                    <ResponsiveSettingItem
+                      icon={getStatusIcon(!!settings?.sinch?.api_key)}
+                      label="API Key"
+                      value={settings?.sinch?.api_key ? '********' : ''}
+                      helperText="Sinch API key (Key ID). Used to obtain OAuth 2.0 access tokens; stored server-side and masked here."
+                      placeholder="SINCH_API_KEY"
+                      onChange={(value) => handleForm('sinch_api_key', value)}
+                      type="password"
+                      showCurrentValue={!!settings?.sinch?.api_key}
+                    />
+
+                    <ResponsiveSettingItem
+                      icon={getStatusIcon(!!settings?.sinch?.api_secret)}
+                      label="API Secret"
+                      value={settings?.sinch?.api_secret ? '********' : ''}
+                      helperText="Sinch API secret. Used to obtain OAuth 2.0 access tokens; stored server-side and masked here."
+                      placeholder="SINCH_API_SECRET"
+                      onChange={(value) => handleForm('sinch_api_secret', value)}
+                      type="password"
+                      showCurrentValue={!!settings?.sinch?.api_secret}
+                    />
+
+                    <ResponsiveSettingItem
+                      icon={getStatusIcon(true)}
+                      label="Base URL (optional)"
+                      value={(form.sinch_base_url as string) || ''}
+                      helperText="Override region (e.g., https://us.fax.api.sinch.com/v3). Leave blank for default."
+                      placeholder="SINCH_BASE_URL"
+                      onChange={(value) => handleForm('sinch_base_url', value)}
+                      showCurrentValue={false}
+                    />
+                    <ResponsiveSettingItem
+                      icon={getStatusIcon(true)}
+                      label="OAuth Token URL (optional)"
+                      value={(form.sinch_auth_base_url as string) || ''}
+                      helperText="Override auth region (e.g., https://eu.auth.sinch.com/oauth2/token). Leave blank for default."
+                      placeholder="SINCH_AUTH_BASE_URL"
+                      onChange={(value) => handleForm('sinch_auth_base_url', value)}
+                      showCurrentValue={false}
                     />
                   </ResponsiveSettingSection>
                 )}
@@ -549,7 +686,7 @@ function Settings({ client }: SettingsProps) {
             <ResponsiveSettingItem
               icon={settings.inbound?.enabled ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
               label="Enable Inbound"
-              value={settings.inbound?.enabled ? 'Enabled' : 'Disabled'}
+              value={(form.inbound_enabled ?? settings.inbound?.enabled) ? 'true' : 'false'}
               helperText="Allow receiving faxes (requires additional configuration based on backend)"
               onChange={(value) => handleForm('inbound_enabled', value === 'true')}
               type="select"
@@ -574,11 +711,11 @@ function Settings({ client }: SettingsProps) {
             <ResponsiveSettingItem
               icon={<SettingsIcon />}
               label="Token TTL (minutes)"
-              value={String(settings.inbound?.token_ttl_minutes ?? 60)}
-              helperText="How long PDF download tokens remain valid"
-              onChange={(value) => handleForm('inbound_token_ttl_minutes', parseInt(value))}
+              value={"60"}
+              helperText="Fixed: 60 minutes"
+              onChange={() => { /* fixed TTL */ }}
               type="number"
-              placeholder={String(settings.inbound?.token_ttl_minutes ?? 60)}
+              placeholder={"60"}
               showCurrentValue={true}
             />
 
@@ -647,7 +784,8 @@ function Settings({ client }: SettingsProps) {
               <ResponsiveSettingItem
                 icon={settings.inbound?.phaxio?.verify_signature ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
                 label="Verify Phaxio Inbound Signature"
-                value={settings.inbound?.phaxio?.verify_signature ? 'Enabled' : 'Disabled'}
+                value={(form.phaxio_inbound_verify_signature ?? settings.inbound?.phaxio?.verify_signature) ? 'true' : 'false'}
+                currentValue={settings.inbound?.phaxio?.verify_signature ? 'Enabled' : 'Disabled'}
                 helperText="Enable HMAC signature verification for Phaxio inbound webhooks (recommended for security)"
                 onChange={(value) => handleForm('phaxio_inbound_verify_signature', value === 'true')}
                 type="select"
@@ -662,47 +800,22 @@ function Settings({ client }: SettingsProps) {
             {effectiveInbound === 'sinch' && (
               <Box sx={{ mt: 2 }}>
                 <ResponsiveSettingItem
-                  icon={settings.inbound?.sinch?.verify_signature ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
-                  label="Verify Sinch Inbound Signature"
-                  value={settings.inbound?.sinch?.verify_signature ? 'Enabled' : 'Disabled'}
-                  helperText="Enable HMAC signature verification for Sinch inbound webhooks"
-                  onChange={(value) => handleForm('sinch_inbound_verify_signature', value === 'true')}
-                  type="select"
-                  options={[
-                    { value: 'true', label: 'Enabled' },
-                    { value: 'false', label: 'Disabled' }
-                  ]}
-                  showCurrentValue={true}
-                />
-                
-                <ResponsiveSettingItem
                   icon={settings.inbound?.sinch?.basic_auth_configured ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
-                  label="Sinch Inbound Basic Auth User"
+                  label="Inbound Basic Auth User"
                   value={settings.inbound?.sinch?.basic_auth_configured ? 'Configured' : 'Not configured'}
-                  helperText="Faxbot-enforced optional auth. Use if your provider supports setting Basic credentials on callbacks."
+                  helperText="Sinch webhooks are not provider‑signed. You may enforce Basic auth on /sinch-inbound for protection (and IP allowlists at your edge)."
                   onChange={(value) => handleForm('sinch_inbound_basic_user', value)}
                   placeholder="SINCH_INBOUND_BASIC_USER"
                   showCurrentValue={false}
                 />
-                
+
                 <ResponsiveSettingItem
                   icon={<SecurityIcon />}
-                  label="Sinch Inbound Basic Auth Password"
+                  label="Inbound Basic Auth Password"
                   value=""
                   helperText="Password for Basic authentication"
                   onChange={(value) => handleForm('sinch_inbound_basic_pass', value)}
                   placeholder="SINCH_INBOUND_BASIC_PASS"
-                  type="password"
-                  showCurrentValue={false}
-                />
-                
-                <ResponsiveSettingItem
-                  icon={settings.inbound?.sinch?.hmac_configured ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
-                  label="Sinch Inbound HMAC Secret"
-                  value={settings.inbound?.sinch?.hmac_configured ? 'Configured' : 'Not configured'}
-                  helperText="Faxbot-enforced optional HMAC validation. Configure the same shared secret in your provider if supported."
-                  onChange={(value) => handleForm('sinch_inbound_hmac_secret', value)}
-                  placeholder="SINCH_INBOUND_HMAC_SECRET"
                   type="password"
                   showCurrentValue={false}
                 />
@@ -825,7 +938,7 @@ function Settings({ client }: SettingsProps) {
             <ResponsiveSettingItem
               icon={getStatusIcon(settings.storage?.backend === 's3')}
               label="Storage Backend"
-              value={(form.storage_backend || settings.storage?.backend || 'local').toUpperCase()}
+              value={(form.storage_backend || settings.storage?.backend || 'local')}
               helperText="Local for development only. Use S3 with KMS for PHI in production."
               onChange={(value) => handleForm('storage_backend', value)}
               type="select"
@@ -1048,7 +1161,7 @@ function Settings({ client }: SettingsProps) {
             </ResponsiveFormSection>
         </Stack>
         <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-          <Button variant="contained" onClick={async () => { try { setLoading(true); setError(null); setRestartHint(false); const p:any={}; if (form.outbound_backend) p.outbound_backend=form.outbound_backend; else if (form.backend) p.backend=form.backend; if (form.inbound_backend) { p.inbound_backend=form.inbound_backend; p.inbound_enabled=true; } if (form.require_api_key!==undefined) p.require_api_key=!!form.require_api_key; if (form.enforce_public_https!==undefined) p.enforce_public_https=!!form.enforce_public_https; if (form.public_api_url) p.public_api_url=String(form.public_api_url); if (form.enable_persisted_settings!==undefined) p.enable_persisted_settings=!!form.enable_persisted_settings; if (form.feature_v3_plugins!==undefined) p.feature_v3_plugins=!!form.feature_v3_plugins; if (form.feature_plugin_install!==undefined) p.feature_plugin_install=!!form.feature_plugin_install; if ((form.outbound_backend||form.backend)==='phaxio' && form.phaxio_api_key) p.phaxio_api_key=form.phaxio_api_key; if ((form.outbound_backend||form.backend)==='phaxio' && form.phaxio_api_secret) p.phaxio_api_secret=form.phaxio_api_secret; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_project_id) p.sinch_project_id=form.sinch_project_id; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_api_key) p.sinch_api_key=form.sinch_api_key; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_api_secret) p.sinch_api_secret=form.sinch_api_secret; if ((form.outbound_backend||form.backend)==='sip'){ if (form.ami_host) p.ami_host=form.ami_host; if (form.ami_port) p.ami_port=Number(form.ami_port); if (form.ami_username) p.ami_username=form.ami_username; if (form.ami_password) p.ami_password=form.ami_password; if (form.fax_station_id) p.fax_station_id=form.fax_station_id; } if (form.inbound_retention_days!==undefined) p.inbound_retention_days=Number(form.inbound_retention_days); if (form.inbound_token_ttl_minutes!==undefined) p.inbound_token_ttl_minutes=Number(form.inbound_token_ttl_minutes); if (form.asterisk_inbound_secret) p.asterisk_inbound_secret=form.asterisk_inbound_secret; if (form.phaxio_inbound_verify_signature!==undefined) p.phaxio_inbound_verify_signature=!!form.phaxio_inbound_verify_signature; if (form.sinch_inbound_verify_signature!==undefined) p.sinch_inbound_verify_signature=!!form.sinch_inbound_verify_signature; if (form.sinch_inbound_basic_user) p.sinch_inbound_basic_user=form.sinch_inbound_basic_user; if (form.sinch_inbound_basic_pass) p.sinch_inbound_basic_pass=form.sinch_inbound_basic_pass; if (form.sinch_inbound_hmac_secret) p.sinch_inbound_hmac_secret=form.sinch_inbound_hmac_secret; if (form.storage_backend) p.storage_backend=form.storage_backend; if (form.s3_bucket) p.s3_bucket=form.s3_bucket; if (form.s3_region) p.s3_region=form.s3_region; if (form.s3_prefix) p.s3_prefix=form.s3_prefix; if (form.s3_endpoint_url) p.s3_endpoint_url=form.s3_endpoint_url; if (form.s3_kms_key_id) p.s3_kms_key_id=form.s3_kms_key_id; if (form.max_file_size_mb!==undefined) p.max_file_size_mb=Number(form.max_file_size_mb); if (form.max_requests_per_minute!==undefined) p.max_requests_per_minute=Number(form.max_requests_per_minute); if (form.inbound_list_rpm!==undefined) p.inbound_list_rpm=Number(form.inbound_list_rpm); if (form.inbound_get_rpm!==undefined) p.inbound_get_rpm=Number(form.inbound_get_rpm); const res = await client.updateSettings(p); await client.reloadSettings(); await fetchSettings(); setSnack('Settings applied and reloaded'); if (res && res._meta && res._meta.restart_recommended) setRestartHint(true); if (p.enable_persisted_settings!==undefined) setPersistedEnabled(!!p.enable_persisted_settings); } catch(e:any){ setError(e?.message||'Failed to apply settings'); } finally { setLoading(false);} }} disabled={loading}>
+          <Button variant="contained" onClick={async () => { try { setLoading(true); setError(null); setRestartHint(false); const p:any={}; if (form.outbound_backend) p.outbound_backend=form.outbound_backend; else if (form.backend) p.backend=form.backend; if (form.inbound_backend) { p.inbound_backend=form.inbound_backend; p.inbound_enabled=true; } if (form.require_api_key!==undefined) p.require_api_key=!!form.require_api_key; if (form.enforce_public_https!==undefined) p.enforce_public_https=!!form.enforce_public_https; if (form.audit_log_enabled!==undefined) p.audit_log_enabled=!!form.audit_log_enabled; if (form.public_api_url) p.public_api_url=String(form.public_api_url); if (form.enable_persisted_settings!==undefined) p.enable_persisted_settings=!!form.enable_persisted_settings; if (form.feature_v3_plugins!==undefined) p.feature_v3_plugins=!!form.feature_v3_plugins; if (form.feature_plugin_install!==undefined) p.feature_plugin_install=!!form.feature_plugin_install; if ((form.outbound_backend||form.backend)==='phaxio' && form.phaxio_api_key) p.phaxio_api_key=form.phaxio_api_key; if ((form.outbound_backend||form.backend)==='phaxio' && form.phaxio_api_secret) p.phaxio_api_secret=form.phaxio_api_secret; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_project_id) p.sinch_project_id=form.sinch_project_id; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_api_key) p.sinch_api_key=form.sinch_api_key; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_api_secret) p.sinch_api_secret=form.sinch_api_secret; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_base_url) p.sinch_base_url=form.sinch_base_url; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_auth_method) p.sinch_auth_method=form.sinch_auth_method; if ((form.outbound_backend||form.backend)==='sinch' && form.sinch_auth_base_url) p.sinch_auth_base_url=form.sinch_auth_base_url; if ((form.outbound_backend||form.backend)==='sip'){ if (form.ami_host) p.ami_host=form.ami_host; if (form.ami_port) p.ami_port=Number(form.ami_port); if (form.ami_username) p.ami_username=form.ami_username; if (form.ami_password) p.ami_password=form.ami_password; if (form.fax_station_id) p.fax_station_id=form.fax_station_id; } if (form.inbound_retention_days!==undefined) p.inbound_retention_days=Number(form.inbound_retention_days); if (form.inbound_token_ttl_minutes!==undefined) p.inbound_token_ttl_minutes=Number(form.inbound_token_ttl_minutes); if (form.asterisk_inbound_secret) p.asterisk_inbound_secret=form.asterisk_inbound_secret; if (form.phaxio_inbound_verify_signature!==undefined) p.phaxio_inbound_verify_signature=!!form.phaxio_inbound_verify_signature; if (form.sinch_inbound_basic_user) p.sinch_inbound_basic_user=form.sinch_inbound_basic_user; if (form.sinch_inbound_basic_pass) p.sinch_inbound_basic_pass=form.sinch_inbound_basic_pass; if (form.storage_backend) p.storage_backend=form.storage_backend; if (form.s3_bucket) p.s3_bucket=form.s3_bucket; if (form.s3_region) p.s3_region=form.s3_region; if (form.s3_prefix) p.s3_prefix=form.s3_prefix; if (form.s3_endpoint_url) p.s3_endpoint_url=form.s3_endpoint_url; if (form.s3_kms_key_id) p.s3_kms_key_id=form.s3_kms_key_id; if (form.max_file_size_mb!==undefined) p.max_file_size_mb=Number(form.max_file_size_mb); if (form.max_requests_per_minute!==undefined) p.max_requests_per_minute=Number(form.max_requests_per_minute); if (form.inbound_list_rpm!==undefined) p.inbound_list_rpm=Number(form.inbound_list_rpm); if (form.inbound_get_rpm!==undefined) p.inbound_get_rpm=Number(form.inbound_get_rpm); const res = await client.updateSettings(p); await client.reloadSettings(); await fetchSettings(); setSnack('Settings applied and reloaded'); if (res && res._meta && res._meta.restart_recommended) setRestartHint(true); if (p.enable_persisted_settings!==undefined) setPersistedEnabled(!!p.enable_persisted_settings); } catch(e:any){ setError(e?.message||'Failed to apply settings'); } finally { setLoading(false);} }} disabled={loading}>
             Apply & Reload
           </Button>
           <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchSettings} disabled={loading}>

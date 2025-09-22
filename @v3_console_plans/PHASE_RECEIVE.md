@@ -74,7 +74,7 @@ Add new settings with sensible defaults:
 - `inbound_token_ttl_minutes: int` from `INBOUND_TOKEN_TTL_MINUTES` (default 60)
 - `asterisk_inbound_secret: str` from `ASTERISK_INBOUND_SECRET` (no default; required if SIP inbound enabled)
 - `phaxio_inbound_verify_signature: bool` from `PHAXIO_INBOUND_VERIFY_SIGNATURE` (default true in prod)
-- `sinch_inbound_verify_signature: bool` from `SINCH_INBOUND_VERIFY_SIGNATURE` (default true in prod)
+// Removed: Sinch does not provide webhook HMAC/signatures for fax inbound. Use Basic auth or IP allowlists.
 - `storage_backend: str` from `STORAGE_BACKEND` (values: `local` or `s3`; default `local`) [DP-1]
 - If `s3`: `S3_BUCKET`, `S3_PREFIX` (e.g., `inbound/`), `S3_REGION`, and KMS options [DP-1]
 
@@ -145,7 +145,7 @@ Migration notes:
 - HTTPS enforcement: if `ENFORCE_PUBLIC_HTTPS=true` and endpoint is public-facing, reject non-HTTPS `PUBLIC_API_URL`.
 - Callback verification:
   - Phaxio: verify `X-Phaxio-Signature` HMAC-SHA256 over the raw body with `PHAXIO_API_SECRET` (already used outbound; mirror here).
-  - Sinch: verify per Sinch’s inbound verification (e.g., Basic Auth or HMAC; implement configurable verification) — keep provider-specific logic contained.
+  - Sinch: verify per Sinch’s inbound verification (Basic auth; Sinch does not provide fax webhook HMAC signatures). Keep provider-specific logic contained.
 - Internal Asterisk endpoint: require `X-Internal-Secret: <ASTERISK_INBOUND_SECRET>` on `POST /_internal/asterisk/inbound`. Reject any external traffic; recommend binding/internal network only.
 
 [DP-9] Secret header naming and rotation policy.
@@ -346,7 +346,7 @@ Test (dev):
 ### 17) Rollout Plan
 
 1. Implement SIP/Asterisk internal endpoint and synthetic test endpoint; verify conversion and retrieval locally.
-2. Add Phaxio inbound, then Sinch inbound; test signature verification and fetch flows.
+2. Add Phaxio inbound (test HMAC verification), then Sinch inbound (test Basic auth and fetch flows).
 3. Add mailbox/rule admin endpoints; verify routing and RBAC.
 4. Add retention cleanup and audit events; validate non-PHI logs.
 5. Update SDKs and (optionally) MCP tools for metadata.
@@ -378,7 +378,7 @@ Note: Keep request/response shapes minimal. Expand only if necessary.
 - 200 on acceptance; 401 on signature mismatch; 400 on invalid body
 
 `POST /sinch-inbound`
-- Auth: provider verification (Basic/HMAC) — configurable
+- Auth: provider verification — Basic (Sinch) or HMAC (Phaxio)
 - Body: provider payload (JSON)
 - 200/401/400 accordingly
 

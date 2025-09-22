@@ -14,6 +14,11 @@ When to use
 - Prefer this if you have a Sinch account/project and want the v3 direct‑upload flow.
 - If you signed up at Phaxio and were redirected to Sinch, your credentials generally work here. You will also need your Sinch Project ID.
 
+Sign‑up and Console (important)
+- Use the Sinch Customer (Build) Dashboard — this is where the Fax API lives and where you create access keys and find your Project ID:
+  - https://dashboard.sinch.com/settings/access-keys
+- Other Sinch portals (Messaging, Developer portal, etc.) do not expose Fax API access keys and will cause confusion.
+
 Key differences vs `phaxio` backend
 - `phaxio`: Provider fetches your PDF via `PUBLIC_API_URL` and posts status to `/phaxio-callback` (HMAC verification supported). No Sinch project ID required.
 - `sinch`: Faxbot uploads your PDF directly to Sinch (multipart). PUBLIC_API_URL and `/phaxio-callback` are not used. Webhook integration for Sinch is under evaluation; current builds reflect the provider’s initial status response.
@@ -26,6 +31,10 @@ SINCH_API_KEY=your_api_key          # falls back to PHAXIO_API_KEY if unset
 SINCH_API_SECRET=your_api_secret    # falls back to PHAXIO_API_SECRET if unset
 # Optional override region/base URL:
 # SINCH_BASE_URL=https://fax.api.sinch.com/v3
+# Outbound auth method (default basic). Use oauth for HIPAA‑aligned setups:
+# SINCH_AUTH_METHOD=oauth
+# Optional OAuth token endpoint override (region):
+# SINCH_AUTH_BASE_URL=https://eu.auth.sinch.com/oauth2/token
 
 # General
 API_KEY=your_secure_api_key         # optional but recommended (X-API-Key)
@@ -56,7 +65,7 @@ Status updates
 Inbound receiving (optional)
 - Enable inbound mode: `INBOUND_ENABLED=true`.
 - Configure Sinch inbound webhook to `POST /sinch-inbound`.
-- Security: you may enable Basic auth (`SINCH_INBOUND_BASIC_USER/PASS`) and/or HMAC (`SINCH_INBOUND_HMAC_SECRET`).
+- Security: Sinch inbound webhooks are not provider‑signed. Enforce Basic auth (`SINCH_INBOUND_BASIC_USER/PASS`) and add IP allowlists at your edge. Do not configure HMAC for Sinch.
 - Stored inbound PDFs can be accessed with a short‑TTL token or an API key with `inbound:read`.
 
 Notes

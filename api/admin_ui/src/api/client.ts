@@ -271,46 +271,6 @@ export class AdminAPIClient {
     return res.json();
   }
 
-  // WireGuard (admin-only)
-  async wgImportConfFile(file: File): Promise<{ ok: boolean }>{
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch(`${this.baseURL}/admin/tunnel/wg/import`, {
-      method: 'POST',
-      headers: { 'X-API-Key': this.apiKey },
-      body: form,
-    });
-    if (!res.ok) throw new Error(`Import failed: ${res.status}`);
-    return res.json();
-  }
-
-  async wgImportConfText(content: string): Promise<{ ok: boolean }>{
-    const res = await this.fetch('/admin/tunnel/wg/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    });
-    return res.json();
-  }
-
-  async wgDownloadConf(): Promise<Blob> {
-    const res = await fetch(`${this.baseURL}/admin/tunnel/wg/conf`, {
-      headers: { 'X-API-Key': this.apiKey },
-    });
-    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-    return res.blob();
-  }
-
-  async wgDeleteConf(): Promise<{ ok: boolean }>{
-    const res = await this.fetch('/admin/tunnel/wg/conf', { method: 'DELETE' });
-    return res.json();
-  }
-
-  async wgGetQr(): Promise<{ png_base64?: string; svg_base64?: string }>{
-    const res = await this.fetch('/admin/tunnel/wg/qr', { method: 'POST' });
-    return res.json();
-  }
-
   // Cloudflared logs (admin-only)
   async getTunnelCloudflaredLogs(lines: number = 50): Promise<{ items: string[]; path?: string }>{
     const res = await this.fetch(`/admin/tunnel/cloudflared/logs?lines=${encodeURIComponent(String(lines))}`);

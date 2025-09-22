@@ -64,6 +64,8 @@ export interface Settings {
     project_id: string;
     api_key: string;
     api_secret: string;
+    base_url?: string;
+    auth_method?: string;
     configured: boolean;
   };
   signalwire?: {
@@ -120,9 +122,7 @@ export interface Settings {
       verify_signature: boolean;
     };
     sinch?: {
-      verify_signature: boolean;
       basic_auth_configured: boolean;
-      hmac_configured: boolean;
     };
   };
   features?: {

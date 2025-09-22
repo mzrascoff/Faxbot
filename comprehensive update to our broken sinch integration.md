@@ -1,6 +1,41 @@
 Sinch Integration Audit and Redesign for Faxbot API
 
 Comprehensive Plan for Fixing Faxbot’s Sinch Integration
+
+Live Fix Log (2025-09-21)
+- Removed Sinch inbound HMAC everywhere (server, UI, scripts, docs). Sinch fax inbound uses Basic auth only.
+- Added SINCH_BASE_URL region override to Settings and Setup Wizard; server reads/exports; diagnostics include fallback probe.
+- Updated Admin Console copy (Settings/Wizard/Diagnostics) to avoid promising unsupported Sinch signatures.
+- Updated docs: SINCH_SETUP.md, DEPLOYMENT.md, SECURITY.md, LOCAL_ADMIN_CONSOLE.md to reflect Basic-only for Sinch; kept Phaxio HMAC.
+- Cleaned planning docs to stop implying “Sinch HMAC”; annotated Basic-only where relevant.
+ - Ghostscript requirement corrected: required only for TIFF/GS conversions (SIP/FreeSWITCH). Cloud backends no longer hard‑fail without GS.
+
+Alpha Test Checklist (Sinch + General)
+1) Sinch Outbound
+   - Configure SINCH_PROJECT_ID/API_KEY/API_SECRET; (optional) SINCH_BASE_URL per region.
+   - Send fax via UI and via curl; verify job status mapping (queued/in_progress) and provider_sid set.
+   - Diagnostics → Outbound: auth_configured=true; auth_valid=true (services/default or faxes fallback).
+2) Sinch Inbound (Basic only)
+   - INBOUND_ENABLED=true; set SINCH_INBOUND_BASIC_USER/PASS.
+   - POST a sample inbound JSON to /sinch-inbound with and without Basic:
+     - Without Basic → 401 Unauthorized.
+     - With Basic → 200 ok; inbound_received event logged; record created; PDF download via token works.
+   - Admin → Inbound Callbacks shows /sinch-inbound and only Basic (no HMAC).
+3) Phaxio Inbound (HMAC)
+   - PHAXIO_INBOUND_VERIFY_SIGNATURE=true; POST /phaxio-inbound with valid X-Phaxio-Signature → 200; invalid/missing → 401.
+4) UI Integrity
+   - Settings: Sinch Base URL field present; no Sinch “Verify Signature” or HMAC fields visible.
+   - Setup Wizard: Sinch inbound hint mentions Basic only; no HMAC mention.
+   - Diagnostics: No Sinch HMAC references; outbound/inbound checks isolated to active backend.
+5) Scripts & Docs
+   - scripts/check-env.sh warns only about Basic for Sinch; no HMAC prompts.
+   - Docs pages (Sinch setup, security, deployment) reflect Basic-only for Sinch; Phaxio HMAC remains.
+6) Terminal (local-only)
+   - ENABLE_LOCAL_ADMIN=true: local browser connects; proxy/tunnel access shows explicit “not available” message.
+7) Ghostscript requirement
+   - Cloud backends (Phaxio/Sinch): start successfully without `gs` installed; Diagnostics warn only if traits require it.
+   - SIP/FreeSWITCH: missing `gs` at startup → RuntimeError (expected). Install Ghostscript resolves.
+
 Phase 1: Documentation Overhaul (Sinch & Phaxio Integration Guides)
 
 Goal: Rewrite and expand the Sinch setup documentation (and update Phaxio docs as needed) so users have clear, accurate, step-by-step guidance. Separate guidance for HIPAA vs. non-HIPAA where appropriate.

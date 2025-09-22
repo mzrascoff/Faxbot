@@ -16,23 +16,21 @@
 ## Architecture Overview (grounded in current code)
 
 ### Runtime Topology
-- Serve the UI from the existing FastAPI app under `GET /admin/ui/*` as static files.
-- Reuse real endpoints that already exist: `/admin/api-keys`, `/admin/config`, `/health/ready`, `/fax`, `/fax/{id}`, and inbound endpoints.
-- Local‑only in v1: a middleware 403‑blocks remote clients for any `/admin/*` path unless `ALLOW_REMOTE_ADMIN=true` AND the client IP is allow‑listed.
-- No extra ports, no UDS in v1 (avoid conflicts with 8080, 3001/3002, 5038, 5060, etc.).
+- Serve the UI from the existing FastAPI app under `GET /admin/ui/*` as static files (`ENABLE_LOCAL_ADMIN=true`).
+- Reuse existing endpoints: `/admin/api-keys`, `/admin/config`, `/admin/settings`, `/health`, `/fax`, `/fax/{id}`, and inbound endpoints.
+- Local‑only by default: middleware 403‑blocks remote clients for `/admin/ui` unless explicitly allowed for demo (`ADMIN_UI_ALLOW_TUNNEL=true`). Normal prod posture keeps it local‑only.
+- No extra ports in v1 (avoid conflicts with 8080, 3001/3002, 5038, 5060, etc.).
 
-### Security Model (practical v1)
-- Middleware blocks non‑loopback access to `/admin/*` unless `ALLOW_REMOTE_ADMIN=true` (and optionally an allow‑list).
-- Auth uses existing API keys: UI asks for a token with `keys:manage` (or the bootstrap `API_KEY`) once, exchanges it for a short‑lived local session cookie via `POST /admin/session/login` (new); the cookie is HttpOnly and SameSite=Lax.
-- Strict CSP and standard headers on `/admin/ui/*`.
-- Secrets never re‑render; rotations display once only (matches current API key behavior).
-- No service workers; PDFs/downloads use `no-store` headers.
+### Security Model (current code)
+- Middleware blocks non‑loopback access for `/admin/ui`; proxy/tunnel access blocked unless `ADMIN_UI_ALLOW_TUNNEL=true` (demo only).
+- Auth uses existing API keys: UI prompts for an API key with `keys:manage` (or bootstrap `API_KEY`) and stores it locally for this browser session. All admin calls send `X-API-Key`.
+- Strict headers on `/admin/*` (X-Frame-Options, nosniff, no-cache) are set by the server. No PHI in UI.
+- Terminal is local‑only and requires `ENABLE_LOCAL_ADMIN=true`; proxied access is blocked unless explicitly allowed for demo.
 
-### Settings Strategy (v1)
-- Read effective settings via `/admin/config` (exists) and UI helpers.
-- Do not write secrets in v1. The UI provides validated copy‑paste `.env` lines to apply manually (safer and fast to ship).
-- New: `POST /admin/settings/validate` to test provider/AMI creds without saving; returns a structured report.
-- v2: consider a `settings` table for non‑secret toggles; encrypted secret storage can follow with audit.
+### Settings Strategy (current code)
+- Read effective settings via `/admin/settings` and `/admin/config`.
+- Apply changes live via `PUT /admin/settings` and `POST /admin/settings/reload`; export/persist `.env` with `/admin/settings/export` and `/admin/settings/persist`.
+- Validate connectivity with `POST /admin/settings/validate` (non‑destructive checks for provider/AMI).
 
 ### Events & Real‑Time Updates
 - The UI uses polling by default: dashboard polls `/health/ready`; job rows poll `GET /fax/{id}`.
@@ -44,9 +42,8 @@
 Everything here either exists or is tightly scoped to implement.
 
 ### Authentication
-- New: `POST /admin/session/login` `{ apiKey: string }` → verifies a DB key with `keys:manage` or the bootstrap `API_KEY`; sets an HttpOnly cookie; returns `{ ok: true }`.
-- New: `POST /admin/session/logout` → clears the cookie; returns `{ ok: true }`.
-- Middleware: block `/admin/*` for non‑loopback clients unless `ALLOW_REMOTE_ADMIN=true`.
+- The Admin UI prompts for `X-API-Key` with the `keys:manage` scope or the bootstrap `API_KEY`; the key is stored locally for this browser session. There is no session cookie in v1.
+- Middleware: block `/admin/ui` for non‑loopback clients; `ADMIN_UI_ALLOW_TUNNEL=true` can be used for demo only.
 
 ### Settings
 - `GET /admin/settings` → returns current effective settings with sensitive values masked.
@@ -142,7 +139,7 @@ Minimal Data Fields:
 ### Pages & Flows (v1)
 
 1) Dashboard
-- Cards: Overall Health (from `/health/ready`), Active Backend (from `/admin/config`), Recent Jobs (poll last N ids the UI knows about), Storage writeability check result.
+- Cards: Overall Health (from `/admin/health-status`), Active Backend (from `/admin/config`), Recent Jobs (poll), Storage writability check.
 - Actions: Open Wizard, Send Fax.
 
 2) Setup Wizard (4 steps)
@@ -153,7 +150,7 @@ Minimal Data Fields:
   - Phaxio: key/secret validation; callback URL preview and copy.
   - Sinch: project/key/secret; region base URL; upload test (dry run).
   - SIP: AMI host/port/user/password; station ID; test AMI login.
-- Step 3: Security — set `API_KEY`, `ENFORCE_PUBLIC_HTTPS`, HMAC verification flags; audit logging options; retention and token TTL.
+- Step 3: Security — set `API_KEY`, `ENFORCE_PUBLIC_HTTPS`; enable Phaxio HMAC verification; audit logging options; retention and token TTL. (Sinch inbound webhooks are not provider‑signed; enforce Basic auth and IP allowlists.)
 - Step 4: Webhooks — create subscription(s); reveal `secret_once`; send test; show delivery results.
 - Step 5: Inbound (optional) — enable; set storage backend; retention; display provider callback URLs to configure.
 - Step 6: Review & Apply — show diff; save to DB; call `/admin/settings/reload`; show post‑apply health.
@@ -213,7 +210,7 @@ Minimal Data Fields:
 ## Validation & Health Checks (Backend Logic)
 
 ### Phaxio
-- Validate credentials by calling `GET /v2/account/status` with Basic auth.
+- Validate credentials by calling a lightweight Sinch endpoint using your selected auth (OAuth 2.0 or Basic). The Diagnostics screen performs this automatically.
 - Verify callback URL reachability (optional HEAD) and display the full `phaxio_status_callback_url` with `?job_id={job_id}` guidance.
 
 ### Sinch Fax v3
@@ -259,15 +256,13 @@ Admin Delivery Result Example:
 
 ## Implementation Guidance (server)
 
-### Minimal server additions (v1)
-- Static UI: mount under `/admin/ui` using `StaticFiles`.
-- Middleware: loopback‑only enforcement for `/admin/*` unless allow‑listed.
-- New endpoints:
-  - `POST /admin/session/login` `{ apiKey }` → set HttpOnly cookie if key has `keys:manage` (or matches bootstrap env `API_KEY`).
-  - `POST /admin/session/logout` → clear cookie.
-  - `POST /admin/settings/validate` → run provider/AMI pings with supplied values; do NOT persist.
+### Minimal server additions (current)
+- Static UI: mounted under `/admin/ui` using `StaticFiles` when `ENABLE_LOCAL_ADMIN=true`.
+- Middleware: allows loopback and VPN/private networks (RFC1918 and CGNAT 100.64.0.0/10) for `/admin/ui`; HTTP proxy access (X‑Forwarded‑For) is blocked unless `ADMIN_UI_ALLOW_TUNNEL=true` (demo only). WebSockets (Terminal) follow the same rules.
+- Existing endpoints leveraged:
+  - `POST /admin/settings/validate` → run provider/AMI checks without persisting.
   - `POST /admin/diagnostics/run` → run bounded checks; return JSON report.
-- No DB settings table in v1; no webhooks queue in v1; no SSE in v1.
+- No session cookie; Admin UI sends `X-API-Key` on each request.
 
 ### UI Build & UX
 - TypeScript, Vite build; strict ESLint; unit tests for critical helpers (phone formatting, size checks, masking).
@@ -290,15 +285,15 @@ Admin Delivery Result Example:
 ---
 
 ## Risk Register & Mitigations (functional)
-- Accidental exposure: 403 remote access to `/admin/*` unless `ALLOW_REMOTE_ADMIN=true`; show a big “local‑only” banner.
-- Secret leakage: mask outputs; never persist secrets client‑side; rotations display tokens once; prefer session cookie over putting the API key into fetch headers.
+- Accidental exposure: 403 remote access to `/admin/ui`; block proxy/tunnel unless `ADMIN_UI_ALLOW_TUNNEL=true` (demo only). Show a visible “LOCAL ONLY” chip.
+- Secret leakage: mask outputs; never log secrets in UI; rotations display tokens once; avoid storing PHI; for admin calls, send `X-API-Key` from local-only browser.
 - Memory/FD leaks: no SSE in v1; polling only; job polling capped and canceled on navigation.
 - Port conflicts: reuse 8080; no new ports in v1.
 
 ---
 
 ## Rollout Plan (Phased)
-1) Minimal server endpoints + UI shell (Keys, Send, Wizard validate, Diagnostics run); loopback middleware; session login.
+1) Minimal server endpoints + UI shell (Keys, Send, Wizard validate, Diagnostics run); loopback middleware; API key login (no session cookie).
 2) Inbound list/view when enabled; basic settings reload; limited non‑secret toggles.
 3) SSE for live updates; webhook UI after backend queue exists.
 4) Settings DB for non‑secrets; optional encryption for secrets; LAN allowlist/pin.

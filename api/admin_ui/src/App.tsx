@@ -142,6 +142,35 @@ function AppContent() {
     }
   };
 
+  // Support simple sub-tab routing by string codes
+  const handleNavigate = (to: number | string) => {
+    if (typeof to === 'number') {
+      handleTabChange(to);
+      return;
+    }
+    switch (to) {
+      case 'tools/diagnostics':
+        setTabValue(5);
+        setToolsTab(1);
+        break;
+      case 'tools/logs':
+        setTabValue(5);
+        setToolsTab(2);
+        break;
+      case 'settings/setup':
+        setTabValue(4);
+        setSettingsTab(0);
+        break;
+      case 'settings/settings':
+        setTabValue(4);
+        setSettingsTab(1);
+        break;
+      default:
+        setTabValue(0);
+    }
+    if (isMobile) setMobileOpen(false);
+  };
+
   // Auto-login if key exists
   useEffect(() => {
     if (apiKey && !authenticated) {
@@ -578,7 +607,7 @@ function AppContent() {
         </Drawer>
         
         <TabPanel value={tabValue} index={0}>
-          <Dashboard client={client!} onNavigate={handleTabChange} />
+          <Dashboard client={client!} onNavigate={handleNavigate} />
         </TabPanel>
         <TabPanel value={tabValue} index={1}>
           <SendFax client={client!} />

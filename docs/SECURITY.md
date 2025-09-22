@@ -12,7 +12,7 @@ Configuration and guidance for HIPAA‑aligned deployments and OAuth/OIDC setup.
 
 ## Webhooks and Callbacks
 - Outbound status (Phaxio): `POST /phaxio-callback` with HMAC verification. Keep callback URLs HTTPS.
-- Inbound (cloud): `POST /phaxio-inbound` (HMAC) and `POST /sinch-inbound` (Basic and/or HMAC). Never disable signature checks in production.
+- Inbound (cloud): `POST /phaxio-inbound` (HMAC) and `POST /sinch-inbound` (not provider‑signed; enforce Basic auth on your endpoint and use IP allowlists). Never disable signature checks where the provider supports them.
 - Inbound (self‑hosted): `POST /_internal/asterisk/inbound` with `X-Internal-Secret` on a private network.
 
 ## MCP Transports
@@ -28,6 +28,4 @@ Recommended reading
 - [OAuth/OIDC Setup](/Faxbot/security/oauth-setup.html)
 - [Compliance Overview (faxbot.net)](https://faxbot.net/compliance/)
 - [Business Associate Agreement (PDF)](https://faxbot.net/compliance/business-associate-agreement.pdf)
-
-
 

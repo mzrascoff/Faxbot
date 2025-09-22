@@ -193,10 +193,11 @@ async def enforce_local_admin(request: Request, call_next):
         try:
             import ipaddress
             ip = ipaddress.ip_address(client_ip)
+            # Treat RFC1918 and CGNAT (100.64.0.0/10, e.g., Tailscale) as local-like
+            cgnat = ipaddress.ip_network('100.64.0.0/10')
         except Exception:
             return Response(content="Forbidden", status_code=403)
-        in_container = os.path.exists("/.dockerenv")
-        allow = ip.is_loopback or (in_container and ip.is_private) or allow_tunnel_ui
+        allow = ip.is_loopback or ip.is_private or (ip.version == 4 and ip in cgnat) or allow_tunnel_ui
         if not allow:
             return Response(content="Forbidden", status_code=403)
     response = await call_next(request)
@@ -253,13 +254,18 @@ async def on_startup():
     init_db()
     # Ensure data dir
     ensure_dir(settings.fax_data_dir)
-    # Validate Ghostscript availability — required for all configurations
+    # Validate Ghostscript availability — required only when provider traits demand it
     _gs_missing = shutil.which("gs") is None
-    if _gs_missing and not settings.fax_disabled:
-        if str(os.getenv("FAXBOT_TEST_MODE", "false")).lower() in {"1","true","yes"}:
-            print("[warn] Ghostscript (gs) not found; allowed via FAXBOT_TEST_MODE for unit tests only")
-        else:
-            raise RuntimeError("Ghostscript (gs) not found. Install 'ghostscript' — it is required for fax file processing.")
+    if not settings.fax_disabled:
+        try:
+            needs_gs = providerHasTrait("any", "requires_ghostscript") or providerHasTrait("any", "requires_tiff")
+        except Exception:
+            needs_gs = False
+        if needs_gs and _gs_missing:
+            if str(os.getenv("FAXBOT_TEST_MODE", "false")).lower() in {"1","true","yes"}:
+                print("[warn] Ghostscript (gs) not found; allowed via FAXBOT_TEST_MODE for unit tests only")
+            else:
+                raise RuntimeError("Ghostscript (gs) not found. Install 'ghostscript' — required for this backend (TIFF/GS conversions).")
     # Security posture warnings
     if not settings.require_api_key and not settings.api_key and not settings.fax_disabled:
         print("[warn] API auth is not enforced (REQUIRE_API_KEY=false and API_KEY unset); /fax requests are unauthenticated. Set API_KEY or REQUIRE_API_KEY for production.")
@@ -529,6 +535,11 @@ def get_admin_config():
     """Return sanitized effective configuration for operators.
     Does not include secrets. Requires admin auth (bootstrap env key or keys:manage).
     """
+    # Ensure latest env-backed settings are reflected on every request
+    try:
+        reload_settings()
+    except Exception:
+        pass
     backend = settings.fax_backend
     ob = active_outbound()
     ib = active_inbound()
@@ -635,6 +646,8 @@ def get_admin_settings():
             "project_id": settings.sinch_project_id,
             "api_key": mask_secret(settings.sinch_api_key),
             "api_secret": mask_secret(settings.sinch_api_secret),
+            "base_url": os.getenv("SINCH_BASE_URL", ""),
+            "auth_method": settings.sinch_auth_method,
             "configured": bool(settings.sinch_project_id and settings.sinch_api_key and settings.sinch_api_secret),
         },
         "signalwire": {
@@ -688,9 +701,7 @@ def get_admin_settings():
                 "verify_signature": settings.phaxio_inbound_verify_signature,
             },
             "sinch": {
-                "verify_signature": settings.sinch_inbound_verify_signature,
                 "basic_auth_configured": bool(settings.sinch_inbound_basic_user),
-                "hmac_configured": bool(settings.sinch_inbound_hmac_secret),
             },
         },
         "limits": {
@@ -742,10 +753,41 @@ async def validate_settings(payload: ValidateSettingsRequest):
         else:
             results["checks"]["auth"] = False
     elif payload.backend == "sinch":
-        # v1 presence-only
-        results["checks"]["auth"] = bool(
-            payload.sinch_project_id and payload.sinch_api_key and payload.sinch_api_secret
-        )
+        # Presence + fast auth ping
+        present = bool(payload.sinch_project_id and payload.sinch_api_key and payload.sinch_api_secret)
+        results["checks"]["auth_present"] = present
+        if present:
+            try:
+                import httpx
+                base = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com/v3").rstrip("/")
+                # Prefer OAuth if enabled
+                token = None
+                if (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth"):
+                    try:
+                        auth_base = os.getenv("SINCH_AUTH_BASE_URL", "https://auth.sinch.com/oauth2/token")
+                        data = {"grant_type": "client_credentials"}
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            tr = await client.post(auth_base, data=data, auth=(payload.sinch_api_key, payload.sinch_api_secret))
+                        if tr.status_code < 400:
+                            token = (tr.json() or {}).get("access_token")
+                    except Exception:
+                        token = None
+                url = f"{base}/projects/{payload.sinch_project_id}/services/default"
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(url, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (payload.sinch_api_key, payload.sinch_api_secret))
+                ok = (resp.status_code < 400)
+                # Fallback probe for tenants without services endpoint
+                if not ok:
+                    url2 = f"{base}/projects/{payload.sinch_project_id}/faxes?limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        r2 = await client.get(url2, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (payload.sinch_api_key, payload.sinch_api_secret))
+                    ok = (r2.status_code < 400)
+                results["checks"]["auth"] = ok
+            except Exception as e:
+                results["checks"]["auth"] = False
+                results["checks"]["error"] = str(e)
+        else:
+            results["checks"]["auth"] = False
     elif payload.backend == "sip":
         if all([payload.ami_host, payload.ami_username, payload.ami_password]):
             try:
@@ -810,6 +852,9 @@ class UpdateSettingsRequest(BaseModel):
     sinch_project_id: Optional[str] = None
     sinch_api_key: Optional[str] = None
     sinch_api_secret: Optional[str] = None
+    sinch_base_url: Optional[str] = None
+    sinch_auth_method: Optional[str] = None  # 'basic' | 'oauth'
+    sinch_auth_base_url: Optional[str] = None  # token endpoint
 
     # SignalWire
     signalwire_space_url: Optional[str] = None
@@ -835,10 +880,8 @@ class UpdateSettingsRequest(BaseModel):
     inbound_token_ttl_minutes: Optional[int] = None
     asterisk_inbound_secret: Optional[str] = None
     phaxio_inbound_verify_signature: Optional[bool] = None
-    sinch_inbound_verify_signature: Optional[bool] = None
     sinch_inbound_basic_user: Optional[str] = None
     sinch_inbound_basic_pass: Optional[str] = None
-    sinch_inbound_hmac_secret: Optional[str] = None
 
     # Audit / rate limiting
     audit_log_enabled: Optional[bool] = None
@@ -925,6 +968,10 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     _set_env_opt("SINCH_PROJECT_ID", payload.sinch_project_id)
     _set_env_opt("SINCH_API_KEY", payload.sinch_api_key)
     _set_env_opt("SINCH_API_SECRET", payload.sinch_api_secret)
+    _set_env_opt("SINCH_BASE_URL", payload.sinch_base_url)
+    if payload.sinch_auth_method is not None:
+        _set_env_opt("SINCH_AUTH_METHOD", str(payload.sinch_auth_method).lower())
+    _set_env_opt("SINCH_AUTH_BASE_URL", payload.sinch_auth_base_url)
 
     # SignalWire
     _set_env_opt("SIGNALWIRE_SPACE_URL", payload.signalwire_space_url)
@@ -950,10 +997,9 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     _set_env_opt("INBOUND_TOKEN_TTL_MINUTES", payload.inbound_token_ttl_minutes)
     _set_env_opt("ASTERISK_INBOUND_SECRET", payload.asterisk_inbound_secret)
     _set_env_bool("PHAXIO_INBOUND_VERIFY_SIGNATURE", payload.phaxio_inbound_verify_signature)
-    _set_env_bool("SINCH_INBOUND_VERIFY_SIGNATURE", payload.sinch_inbound_verify_signature)
     _set_env_opt("SINCH_INBOUND_BASIC_USER", payload.sinch_inbound_basic_user)
     _set_env_opt("SINCH_INBOUND_BASIC_PASS", payload.sinch_inbound_basic_pass)
-    _set_env_opt("SINCH_INBOUND_HMAC_SECRET", payload.sinch_inbound_hmac_secret)
+    # No HMAC verification for Sinch fax inbound
 
     # Audit / rate limiting
     _set_env_bool("AUDIT_LOG_ENABLED", payload.audit_log_enabled)
@@ -1690,6 +1736,11 @@ def admin_tunnel_cloudflared_logs(lines: int = Query(default=50, ge=1, le=500)):
 
 @app.get("/admin/inbound/callbacks", dependencies=[Depends(require_admin)])
 def admin_inbound_callbacks():
+    # Reload to reflect current inbound backend and auth flags
+    try:
+        reload_settings()
+    except Exception:
+        pass
     base = settings.public_api_url.rstrip("/")
     backend = active_inbound()
     out: dict[str, Any] = {"backend": backend, "callbacks": []}
@@ -1705,10 +1756,9 @@ def admin_inbound_callbacks():
             "name": "Sinch Fax Inbound",
             "url": f"{base}/sinch-inbound",
             "auth": {
-                "basic": bool(settings.sinch_inbound_basic_user),
-                "hmac": bool(settings.sinch_inbound_hmac_secret),
+                "basic": bool(settings.sinch_inbound_basic_user)
             },
-            "notes": "Set webhook in Sinch Fax console. Optionally use Basic and/or HMAC.",
+            "notes": "Set webhook in Sinch Fax console. You can optionally enforce Basic auth in Faxbot.",
         })
     elif backend == "signalwire":
         out["callbacks"].append({
@@ -1748,12 +1798,22 @@ def admin_inbound_simulate(payload: SimulateInboundIn):
     job_id = uuid.uuid4().hex
     data_dir = settings.fax_data_dir
     ensure_dir(data_dir)
-    # Create a tiny placeholder PDF
+    # Create a valid small PDF for simulation
     pdf_path = os.path.join(data_dir, f"{job_id}.pdf")
-    with open(pdf_path, "wb") as f:
-        f.write(b"%PDF-1.4\n% inbound simulation\n%%EOF")
+    try:
+        from .conversion import write_valid_text_pdf  # type: ignore
+        write_valid_text_pdf(pdf_path, [
+            "Inbound simulation (Faxbot)",
+            f"Backend: {backend}",
+            f"To: {payload.to or ''} From: {payload.fr or ''}",
+        ])
+    except Exception:
+        # Fallback minimal but valid PDF generation without reportlab context
+        with open(pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4\n% Faxbot inbound simulation\n%%EOF")
     size_bytes = os.path.getsize(pdf_path)
-    sha256_hex = hashlib.sha256(b"%PDF-1.4\n% inbound simulation\n%%EOF").hexdigest()
+    with open(pdf_path, "rb") as _f:
+        sha256_hex = hashlib.sha256(_f.read()).hexdigest()
     storage = get_storage()
     stored_uri = storage.put_pdf(pdf_path, f"{job_id}.pdf")
     try:
@@ -1921,7 +1981,9 @@ async def admin_refresh_job(job_id: str):
 
 @app.post("/admin/diagnostics/run", dependencies=[Depends(require_admin)])
 async def run_diagnostics():
-    """Run bounded, non-destructive diagnostics for v1."""
+    """Run bounded, non-destructive diagnostics. Backend‑isolated: only report
+    checks relevant to the active outbound/inbound providers and required traits.
+    """
     ob = active_outbound()
     ib = active_inbound()
     diag: dict[str, Any] = {
@@ -1931,40 +1993,8 @@ async def run_diagnostics():
         "inbound_backend": ib,
         "checks": {},
     }
-    # Legacy single-backend flags (kept for compatibility in UI until hybrid UI lands)
-    if settings.fax_backend == "phaxio":
-        diag["checks"]["phaxio"] = {
-            "api_key_set": bool(settings.phaxio_api_key),
-            "api_secret_set": bool(settings.phaxio_api_secret),
-            "callback_url_set": bool(settings.phaxio_status_callback_url),
-            "signature_verification": settings.phaxio_verify_signature,
-            "public_url_https": settings.public_api_url.startswith("https://"),
-        }
-    elif settings.fax_backend == "sinch":
-        diag["checks"]["sinch"] = {
-            "project_id_set": bool(settings.sinch_project_id),
-            "api_key_set": bool(settings.sinch_api_key),
-            "api_secret_set": bool(settings.sinch_api_secret),
-        }
-    elif settings.fax_backend == "sip":
-        sip_checks: dict[str, Any] = {
-            "ami_host": settings.ami_host,
-            "ami_port": settings.ami_port,
-            "ami_password_not_default": settings.ami_password != "changeme",
-            "station_id_set": bool(settings.fax_station_id),
-        }
-        # Probe AMI reachability best-effort
-        try:
-            from .ami import test_ami_connection
-            sip_checks["ami_reachable"] = await test_ami_connection(
-                settings.ami_host, settings.ami_port, settings.ami_username, settings.ami_password
-            )
-        except Exception as e:
-            sip_checks["ami_reachable"] = False
-            sip_checks["ami_error"] = str(e)
-        diag["checks"]["sip"] = sip_checks
 
-    # Hybrid per-direction checks (trait-driven)
+    # Per-direction checks (trait-driven)
     # Outbound
     out: dict[str, Any] = {"backend": ob, "requires_ami": providerHasTrait("outbound", "requires_ami")}
     if ob == "phaxio":
@@ -1972,6 +2002,32 @@ async def run_diagnostics():
         out["public_url_https"] = settings.public_api_url.startswith("https://")
     elif ob == "sinch":
         out["auth_configured"] = bool(settings.sinch_project_id and settings.sinch_api_key and settings.sinch_api_secret)
+        # Optional live ping (fast): verify credentials reach a basic resource
+        try:
+            if out["auth_configured"]:
+                base = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com/v3").rstrip("/")
+                url = f"{base}/projects/{settings.sinch_project_id}/services/default"
+                import httpx
+                token = None
+                if (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth"):
+                    try:
+                        from .sinch_service import get_sinch_service  # local import to avoid cycles
+                        svc = get_sinch_service()
+                        if svc is not None:
+                            token = await svc.get_access_token()
+                    except Exception:
+                        token = None
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(url, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (settings.sinch_api_key, settings.sinch_api_secret))
+                ok = (resp.status_code < 400)
+                if not ok:
+                    url2 = f"{base}/projects/{settings.sinch_project_id}/faxes?limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        r2 = await client.get(url2, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (settings.sinch_api_key, settings.sinch_api_secret))
+                    ok = (r2.status_code < 400)
+                out["auth_valid"] = ok
+        except Exception:
+            out.setdefault("auth_valid", None)
     elif ob == "signalwire":
         out["auth_configured"] = bool(settings.signalwire_space_url and settings.signalwire_project_id and settings.signalwire_api_token)
     elif ob == "documo":
@@ -2003,7 +2059,6 @@ async def run_diagnostics():
             inbound["signature_verification"] = settings.phaxio_inbound_verify_signature
         if ib == "sinch":
             inbound["basic_auth_configured"] = bool(settings.sinch_inbound_basic_user)
-            inbound["hmac_configured"] = bool(settings.sinch_inbound_hmac_secret)
     diag["checks"]["inbound"] = inbound
 
     # System checks
@@ -2069,16 +2124,7 @@ async def run_diagnostics():
         else:
             diag["checks"]["storage"] = {"type": "local", "warning": "Local storage only suitable for development"}
 
-    # Inbound flags
-    if settings.inbound_enabled:
-        inbound = {"enabled": True, "retention_days": settings.inbound_retention_days}
-        if settings.fax_backend == "phaxio":
-            inbound["signature_verification"] = settings.phaxio_inbound_verify_signature
-        elif settings.fax_backend == "sinch":
-            inbound["auth_configured"] = bool(settings.sinch_inbound_basic_user or settings.sinch_inbound_hmac_secret)
-        elif settings.fax_backend == "sip":
-            inbound["asterisk_secret_set"] = bool(settings.asterisk_inbound_secret)
-        diag["checks"]["inbound"] = inbound
+    # Remove duplicate/global inbound block; handled above for active inbound
 
     # Security summary
     diag["checks"]["security"] = {
@@ -2151,7 +2197,7 @@ async def run_diagnostics():
     except Exception:
         pass
 
-    # Summary
+    # Summary (backend‑isolated)
     critical: list[str] = []
     warnings: list[str] = []
     if ob == "phaxio":
@@ -2170,11 +2216,18 @@ async def run_diagnostics():
         inbound = diag["checks"].get("inbound", {})
         if not inbound.get("asterisk_secret_set"):
             critical.append("ASTERISK_INBOUND_SECRET not set for inbound SIP")
-    # Ghostscript is required for all backends
+    # Ghostscript: only critical when tiff conversion is required (self-hosted paths)
     if not sys.get("ghostscript"):
-        critical.append("Ghostscript (gs) not installed — required for fax file processing")
+        if providerHasTrait("any", "requires_tiff"):
+            critical.append("Ghostscript (gs) not installed — required for fax file processing")
+        else:
+            warnings.append("Ghostscript not found; OK for pure cloud backends with PDF pass-through")
     if not sys.get("fax_data_writable"):
-        critical.append("Cannot write to fax data dir")
+        # Critical when inbound enabled or storage needed; otherwise warn
+        if settings.inbound_enabled or providerHasTrait("inbound", "needs_storage"):
+            critical.append("Cannot write to fax data dir")
+        else:
+            warnings.append("fax data dir not writable; OK when no inbound/storage")
     if not sys.get("database_connected"):
         critical.append("Database connection failed")
     # Plugin warnings
@@ -2193,15 +2246,14 @@ async def run_diagnostics():
 @app.get("/admin/settings/export", dependencies=[Depends(require_admin)])
 def export_settings_env():
     """Generate a .env snippet for current settings (secrets redacted)."""
+    # Keep this export faithful to explicit env overrides so copy/paste is accurate
     lines: List[str] = []
-    ob = active_outbound()
-    ib = active_inbound()
     lines.append(f"FAX_BACKEND={settings.fax_backend}")
     # Include dual-backend envs only when explicitly set
     if os.getenv("FAX_OUTBOUND_BACKEND"):
-        lines.append(f"FAX_OUTBOUND_BACKEND={ob}")
+        lines.append(f"FAX_OUTBOUND_BACKEND={os.getenv('FAX_OUTBOUND_BACKEND')}")
     if os.getenv("FAX_INBOUND_BACKEND"):
-        lines.append(f"FAX_INBOUND_BACKEND={ib}")
+        lines.append(f"FAX_INBOUND_BACKEND={os.getenv('FAX_INBOUND_BACKEND')}")
     lines.append(f"REQUIRE_API_KEY={str(settings.require_api_key).lower()}")
     lines.append(f"ENFORCE_PUBLIC_HTTPS={str(settings.enforce_public_https).lower()}")
     lines.append("# NOTE: Secrets are redacted below. Fill in actual values before use.")
@@ -2232,6 +2284,12 @@ def export_settings_env():
         lines.append(
             f"SINCH_API_SECRET={(settings.sinch_api_secret[:8] + '…') if settings.sinch_api_secret else ''}"
         )
+        if os.getenv("SINCH_BASE_URL"):
+            lines.append(f"SINCH_BASE_URL={os.getenv('SINCH_BASE_URL')}")
+        if os.getenv("SINCH_AUTH_METHOD"):
+            lines.append(f"SINCH_AUTH_METHOD={os.getenv('SINCH_AUTH_METHOD')}")
+        if os.getenv("SINCH_AUTH_BASE_URL"):
+            lines.append(f"SINCH_AUTH_BASE_URL={os.getenv('SINCH_AUTH_BASE_URL')}")
     return {
         "env_content": "\n".join(lines),
         "requires_restart": True,
@@ -2277,6 +2335,11 @@ def _export_settings_full_env() -> str:
         kv["SINCH_PROJECT_ID"] = settings.sinch_project_id or ""
         kv["SINCH_API_KEY"] = settings.sinch_api_key or ""
         kv["SINCH_API_SECRET"] = settings.sinch_api_secret or ""
+        if os.getenv("SINCH_BASE_URL"):
+            kv["SINCH_BASE_URL"] = os.getenv("SINCH_BASE_URL", "")
+        kv["SINCH_AUTH_METHOD"] = (os.getenv("SINCH_AUTH_METHOD") or settings.sinch_auth_method or "basic").lower()
+        if os.getenv("SINCH_AUTH_BASE_URL"):
+            kv["SINCH_AUTH_BASE_URL"] = os.getenv("SINCH_AUTH_BASE_URL", "")
     # Backend: SIP/Asterisk
     if settings.fax_backend == "sip":
         kv["ASTERISK_AMI_HOST"] = settings.ami_host
@@ -2292,12 +2355,9 @@ def _export_settings_full_env() -> str:
     if settings.asterisk_inbound_secret:
         kv["ASTERISK_INBOUND_SECRET"] = settings.asterisk_inbound_secret
     kv["PHAXIO_INBOUND_VERIFY_SIGNATURE"] = "true" if settings.phaxio_inbound_verify_signature else "false"
-    kv["SINCH_INBOUND_VERIFY_SIGNATURE"] = "true" if settings.sinch_inbound_verify_signature else "false"
     if settings.sinch_inbound_basic_user:
         kv["SINCH_INBOUND_BASIC_USER"] = settings.sinch_inbound_basic_user
         kv["SINCH_INBOUND_BASIC_PASS"] = settings.sinch_inbound_basic_pass or ""
-    if settings.sinch_inbound_hmac_secret:
-        kv["SINCH_INBOUND_HMAC_SECRET"] = settings.sinch_inbound_hmac_secret
     kv["INBOUND_LIST_RPM"] = str(settings.inbound_list_rpm)
     kv["INBOUND_GET_RPM"] = str(settings.inbound_get_rpm)
     # Storage
@@ -2426,9 +2486,12 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
     # Convert to PDF if needed
     if is_text or (file.filename and file.filename.lower().endswith(".txt")):
         if settings.fax_disabled:
-            # Test mode - skip conversion
-            with open(pdf_path, "wb") as f:
-                f.write(b"%PDF-1.4\ntest\n%%EOF")
+            # Test mode - still generate a valid PDF using ReportLab
+            from .conversion import write_valid_text_pdf  # type: ignore
+            write_valid_text_pdf(pdf_path, [
+                "Faxbot test TXT→PDF",
+                f"Source: {os.path.basename(str(orig_path))}",
+            ])
         else:
             txt_to_pdf(orig_path, pdf_path)
     else:
@@ -3501,12 +3564,10 @@ async def phaxio_inbound(request: Request):
     ensure_dir(data_dir)
     local_pdf = os.path.join(data_dir, f"{job_id}.pdf")
     if pdf_bytes is None:
-        # Minimal placeholder PDF so record exists; operators can re-fetch if needed
-        with open(local_pdf, "wb") as f:
-            f.write(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
-        size_bytes = len(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
+        # Do not write placeholders; record an error and skip storing a file
+        size_bytes = None
         pages_int = None
-        sha256_hex = hashlib.sha256(b"%PDF-1.4\n% placeholder inbound\n%%EOF").hexdigest()
+        sha256_hex = None
     else:
         with open(local_pdf, "wb") as f:
             f.write(pdf_bytes)
@@ -3556,6 +3617,11 @@ async def phaxio_inbound(request: Request):
 
 @app.post("/sinch-inbound")
 async def sinch_inbound(request: Request):
+    # Ensure latest env (tests may set FAX_DATA_DIR etc.)
+    try:
+        reload_settings()
+    except Exception:
+        pass
     if not settings.inbound_enabled:
         raise HTTPException(404, detail="Inbound not enabled")
     if os.getenv("FAX_INBOUND_BACKEND") and active_inbound() != "sinch":
@@ -3577,12 +3643,8 @@ async def sinch_inbound(request: Request):
         if not ok:
             raise HTTPException(401, detail="Invalid basic auth")
     # Verify HMAC if configured
-    if settings.sinch_inbound_hmac_secret:
-        provided = request.headers.get("X-Sinch-Signature", "")
-        secret = settings.sinch_inbound_hmac_secret.encode()
-        digest = hmac.new(secret, raw, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(digest, (provided or "").strip().lower()):
-            raise HTTPException(401, detail="Invalid signature")
+    # Note: Sinch Fax API does not provide HMAC signatures for fax webhooks.
+    # We intentionally do not support HMAC verification here to avoid false expectations.
 
     try:
         data = await request.json()
@@ -3599,6 +3661,7 @@ async def sinch_inbound(request: Request):
     if not provider_sid:
         return {"status": "ignored"}
 
+    duplicate_evt = False
     with SessionLocal() as db:
         from .db import InboundEvent  # type: ignore
         evt = InboundEvent(id=uuid.uuid4().hex, provider_sid=str(provider_sid), event_type="sinch-inbound", created_at=datetime.utcnow())
@@ -3607,38 +3670,69 @@ async def sinch_inbound(request: Request):
             db.commit()
         except Exception:
             db.rollback()
-            return {"status": "ok"}
+            duplicate_evt = True
 
     pdf_bytes: Optional[bytes] = None
+    pdf_error: Optional[str] = None
     if file_url:
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.get(str(file_url))
-                if resp.status_code == 200:
-                    pdf_bytes = resp.content
-        except Exception:
-            pdf_bytes = None
+            headers = {"Accept": "application/pdf, application/octet-stream"}
+            auth = None
+            # Prefer OAuth if enabled
+            use_oauth = (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth")
+            token = None
+            if use_oauth:
+                try:
+                    svc = get_sinch_service()
+                    if svc is not None:
+                        token = await svc.get_access_token()
+                        headers["Authorization"] = f"Bearer {token}"
+                except Exception:
+                    token = None
+            if token is None and settings.sinch_api_key and settings.sinch_api_secret:
+                auth = (settings.sinch_api_key, settings.sinch_api_secret)
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                resp = await client.get(str(file_url), auth=auth, headers=headers)
+                headers_obj = getattr(resp, "headers", {}) or {}
+                try:
+                    ct = (headers_obj.get("content-type") or "").lower()
+                except Exception:
+                    ct = ""
+                if resp.status_code == 200 and getattr(resp, "content", None):
+                    content = resp.content
+                    # Validate PDF signature (%PDF-) regardless of content-type quirks
+                    if content[:5] == b"%PDF-" or "application/pdf" in ct or "octet-stream" in ct:
+                        pdf_bytes = content
+                    else:
+                        pdf_error = f"unexpected_content_type:{ct or 'unknown'}"
+                else:
+                    pdf_error = f"http_status:{resp.status_code}"
+        except Exception as e:
+            pdf_error = f"exception:{type(e).__name__}"
 
     job_id = uuid.uuid4().hex
     data_dir = settings.fax_data_dir
     ensure_dir(data_dir)
     local_pdf = os.path.join(data_dir, f"{job_id}.pdf")
-    if pdf_bytes is None:
-        with open(local_pdf, "wb") as f:
-            f.write(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
-        size_bytes = len(b"%PDF-1.4\n% placeholder inbound\n%%EOF")
-        pages_int = None
-        sha256_hex = hashlib.sha256(b"%PDF-1.4\n% placeholder inbound\n%%EOF").hexdigest()
-    else:
+    pages_int = None
+    if pdf_bytes is not None:
         with open(local_pdf, "wb") as f:
             f.write(pdf_bytes)
         size_bytes = len(pdf_bytes)
-        pages_int = None
         sha256_hex = hashlib.sha256(pdf_bytes).hexdigest()
+    else:
+        # Do not write an invalid placeholder; record error and continue
+        size_bytes = None
+        sha256_hex = None
 
     storage = get_storage()
-    stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
+    stored_uri = None
+    if pdf_bytes is not None:
+        stored_uri = storage.put_pdf(local_pdf, f"{job_id}.pdf")
+    else:
+        # When we failed to fetch media but this is a duplicate event, try to keep existing file path
+        stored_uri = None
 
     pdf_token = secrets.token_urlsafe(32)
     expires_at = datetime.utcnow() + timedelta(minutes=max(1, settings.inbound_token_ttl_minutes))
@@ -3646,30 +3740,47 @@ async def sinch_inbound(request: Request):
 
     with SessionLocal() as db:
         from .db import InboundFax  # type: ignore
-        fx = InboundFax(
-            id=job_id,
-            from_number=(str(from_number) if from_number else None),
-            to_number=(str(to_number) if to_number else None),
-            status=str(status),
-            backend="sinch",
-            inbound_backend=active_inbound(),
-            provider_sid=str(provider_sid),
-            pages=int(pages) if pages else pages_int,
-            size_bytes=size_bytes,
-            sha256=sha256_hex,
-            pdf_path=stored_uri,
-            tiff_path=None,
-            mailbox_label=None,
-            retention_until=retention_until,
-            pdf_token=pdf_token,
-            pdf_token_expires_at=expires_at,
-            created_at=datetime.utcnow(),
-            received_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        db.add(fx)
-        db.commit()
-    audit_event("inbound_received", job_id=job_id, backend="sinch")
+        existing = db.query(InboundFax).filter(InboundFax.provider_sid == str(provider_sid)).first()
+        now = datetime.utcnow()
+        if existing:
+            # Update existing record to keep path fresh/idempotent
+            if stored_uri:
+                existing.pdf_path = stored_uri
+            existing.size_bytes = size_bytes
+            existing.sha256 = sha256_hex
+            existing.pages = int(pages) if pages else pages_int
+            existing.status = str(status)
+            existing.error = pdf_error
+            existing.updated_at = now
+            if not existing.received_at:
+                existing.received_at = now
+            db.commit()
+        else:
+            fx = InboundFax(
+                id=job_id,
+                from_number=(str(from_number) if from_number else None),
+                to_number=(str(to_number) if to_number else None),
+                status=str(status),
+                backend="sinch",
+                inbound_backend=active_inbound(),
+                provider_sid=str(provider_sid),
+                pages=int(pages) if pages else pages_int,
+                size_bytes=size_bytes,
+                sha256=sha256_hex,
+                pdf_path=stored_uri,
+                tiff_path=None,
+                mailbox_label=None,
+                retention_until=retention_until,
+                pdf_token=pdf_token,
+                pdf_token_expires_at=expires_at,
+                created_at=now,
+                received_at=now,
+                updated_at=now,
+                error=pdf_error,
+            )
+            db.add(fx)
+            db.commit()
+    audit_event("inbound_received", job_id=job_id, backend="sinch", pdf_error=pdf_error)
     return {"status": "ok"}
 # ===== Global error logging =====
 @app.exception_handler(HTTPException)
@@ -4051,6 +4162,39 @@ async def admin_terminal_websocket(
     api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
     """WebSocket terminal for Admin Console - requires admin authentication."""
+    # Local-only gate (Terminal is a local admin tool)
+    if os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() not in {"1","true","yes"}:
+        await websocket.accept()
+        await websocket.send_text(json.dumps({'type': 'error', 'message': 'Terminal disabled (ENABLE_LOCAL_ADMIN=false)'}))
+        await websocket.close(code=1008, reason="Admin console disabled")
+        return
+    # Block proxied access unless explicitly allowed for demo/testing
+    try:
+        allow_tunnel_ui = os.getenv("ADMIN_UI_ALLOW_TUNNEL", "false").lower() in {"1","true","yes"}
+        # Starlette exposes headers on websocket scope
+        h = dict(websocket.headers or [])
+        if ("x-forwarded-for" in h or "x-real-ip" in h) and not allow_tunnel_ui:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({'type': 'error', 'message': 'Terminal not available through proxy'}))
+            await websocket.close(code=1008, reason="Admin console not available through proxy")
+            return
+        # Local IP policy (loopback or private/VPN ranges such as RFC1918 and CGNAT 100.64.0.0/10)
+        client_ip = websocket.client.host if websocket.client else ""
+        import ipaddress
+        ip = ipaddress.ip_address(client_ip) if client_ip else None
+        cgnat = ipaddress.ip_network('100.64.0.0/10')
+        allow = (ip.is_loopback if ip else False) or ((ip.is_private if ip else False)) or (ip and ip.version == 4 and ip in cgnat) or allow_tunnel_ui
+        if not allow:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({'type': 'error', 'message': 'Forbidden'}))
+            await websocket.close(code=1008, reason="Forbidden")
+            return
+    except Exception:
+        # Fail closed if we cannot determine client
+        await websocket.accept()
+        await websocket.send_text(json.dumps({'type': 'error', 'message': 'Forbidden'}))
+        await websocket.close(code=1008, reason="Forbidden")
+        return
     # Check admin authentication
     if not api_key or api_key != settings.api_key:
         # Try to get API key from query params for WebSocket auth

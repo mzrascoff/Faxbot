@@ -60,6 +60,8 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const [helpTitle, setHelpTitle] = useState<string>('');
   const [helpKey, setHelpKey] = useState<string>('');
   const [testSending, setTestSending] = useState(false);
+  const [testSendingTxt, setTestSendingTxt] = useState(false);
+  const [testSendingImg, setTestSendingImg] = useState(false);
   const [testJobId, setTestJobId] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<string[]>(['summary']);
@@ -143,8 +145,9 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
     if (t.includes('sinch')) {
       if (key === 'project_id_set' && !value) return 'Set SINCH_PROJECT_ID from your Sinch console.';
-      if (key === 'api_key_set' && !value) return 'Set SINCH_API_KEY (or PHAXIO_API_KEY) for Sinch.';
-      if (key === 'api_secret_set' && !value) return 'Set SINCH_API_SECRET (or PHAXIO_API_SECRET) for Sinch.';
+      if (key === 'api_key_set' && !value) return 'Set SINCH_API_KEY for Sinch (used to mint OAuth tokens).';
+      if (key === 'api_secret_set' && !value) return 'Set SINCH_API_SECRET for Sinch (used to mint OAuth tokens).';
+      if ((key === 'auth' || key === 'auth_valid') && value === false) return 'If your account uses a regional API, set SINCH_BASE_URL (e.g., https://us.fax.api.sinch.com/v3) and re-run. Outbound API uses OAuth 2.0 (Bearer).';
     }
     if (t.includes('sip')) {
       if (key === 'ami_password_not_default' && !value) return 'Change ASTERISK_AMI_PASSWORD from default to a secure value.';
@@ -215,6 +218,12 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       if (key === 'enforce_https') {
         docs.push({ text: 'HIPAA requires encryption in transit. Enable ENFORCE_PUBLIC_HTTPS=true.' });
       }
+    }
+
+    if (t.includes('sinch')) {
+      docs.push({ text: 'Sinch Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/' });
+      docs.push({ text: 'OAuth 2.0 for Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/' });
+      docs.push({ text: 'Sinch Customer Dashboard (Access Keys)', href: 'https://dashboard.sinch.com/settings/access-keys' });
     }
     
     return docs;
@@ -423,6 +432,114 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
   };
 
+  // Send Test TXT (simple text → backend converts to PDF)
+  const runSendTestTxtFax = async () => {
+    try {
+      setError(null);
+      setTestSendingTxt(true);
+      setTestJobId(null);
+      setTestStatus(null);
+      const blob = new Blob(["Faxbot test TXT\nHello from Admin Console"], { type: 'text/plain' });
+      const file = new File([blob], 'faxbot_test.txt', { type: 'text/plain' });
+      const result = await client.sendFax('+15555550123', file);
+      setTestJobId(result.id);
+      setTestStatus(result.status);
+      let attempts = 0;
+      const poll = async () => {
+        if (!result.id || attempts++ > 10) return;
+        try {
+          const job = await client.getJob(result.id);
+          setTestStatus(job.status);
+          if (['SUCCESS','FAILED','failed','SUCCESSFUL','COMPLETED'].includes(String(job.status))) return;
+        } catch {}
+        setTimeout(poll, 2000);
+      };
+      poll();
+    } catch (e: any) {
+      setError(e?.message || 'Test TXT fax failed to start');
+    } finally {
+      setTestSendingTxt(false);
+    }
+  };
+
+  // Minimal single-page PDF generator (text) for "image" test path
+  // Generates a valid PDF with Helvetica text — exercises PDF→TIFF when required
+  const buildSimplePdf = (text: string): Uint8Array => {
+    const enc = (s: string) => new TextEncoder().encode(s);
+    const parts: Uint8Array[] = [];
+    const push = (s: string) => parts.push(enc(s));
+    push('%PDF-1.4\n');
+    // 1: Catalog
+    const o1 = enc('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+    // 2: Pages
+    const o2 = enc('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+    // 5: Font
+    const o5 = enc('5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+    // 4: Contents
+    const streamContent = `BT /F1 24 Tf 72 720 Td (${text.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)')}) Tj ET`;
+    const o4Stream = enc(streamContent);
+    const o4 = enc(`4 0 obj\n<< /Length ${o4Stream.length} >>\nstream\n`);
+    const o4end = enc('\nendstream\nendobj\n');
+    // 3: Page
+    const o3 = enc('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n');
+    // Assemble with xref
+    let offset = 0;
+    const add = (u: Uint8Array) => { parts.push(u); offset += u.length; };
+    const offsets: number[] = [];
+    add(enc('%PDF-1.4\n')); // already pushed via push, but we will rebuild consistently
+    parts.length = 0; offset = 0; // reset to build deterministically
+    const addAndRemember = (u: Uint8Array) => { offsets.push(offset); add(u); };
+    addAndRemember(o1);
+    addAndRemember(o2);
+    addAndRemember(o3);
+    addAndRemember(o4);
+    add(o4Stream);
+    add(o4end);
+    addAndRemember(o5);
+    const xrefStart = offset;
+    const xref = `xref\n0 6\n0000000000 65535 f \n${offsets.map(o=>String(o).padStart(10,'0')+ ' 00000 n ').join('\n')}\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    add(enc(xref));
+    // Combine
+    const total = parts.reduce((n,u)=>n+u.length,0);
+    const out = new Uint8Array(total);
+    let p = 0; for (const u of parts) { out.set(u, p); p += u.length; }
+    return out;
+  };
+
+  // Send Test Image (PDF) — generates a simple PDF with text to exercise raster path
+  const runSendTestImageFax = async () => {
+    try {
+      setError(null);
+      setTestSendingImg(true);
+      setTestJobId(null);
+      setTestStatus(null);
+      const bytes = buildSimplePdf('Faxbot Test Image');
+      // Create a standalone ArrayBuffer to avoid ArrayBufferLike/SharedArrayBuffer typing issues
+      const ab = new ArrayBuffer(bytes.byteLength);
+      new Uint8Array(ab).set(bytes);
+      const blob = new Blob([ab], { type: 'application/pdf' });
+      const file = new File([blob], 'faxbot_test_image.pdf', { type: 'application/pdf' });
+      const result = await client.sendFax('+15555550123', file);
+      setTestJobId(result.id);
+      setTestStatus(result.status);
+      let attempts = 0;
+      const poll = async () => {
+        if (!result.id || attempts++ > 10) return;
+        try {
+          const job = await client.getJob(result.id);
+          setTestStatus(job.status);
+          if (['SUCCESS','FAILED','failed','SUCCESSFUL','COMPLETED'].includes(String(job.status))) return;
+        } catch {}
+        setTimeout(poll, 2000);
+      };
+      poll();
+    } catch (e: any) {
+      setError(e?.message || 'Test image fax failed to start');
+    } finally {
+      setTestSendingImg(false);
+    }
+  };
+
   return (
     <>
       <Box>
@@ -533,6 +650,24 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                     gap: 2,
                     flexWrap: 'wrap'
                   }}>
+                    <Button 
+                      variant="outlined" 
+                      onClick={runSendTestTxtFax} 
+                      disabled={testSendingTxt}
+                      startIcon={testSendingTxt ? <CircularProgress size={16} /> : <SendIcon />}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      {testSendingTxt ? 'Sending…' : 'Send Test TXT'}
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      onClick={runSendTestImageFax} 
+                      disabled={testSendingImg}
+                      startIcon={testSendingImg ? <CircularProgress size={16} /> : <SendIcon />}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      {testSendingImg ? 'Sending…' : 'Send Test Image'}
+                    </Button>
                     <Button 
                       variant="outlined" 
                       onClick={runSendTestFax} 

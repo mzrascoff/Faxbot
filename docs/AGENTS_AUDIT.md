@@ -140,7 +140,7 @@ References use clickable file paths with single start lines per CLI rules.
 ## Security Architecture
 - Threat model addressed by controls — VERIFIED/PARTIAL
   - No PHI in UI logs; UI masks numbers (JobsList) — VERIFIED: api/admin_ui/src/components/JobsList.tsx:262
-  - Webhook verification — VERIFIED (Phaxio; optional Sinch HMAC/basic): api/app/main.py:2321, 2973, 2980
+- Webhook verification — VERIFIED where supported (Phaxio HMAC; Sinch Basic only): api/app/main.py
   - Local‑only Admin UI gate — VERIFIED: api/app/main.py:158–175
   - Terminal WS auth (env key or DB admin key) — VERIFIED: api/app/main.py:3445–3466
   - Note: Terminal WS itself is not IP‑restricted; guidance remains to keep Admin local only
@@ -190,4 +190,3 @@ References use clickable file paths with single start lines per CLI rules.
 
 ## Out‑of‑Repo Notes
 - Vendor admin demo (faxbot.net) parity validated separately; not present in this repo. Ensure nav grouping, Scripts & Tests, Terminal seeding, and Plugins demo mirror current Admin Console.
-

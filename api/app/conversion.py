@@ -11,31 +11,35 @@ def ensure_dir(path: str) -> None:
     Path(path).mkdir(parents=True, exist_ok=True)
 
 
-def txt_to_pdf(txt_path: str, pdf_path: str) -> None:
-    # Quick test mode check
-    import os
-    if os.getenv("FAX_DISABLED") == "true" or "test" in txt_path.lower():
-        # Test mode - create minimal PDF
-        Path(pdf_path).write_bytes(b"%PDF-1.4\ntest\n%%EOF")
-        return
-    
-    text = Path(txt_path).read_text(encoding="utf-8", errors="ignore")
+def write_valid_text_pdf(pdf_path: str, lines: list[str]) -> None:
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
     margin = 54
     x = margin
     y = height - margin
     c.setFont("Courier", 10)
-    for raw_line in text.splitlines():
-        # Limit line length
-        line = raw_line[:120]
+    for raw_line in lines:
+        line = (raw_line or "")[:120]
         c.drawString(x, y, line)
         y -= 12
         if y <= margin:
             c.showPage()
             c.setFont("Courier", 10)
             y = height - margin
+    c.showPage()
     c.save()
+
+
+def txt_to_pdf(txt_path: str, pdf_path: str) -> None:
+    # Quick test mode check
+    import os
+    if os.getenv("FAX_DISABLED") == "true" or "test" in txt_path.lower():
+        # Test mode - generate valid PDF with text content
+        write_valid_text_pdf(pdf_path, ["Faxbot test TXT→PDF", f"Source: {Path(txt_path).name}"])
+        return
+    
+    text = Path(txt_path).read_text(encoding="utf-8", errors="ignore")
+    write_valid_text_pdf(pdf_path, text.splitlines())
 
 
 def pdf_to_tiff(pdf_path: str, tiff_path: str) -> Tuple[int, str]:
@@ -83,11 +87,25 @@ def tiff_to_pdf(tiff_path: str, pdf_path: str) -> Tuple[int, str]:
     Returns (pages, pdf_path). Uses Ghostscript when available; stubs in test mode.
     """
     if os.getenv("FAX_DISABLED") == "true" or "test" in tiff_path.lower():
-        Path(pdf_path).write_bytes(b"%PDF-1.4\ntest\n%%EOF")
+        # Test mode: generate a valid single-page PDF so viewers can open it
+        c = canvas.Canvas(pdf_path, pagesize=letter)
+        width, height = letter
+        c.setFont("Helvetica", 12)
+        c.drawString(54, height - 72, "Faxbot inbound: TIFF→PDF (test mode)")
+        c.drawString(54, height - 90, f"Source: {Path(tiff_path).name}")
+        c.showPage()
+        c.save()
         return 1, pdf_path
     if shutil.which("gs") is None:
-        # No Ghostscript; create placeholder minimal PDF
-        Path(pdf_path).write_bytes(b"%PDF-1.4\n% placeholder\n%%EOF")
+        # No Ghostscript available: generate a valid single-page PDF via reportlab
+        # This ensures viewers can open the file even without rasterization
+        c = canvas.Canvas(pdf_path, pagesize=letter)
+        width, height = letter
+        c.setFont("Helvetica", 12)
+        c.drawString(54, height - 72, "Faxbot inbound: TIFF→PDF fallback (Ghostscript not installed)")
+        c.drawString(54, height - 90, f"Source: {Path(tiff_path).name}")
+        c.showPage()
+        c.save()
         return 1, pdf_path
     cmd = [
         "gs",

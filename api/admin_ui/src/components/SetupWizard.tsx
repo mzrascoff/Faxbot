@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -80,7 +80,16 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   };
 
   const handleConfigChange = (field: string, value: any) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+    setConfig(prev => {
+      const next = { ...prev, [field]: value } as WizardConfig;
+      if (field === 'outbound_backend') {
+        next.backend = String(value);
+      }
+      if (field === 'backend' && !next.outbound_backend) {
+        next.outbound_backend = String(value);
+      }
+      return next;
+    });
   };
 
   // Load current server settings to avoid defaulting to Phaxio every time
@@ -103,7 +112,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         if (effectiveOutbound === 'phaxio') {
           next.phaxio_api_key = s?.phaxio?.api_key ? '' : '';
           next.phaxio_api_secret = s?.phaxio?.api_secret ? '' : '';
-          next.public_api_url = s?.phaxio?.callback_url ? String(s?.phaxio?.callback_url).replace(/\/phaxio-callback$/, '') : s?.public_api_url;
+          next.public_api_url = s?.phaxio?.callback_url ? String(s?.phaxio?.callback_url).replace(/\/phaxio-callback$/, '') : (s as any)?.security?.public_api_url;
         } else if (effectiveOutbound === 'sinch') {
           next.sinch_project_id = s?.sinch?.project_id || '';
         }
@@ -245,6 +254,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         payload.sinch_project_id = config.sinch_project_id;
         payload.sinch_api_key = config.sinch_api_key;
         payload.sinch_api_secret = config.sinch_api_secret;
+        if ((config as any).sinch_base_url) payload.sinch_base_url = (config as any).sinch_base_url;
       } else if (ob === 'signalwire') {
         (payload as any).signalwire_space_url = (config as any).signalwire_space_url;
         (payload as any).signalwire_project_id = (config as any).signalwire_project_id;
@@ -346,7 +356,9 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             )}
             {(config.inbound_backend||config.backend) === 'sinch' && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                Inbound webhook will be <code>/sinch-inbound</code>. Basic and/or HMAC optional.
+                Inbound webhook will be <code>/sinch-inbound</code>. Sinch webhooks are not provider‑signed; enforce Basic auth in Faxbot and consider IP allowlisting. Outbound API calls use OAuth 2.0 (Bearer).
+                <br/>
+                Access keys live in the <a href="https://dashboard.sinch.com/settings/access-keys" target="_blank" rel="noreferrer">Sinch Customer (Build) Dashboard</a>. Other Sinch portals do not expose Fax API access keys.
               </Alert>
             )}
             {(config.inbound_backend||config.backend) === 'sip' && (
@@ -414,6 +426,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             {ob === 'sinch' && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    See <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</a> or the <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API docs</a>.
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
                   <TextField
                     label="Project ID"
                     value={config.sinch_project_id || ''}
@@ -434,6 +451,16 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                     label="API Secret"
                     value={config.sinch_api_secret || ''}
                     onChange={(value) => handleConfigChange('sinch_api_secret', value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Base URL (optional)"
+                    value={(config as any).sinch_base_url || ''}
+                    onChange={(e) => handleConfigChange('sinch_base_url', e.target.value)}
+                    placeholder="https://us.fax.api.sinch.com/v3"
+                    helperText="Override region endpoint if your account uses a non-default region"
                     fullWidth
                   />
                 </Grid>
@@ -560,7 +587,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             {/* Provider Connect */}
             {(ob === 'phaxio' || ob === 'sinch') && (
               <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>Connect {config.backend.toUpperCase()} Inbound</Typography>
+                <Typography variant="subtitle1" gutterBottom>Connect {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} Inbound</Typography>
                 <Button variant="outlined" onClick={loadCallbacks} sx={{ mr: 1 }}>Show Callback URL</Button>
                 {callbacks && callbacks.callbacks && callbacks.callbacks[0] && (
                   <Paper sx={{ p: 2, mt: 2 }}>
@@ -582,7 +609,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                   )}
                 </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Paste this URL into your {config.backend.toUpperCase()} console for inbound fax delivery.
+                      Paste this URL into your {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} console for inbound fax delivery.
                       {"  •  "}
                       <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/phaxio-setup.html`} target="_blank" rel="noreferrer">Faxbot: Phaxio Setup</a>
                       {"  •  "}
@@ -652,11 +679,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 <TextField
                   label="PDF Token TTL (minutes)"
                   type="number"
-                  value={config.pdf_token_ttl_minutes || 60}
-                  onChange={(e) => handleConfigChange('pdf_token_ttl_minutes', parseInt(e.target.value))}
+                  value={60}
                   fullWidth
                   size="small"
-                  helperText="How long tokenized PDF URLs remain valid"
+                  disabled
+                  helperText="Fixed: 60 minutes"
                 />
               </Grid>
             </Grid>
