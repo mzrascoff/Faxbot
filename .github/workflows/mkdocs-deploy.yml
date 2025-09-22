@@ -27,9 +27,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install mkdocs mkdocs-material mike mkdocs-exclude
 
-      - name: Preflight build (sanity)
-        run: |
-          mkdocs build --strict
+    - name: Preflight build (sanity)
+      run: |
+        mkdocs --version
+        echo "Listing docs/" && ls -la docs || true
+        echo "Showing mkdocs.yml" && sed -n '1,160p' mkdocs.yml
+        mkdocs build --strict -v
 
       - name: Configure Git author
         run: |
