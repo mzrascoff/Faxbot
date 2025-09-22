@@ -1,29 +1,39 @@
-name: mkdocs-deploy
+name: Build and Deploy MkDocs (mike)
+
 on:
   push:
-    branches: [ "mkdocs" ]
+    branches: [ mkdocs ]
+  workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-      - name: Install deps
-        run: pip install -r requirements.txt
-      - name: Configure Git identity
+          python-version: '3.11'
+
+      - name: Install MkDocs toolchain
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Deploy with mike (gh-pages -> latest)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material mike mkdocs-exclude
+
+      - name: Configure Git author
         run: |
-          VERSION=$(git rev-parse --short "$GITHUB_SHA")
-          mike deploy --branch gh-pages --remote origin --push --update-aliases "$VERSION" latest
-          mike set-default --branch gh-pages --remote origin --push latest
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Deploy docs with mike to gh-pages
+        run: |
+          mike deploy --push --branch gh-pages latest "Latest"
+          mike set-default --push --branch gh-pages latest
+
