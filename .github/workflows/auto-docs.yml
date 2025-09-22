@@ -1,0 +1,42 @@
+name: Auto-Update Documentation
+on:
+  push:
+    branches: [development, hybrid-refactor, auto-tunnel]
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Install git-cliff
+        run: |
+          wget -q https://github.com/orhun/git-cliff/releases/download/v1.4.0/git-cliff-1.4.0-x86_64-unknown-linux-gnu.tar.gz
+          tar -xzf git-cliff-*.tar.gz
+          sudo mv git-cliff-*/git-cliff /usr/local/bin/
+          
+      - name: Generate changelogs
+        run: |
+          git cliff development..hybrid-refactor > docs/CHANGELOG_hybrid.md
+          git cliff development..auto-tunnel > docs/CHANGELOG_tunnel.md
+          
+      - name: Update feature docs
+        run: |
+          # Extract feature changes
+          git diff development HEAD --name-only | grep -E "tunnel|email|wireguard|vpn" > new_features.txt || true
+          
+      - name: Commit documentation
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add docs/
+          git diff --staged --quiet || git commit -m "Auto-update documentation from ${{ github.ref }}"
+          
+      - name: Push to docs branch
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.DOCS_DEPLOY_TOKEN }}
+          branch: docs-jekyll-branch
+          force: true
