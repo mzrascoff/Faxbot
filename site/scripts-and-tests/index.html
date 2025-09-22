@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="https://docs.faxbot.net/SDKS/">
+        <link rel="canonical" href="https://docs.faxbot.net/scripts-and-tests/">
       
       
       
@@ -18,7 +18,7 @@
     
     
       
-        <title>SDKs (Node & Python) - Faxbot Docs</title>
+        <title>Scripts and Tests (Guide) - Faxbot Docs</title>
       
     
     
@@ -60,7 +60,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#client-sdks" class="md-skip">
+        <a href="#scripts-and-tests" class="md-skip">
           Skip to content
         </a>
       
@@ -96,7 +96,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              SDKs (Node & Python)
+              Scripts and Tests (Guide)
             
           </span>
         </div>
@@ -258,45 +258,72 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#python" class="md-nav__link">
+  <a href="#auth-and-api-basics" class="md-nav__link">
     <span class="md-ellipsis">
-      Python
+      Auth and API basics
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#nodejs" class="md-nav__link">
+  <a href="#send-and-status-helpers" class="md-nav__link">
     <span class="md-ellipsis">
-      Node.js
+      Send and status helpers
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#errors" class="md-nav__link">
+  <a href="#inbound" class="md-nav__link">
     <span class="md-ellipsis">
-      Errors
+      Inbound
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#compatibility" class="md-nav__link">
+  <a href="#cloud-ingress-helpers" class="md-nav__link">
     <span class="md-ellipsis">
-      Compatibility
+      Cloud ingress helpers
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#mcp-vs-sdk" class="md-nav__link">
+  <a href="#makefile-shortcuts" class="md-nav__link">
     <span class="md-ellipsis">
-      MCP vs SDK
+      Makefile shortcuts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-and-terminal-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment and terminal helpers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release-maintainers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release (maintainers)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notes
     </span>
   </a>
   
@@ -318,7 +345,7 @@
 
 
   
-    <a href="https://github.com/DMontgomery40/Faxbot/edit/mkdocs/docs/SDKS.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/DMontgomery40/Faxbot/edit/mkdocs/docs/scripts-and-tests.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -326,82 +353,70 @@
   
 
 
-<h1 id="client-sdks">Client SDKs<a class="headerlink" href="#client-sdks" title="Permanent link">&para;</a></h1>
-<p>Thin, official clients for the Faxbot API. They call the unified Faxbot REST API (no direct Phaxio/Asterisk calls). Current version alignment: Python 1.0.2, Node 1.0.2.</p>
+<h1 id="scripts-and-tests">Scripts and Tests<a class="headerlink" href="#scripts-and-tests" title="Permanent link">&para;</a></h1>
+<p>This page lists the most useful helper scripts and tests so you can verify Faxbot quickly without hand‑assembling curl commands.</p>
+<p>All scripts auto‑load <code>.env</code> via <code>scripts/load-env.sh</code>. Put your settings there.</p>
+<h2 id="auth-and-api-basics">Auth and API basics<a class="headerlink" href="#auth-and-api-basics" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Python: <code>faxbot</code></li>
-<li>Node.js: <code>faxbot</code></li>
+<li><code>scripts/smoke-auth.sh</code></li>
+<li>Creates a local venv, installs deps, runs a minimal pytest that creates a DB key, sends a test fax, queries status, and revokes the key.</li>
+<li><code>scripts/run-uvicorn-dev.sh</code></li>
+<li>Starts the API from your working tree (no Docker); accepts <code>PORT</code> (default 8080).</li>
+<li><code>scripts/curl-auth-demo.sh</code></li>
+<li>Assumes a running API; mints a DB key via admin endpoint, sends a TXT/PDF fax, and fetches the job status.</li>
 </ul>
-<h2 id="python">Python<a class="headerlink" href="#python" title="Permanent link">&para;</a></h2>
+<h2 id="send-and-status-helpers">Send and status helpers<a class="headerlink" href="#send-and-status-helpers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Install:</li>
+<li><code>scripts/send-fax.sh</code></li>
+<li>Simple wrapper to POST <code>/fax</code> with a PDF or TXT. Usage: <code>scripts/send-fax.sh "+15551234567" /absolute/path/file.pdf|.txt</code>.</li>
+<li><code>scripts/get-status.sh</code></li>
+<li>Fetches <code>/fax/{id}</code> for a given job ID. Usage: <code>scripts/get-status.sh &lt;job_id&gt;</code>.</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>pip install faxbot
-</code></pre></div>
-
+<h2 id="inbound">Inbound<a class="headerlink" href="#inbound" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Usage:</li>
+<li><code>scripts/bootstrap-inbound.sh</code></li>
+<li>One-button setup for inbound on your machine/server: sets <code>INBOUND_ENABLED=true</code>, generates <code>ASTERISK_INBOUND_SECRET</code> if missing, ensures <code>REQUIRE_API_KEY=true</code>, restarts API (docker compose), and runs the inbound smoke.</li>
+<li><code>scripts/inbound-internal-smoke.sh</code></li>
+<li>Posts a simulated inbound TIFF to <code>/_internal/asterisk/inbound</code>, lists <code>/inbound</code>, and downloads <code>/inbound/{id}/pdf</code> using a freshly minted inbound read token.</li>
+<li><code>scripts/e2e-inbound-sip.sh</code></li>
+<li>Checks health and Asterisk registration, mints an inbound read token, and watches <code>/inbound</code> for a new item after you fax to your DID; downloads the PDF when available.</li>
 </ul>
-<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">faxbot</span><span class="w"> </span><span class="kn">import</span> <span class="n">FaxbotClient</span>
-
-<span class="n">client</span> <span class="o">=</span> <span class="n">FaxbotClient</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:8080&quot;</span><span class="p">,</span> <span class="n">api_key</span><span class="o">=</span><span class="s2">&quot;YOUR_API_KEY&quot;</span><span class="p">)</span>
-<span class="n">job</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">send_fax</span><span class="p">(</span><span class="s2">&quot;+15551234567&quot;</span><span class="p">,</span> <span class="s2">&quot;/path/to/document.pdf&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Queued:&quot;</span><span class="p">,</span> <span class="n">job</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">job</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">])</span>
-<span class="n">status</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_status</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Status:&quot;</span><span class="p">,</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">])</span> 
-</code></pre></div>
-
+<h2 id="cloud-ingress-helpers">Cloud ingress helpers<a class="headerlink" href="#cloud-ingress-helpers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Notes:</li>
-<li>Only <code>.pdf</code> and <code>.txt</code> files are accepted.</li>
-<li>Auth: Prefer DB‑backed tokens created via <code>POST /admin/api-keys</code> (sent as <code>X-API-Key</code>). The legacy env <code>API_KEY</code> also works for bootstrap.</li>
-<li>Optional: <code>check_health()</code> calls <code>/health</code>.</li>
+<li><code>scripts/setup-phaxio-tunnel.sh</code></li>
+<li>Starts an HTTPS tunnel (cloudflared/ngrok), discovers a public URL, updates <code>.env</code> with <code>PUBLIC_API_URL</code> and <code>PHAXIO_CALLBACK_URL</code>, and restarts the API (cloud‑only). Useful for local Phaxio testing.</li>
 </ul>
-<h2 id="nodejs">Node.js<a class="headerlink" href="#nodejs" title="Permanent link">&para;</a></h2>
+<h2 id="makefile-shortcuts">Makefile shortcuts<a class="headerlink" href="#makefile-shortcuts" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Install:</li>
+<li><code>make up</code> / <code>make down</code> / <code>make logs</code></li>
+<li><code>make up-cloud</code> (API only; no Asterisk)</li>
+<li><code>make test</code> (runs pytest in the API container)</li>
+<li><code>make inbound-smoke</code> / <code>make inbound-e2e</code></li>
+<li><code>scripts/check-env.sh</code> — validates your <code>.env</code> for the selected backend and inbound/storage settings; prints what's missing and why.</li>
+<li>Alembic:</li>
+<li><code>make alembic-upgrade</code> (upgrade to head)</li>
+<li><code>make alembic-downgrade</code> (step down one)</li>
+<li><code>make alembic-revision</code> (info for autogenerate; use DATABASE_URL env)</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>npm install faxbot
-</code></pre></div>
-
+<h2 id="environment-and-terminal-helpers">Environment and terminal helpers<a class="headerlink" href="#environment-and-terminal-helpers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Usage:</li>
+<li><code>scripts/load-env.sh</code></li>
+<li>Utility to export variables from <code>.env</code> into the current shell. Sourced by most scripts.</li>
+<li><code>scripts/install-terminal-deps.sh</code></li>
+<li>Installs Python and UI dependencies used by the Admin Console Terminal feature. See: TERMINAL.md.</li>
 </ul>
-<div class="codehilite"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">FaxbotClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;faxbot&#39;</span><span class="p">);</span>
-<span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">FaxbotClient</span><span class="p">(</span><span class="s1">&#39;http://localhost:8080&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;YOUR_API_KEY&#39;</span><span class="p">);</span>
-
-<span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">job</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">client</span><span class="p">.</span><span class="nx">sendFax</span><span class="p">(</span><span class="s1">&#39;+15551234567&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;/path/to/document.pdf&#39;</span><span class="p">);</span>
-<span class="w">  </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Queued:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">job</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="nx">job</span><span class="p">.</span><span class="nx">status</span><span class="p">);</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">client</span><span class="p">.</span><span class="nx">getStatus</span><span class="p">(</span><span class="nx">job</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
-<span class="w">  </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Status:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">status</span><span class="p">.</span><span class="nx">status</span><span class="p">);</span>
-<span class="p">})();</span>
-</code></pre></div>
-
+<h2 id="release-maintainers">Release (maintainers)<a class="headerlink" href="#release-maintainers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Notes:</li>
-<li>Only <code>.pdf</code> and <code>.txt</code> files are accepted.</li>
-<li>Auth: Prefer DB‑backed tokens created via <code>POST /admin/api-keys</code> (sent as <code>X-API-Key</code>). The legacy env <code>API_KEY</code> also works for bootstrap.</li>
-<li>Optional: <code>checkHealth()</code> calls <code>/health</code>.</li>
+<li><code>scripts/release_npm.sh</code></li>
+<li>Publishes Node packages (<code>node_mcp</code>, <code>sdks/node</code>) to npm. Requires <code>npm login</code> or <code>NPM_TOKEN</code>.</li>
+<li><code>scripts/release_pypi.sh</code></li>
+<li>Builds and uploads Python packages (<code>sdks/python</code>, <code>python_mcp</code>) to PyPI. Requires <code>twine</code> auth.</li>
 </ul>
-<h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
+<h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The SDKs raise/throw on non-2xx responses. Common cases:</li>
-<li>400: invalid phone number or parameters</li>
-<li>401: missing/invalid API key</li>
-<li>413: file too large</li>
-<li>415: unsupported media type (non-PDF/TXT)</li>
-<li>404: job not found (for GET /fax/{id})</li>
-</ul>
-<h2 id="compatibility">Compatibility<a class="headerlink" href="#compatibility" title="Permanent link">&para;</a></h2>
-<ul>
-<li>The SDKs work regardless of backend (<code>phaxio</code>, <code>sinch</code>, or <code>sip</code>) because Faxbot abstracts the difference.</li>
-</ul>
-<h2 id="mcp-vs-sdk">MCP vs SDK<a class="headerlink" href="#mcp-vs-sdk" title="Permanent link">&para;</a></h2>
-<ul>
-<li>The SDKs do not include MCP (Model Context Protocol) logic. They are simple HTTP clients for developers.</li>
-<li>MCP integration is a separate component (stdio/HTTP servers) for AI assistants.</li>
-<li>See the guide: docs/MCP_INTEGRATION.md for setup, transports, and examples.</li>
+<li>For production, host the API as a container behind TLS; the UI can be hosted separately (e.g., Netlify) and calls the API over HTTPS.</li>
+<li>Use Postgres in production (<code>DATABASE_URL=postgresql+psycopg2://…</code>). SQLite remains for dev.</li>
+<li>Store artifacts on S3 or S3‑compatible storage with SSE‑KMS for PHI (configure <code>STORAGE_BACKEND</code>, <code>S3_*</code>).</li>
 </ul>
 
 
