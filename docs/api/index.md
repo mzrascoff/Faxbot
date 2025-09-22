@@ -14,6 +14,7 @@ Complete REST API documentation for Faxbot.
 
 - **[OpenAPI YAML](/Faxbot/openapi.yaml)** - Machine-readable API specification
 - **[Interactive API Explorer](https://petstore.swagger.io/?url=https://faxbot.github.io/Faxbot/openapi.yaml)** - Try the API in your browser
+- **[OpenAPI HTML](/Faxbot/openapi.html)** - CORS-friendly access for external tools
 
 ## Quick Start
 
