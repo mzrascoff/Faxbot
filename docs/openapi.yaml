@@ -10,6 +10,11 @@ info:
         name: MIT
         url: https://github.com/dmontgomery40/faxbot/blob/main/LICENSE
     version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.faxbot.net
+    description: Production server
 paths:
     /health:
         get:
@@ -583,10 +588,7 @@ paths:
                   required: false
                   schema:
                       anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
+                          type: string
                       title: X-Api-Key
             requestBody:
                 required: true
@@ -617,10 +619,7 @@ paths:
                   required: false
                   schema:
                       anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
+                          type: string
                       title: X-Api-Key
             responses:
                 200:
@@ -646,11 +645,8 @@ paths:
                   required: false
                   schema:
                       anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                          type: string
+                          title: X-Api-Key
             requestBody:
                 required: true
                 content:
@@ -681,11 +677,10 @@ paths:
                   required: false
                   schema:
                       anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                          title: X-Api-Key
             responses:
                 200:
                     description: Successful Response
@@ -744,11 +739,9 @@ paths:
                   required: false
                   schema:
                       anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
-                      title: X-Api-Key
+                          - type: string
+                          - type: "null"
+                        title: X-Api-Key
             responses:
                 200:
                     description: Successful Response
@@ -780,17 +773,20 @@ paths:
                       minimum: 1
                       default: 50
                       title: Lines
-              -
+                -
                   name: x-api-key
                   in: header
                   required: false
                   schema:
                       anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
+                          - type: string
+                          - type: "null"
                       title: X-Api-Key
+                      anyOf:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                          title: X-Api-Key
             responses:
                 200:
                     description: Successful Response
@@ -842,10 +838,7 @@ paths:
                   required: false
                   schema:
                       anyOf:
-                          -
-                            type: string
-                        -
-                            type: null
+                          type: string
                       title: X-Api-Key
             requestBody:
                 required: true

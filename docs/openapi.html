@@ -1,0 +1,34 @@
+---
+layout: null
+---
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Faxbot OpenAPI Specification</title>
+    <script>
+        // Set CORS headers and redirect to YAML
+        document.addEventListener('DOMContentLoaded', function() {
+            // If this is accessed via CORS, serve the YAML content directly
+            if (window.location.search.includes('format=yaml')) {
+                fetch('{{ site.baseurl }}/openapi.yaml')
+                    .then(response => response.text())
+                    .then(yaml => {
+                        document.body.innerHTML = '<pre>' + yaml + '</pre>';
+                        document.querySelector('pre').style.fontFamily = 'monospace';
+                        document.querySelector('pre').style.fontSize = '12px';
+                        document.querySelector('pre').style.whiteSpace = 'pre-wrap';
+                    });
+            } else {
+                // Redirect to the YAML file
+                window.location.href = '{{ site.baseurl }}/openapi.yaml';
+            }
+        });
+    </script>
+</head>
+<body>
+    <h1>Faxbot OpenAPI Specification</h1>
+    <p>Redirecting to <a href="{{ site.baseurl }}/openapi.yaml">openapi.yaml</a>...</p>
+    <p>Or view in <a href="https://petstore.swagger.io/?url={{ site.url }}{{ site.baseurl }}/openapi.yaml">Swagger UI</a></p>
+</body>
+</html>
