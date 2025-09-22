@@ -144,11 +144,20 @@ export interface DiagnosticsResult {
   timestamp: string;
   backend: string;
   checks: Record<string, any>;
+  traits?: {
+    active: { outbound: string; inbound: string };
+    registry: Record<string, { id?: string; kind?: string; traits?: Record<string, any> }>;
+  };
   summary: {
     healthy: boolean;
     critical_issues: string[];
     warnings: string[];
   };
+}
+
+export interface ProvidersInfo {
+  active: { outbound: string; inbound: string };
+  registry: Record<string, { id?: string; kind?: string; traits?: Record<string, any> }>;
 }
 
 export interface ValidationResult {

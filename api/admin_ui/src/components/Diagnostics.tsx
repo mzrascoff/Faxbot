@@ -232,11 +232,15 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const renderCheckSection = (title: string, checks: Record<string, any>) => {
     const sectionKey = title.toLowerCase().replace(/\s+/g, '_');
     const isExpanded = expandedSections.includes(sectionKey);
-    
-    const failCount = Object.values(checks).filter(v => v === false).length;
-    const totalCount = Object.keys(checks).length;
+
+    // Treat provider traits as informational, not pass/fail
+    const neutralKeys = new Set(['requires_ami', 'needs_storage', 'inbound_verification', 'backend', 'enabled']);
+
+    const entries = Object.entries(checks || {});
+    const failCount = entries.filter(([k, v]) => !neutralKeys.has(k) && v === false).length;
+    const totalCount = entries.filter(([k]) => !neutralKeys.has(k)).length;
     const hasIssues = failCount > 0;
-    
+
     return (
       <Accordion 
         key={sectionKey}
@@ -265,7 +269,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
               {title}
             </Typography>
             <Chip
-              label={`${totalCount - failCount}/${totalCount} Pass`}
+              label={`${Math.max(totalCount - failCount, 0)}/${Math.max(totalCount, 0)} Pass`}
               color={hasIssues ? 'error' : 'success'}
               size="small"
               variant="outlined"
@@ -275,10 +279,12 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
         </AccordionSummary>
         <AccordionDetails>
           <Stack spacing={2}>
-            {Object.entries(checks).map(([key, value]) => {
+            {entries.map(([key, value]) => {
               const help = helpFor(title, key, value);
               const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-              
+
+              const isNeutral = neutralKeys.has(key);
+
               return (
                 <Paper
                   key={key}
@@ -286,7 +292,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                   sx={{
                     p: 2,
                     border: '1px solid',
-                    borderColor: value === false ? 'error.main' : 'divider',
+                    borderColor: !isNeutral && value === false ? 'error.main' : 'divider',
                     borderRadius: 2,
                     backgroundColor: theme.palette.mode === 'dark' 
                       ? 'rgba(255, 255, 255, 0.02)' 
@@ -304,7 +310,18 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                         <Typography variant="subtitle2" fontWeight={600}>
                           {displayKey}
                         </Typography>
-                        {renderCheckValue(value)}
+                        {isNeutral ? (
+                          <Chip
+                            icon={<InfoIcon />}
+                            label={String(value)}
+                            color="info"
+                            size="small"
+                            variant="outlined"
+                            sx={{ borderRadius: 1 }}
+                          />
+                        ) : (
+                          renderCheckValue(value)
+                        )}
                       </Box>
                       {help && (
                         <Typography variant="caption" color="text.secondary">

@@ -64,6 +64,8 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   const [validationResults, setValidationResults] = useState<any>(null);
   const [envContent, setEnvContent] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
+  const [registeringSinch, setRegisteringSinch] = useState(false);
+  const [registerResult, setRegisterResult] = useState<string | null>(null);
   const [verifyingInbound, setVerifyingInbound] = useState(false);
   const [verifyFound, setVerifyFound] = useState<any | null>(null);
   const [callbacks, setCallbacks] = useState<any | null>(null);
@@ -597,6 +599,25 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                   <Button variant="outlined" onClick={() => navigator.clipboard.writeText(callbacks.callbacks[0].url)}>Copy</Button>
                   <Button variant="outlined" onClick={async () => { try { await client.simulateInbound({ backend: config.backend }); setSnack('Simulated inbound received'); } catch(e:any){ setSnack(e?.message||'Simulation failed'); } }}>Simulate Inbound</Button>
                 </Box>
+                {callbacks.callbacks[0].preferred_content_type && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    Preferred content type: <strong>{callbacks.callbacks[0].preferred_content_type}</strong>. Also supported: {(callbacks.callbacks[0].content_types||[]).filter((t:string)=>t!==callbacks.callbacks[0].preferred_content_type).join(', ') || 'n/a'}.
+                  </Alert>
+                )}
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button variant="outlined" onClick={() => {
+                    const url = String(callbacks.callbacks[0].url||'');
+                    const cmd = `curl -i -X POST '${url}' -H 'Content-Type: application/json' -d '{"id":"test_webhook","from":"+15551234567","to":"+15551234567","status":"received"}'`;
+                    navigator.clipboard.writeText(cmd);
+                    setSnack('Copied: curl JSON test');
+                  }}>Copy curl (JSON test)</Button>
+                  <Button variant="outlined" onClick={() => {
+                    const url = String(callbacks.callbacks[0].url||'');
+                    const cmd = `curl -i -X POST '${url}' -F id=test_webhook -F from=+15551234567 -F to=+15551234567 -F status=received`;
+                    navigator.clipboard.writeText(cmd);
+                    setSnack('Copied: curl multipart test');
+                  }}>Copy curl (multipart test)</Button>
+                </Box>
                 <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                   <Button variant="contained" onClick={startVerifyInbound} disabled={verifyingInbound}>
                     {verifyingInbound ? 'Waiting for inbound…' : 'Start Verify Inbound'}
@@ -609,14 +630,13 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                   )}
                 </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Paste this URL into your {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} console for inbound fax delivery.
-                      {"  •  "}
-                      <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/phaxio-setup.html`} target="_blank" rel="noreferrer">Faxbot: Phaxio Setup</a>
-                      {"  •  "}
-                      <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API Docs</a>
-                      {"  •  "}
-                      <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/`} target="_blank" rel="noreferrer">Faxbot Docs</a>
+                      Paste this URL into your {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} console for inbound fax delivery. For Sinch, set the webhook content type to application/json. Learn more:
                     </Typography>
+                    <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <Button size="small" variant="outlined" href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</Button>
+                      <Button size="small" variant="outlined" href={`https://developers.sinch.com/docs/fax/api-reference/`} target="_blank" rel="noreferrer">Sinch Fax API Docs</Button>
+                      <Button size="small" variant="outlined" href={`https://dashboard.sinch.com/settings/access-keys`} target="_blank" rel="noreferrer">Sinch Access Keys</Button>
+                    </Box>
                   </Paper>
                 )}
               </Box>
@@ -721,7 +741,33 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               >
                 Generate .env
               </Button>
+              {(config.inbound_backend === 'sinch' || (!config.inbound_backend && ob === 'sinch')) && (
+                <Button
+                  variant="outlined"
+                  sx={{ ml: 1 }}
+                  disabled={registeringSinch}
+                  onClick={async () => {
+                    setRegisteringSinch(true);
+                    setRegisterResult(null);
+                    try {
+                      const res = await (client as any).registerSinchWebhook?.();
+                      if (res?.success) setRegisterResult(`Registered: ${res.webhook_url || ''}`);
+                      else setRegisterResult(`Failed: ${res?.error || 'Unknown error'}`);
+                    } catch (e: any) {
+                      setRegisterResult(`Failed: ${e?.message || 'Unknown error'}`);
+                    } finally { setRegisteringSinch(false); }
+                  }}
+                >
+                  {registeringSinch ? <CircularProgress size={20} /> : 'Register with Sinch'}
+                </Button>
+              )}
             </Box>
+
+            {registerResult && (
+              <Alert severity={registerResult.startsWith('Registered') ? 'success' : 'error'} sx={{ mb: 2 }} onClose={() => setRegisterResult(null)}>
+                {registerResult}
+              </Alert>
+            )}
 
             {validationResults && (
               <Paper sx={{ p: 2, mb: 2 }}>

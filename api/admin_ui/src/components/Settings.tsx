@@ -803,7 +803,7 @@ function Settings({ client }: SettingsProps) {
                   icon={settings.inbound?.sinch?.basic_auth_configured ? <CheckCircleIcon color="success" /> : <WarningIcon color="warning" />}
                   label="Inbound Basic Auth User"
                   value={settings.inbound?.sinch?.basic_auth_configured ? 'Configured' : 'Not configured'}
-                  helperText="Sinch webhooks are not provider‑signed. You may enforce Basic auth on /sinch-inbound for protection (and IP allowlists at your edge)."
+                  helperText="Sinch webhooks are not provider‑signed. Enforce Basic auth on /sinch-inbound and prefer application/json content type (multipart also supported)."
                   onChange={(value) => handleForm('sinch_inbound_basic_user', value)}
                   placeholder="SINCH_INBOUND_BASIC_USER"
                   showCurrentValue={false}

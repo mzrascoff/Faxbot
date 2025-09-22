@@ -5,7 +5,8 @@ import type {
   Settings,
   DiagnosticsResult,
   ValidationResult,
-  InboundFax
+  InboundFax,
+  ProvidersInfo
 } from './types';
 
 export class AdminAPIClient {
@@ -90,6 +91,12 @@ export class AdminAPIClient {
     const res = await this.fetch('/admin/diagnostics/run', {
       method: 'POST',
     });
+    return res.json();
+  }
+
+  // Provider traits & active backends
+  async getProviders(): Promise<ProvidersInfo> {
+    const res = await this.fetch('/admin/providers');
     return res.json();
   }
 

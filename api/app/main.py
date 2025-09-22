@@ -544,6 +544,7 @@ def get_admin_config():
     ob = active_outbound()
     ib = active_inbound()
     # Configured flags
+    from .config import get_provider_registry
     cfg = {
         "backend": backend,
         "hybrid": {
@@ -584,6 +585,14 @@ def get_admin_config():
             "retention_days": settings.inbound_retention_days,
             "token_ttl_minutes": settings.inbound_token_ttl_minutes,
         },
+        # Traits registry exposed for clients (Admin UI, iOS) to gate UX by capabilities
+        "traits": {
+            "active": {
+                "outbound": ob,
+                "inbound": ib,
+            },
+            "registry": get_provider_registry(),
+        },
         "storage": {
             "backend": settings.storage_backend,
             "s3_bucket": (settings.s3_bucket[:4] + "…" if settings.s3_bucket else ""),
@@ -611,6 +620,41 @@ def get_admin_config():
             "plugin_install_enabled": settings.feature_plugin_install,
         }
     return cfg
+
+
+# Provider traits and active backends — lightweight helper for clients
+@app.get("/admin/providers", dependencies=[Depends(require_admin)])
+def get_admin_providers():
+    from .config import get_provider_registry, active_outbound, active_inbound
+    try:
+        reload_settings()
+    except Exception:
+        pass
+    return {
+        "schema_version": 1,
+        "active": {
+            "outbound": active_outbound(),
+            "inbound": active_inbound(),
+        },
+        "registry": get_provider_registry(),
+    }
+
+
+@app.get("/admin/traits/validate", dependencies=[Depends(require_admin)])
+def validate_traits_registry():
+    """Return provider traits registry with any schema issues identified.
+    Clients and CI can use this to assert trait correctness.
+    """
+    from .config import get_provider_registry, get_traits_schema_issues
+    try:
+        reload_settings()
+    except Exception:
+        pass
+    return {
+        "schema_version": 1,
+        "registry": get_provider_registry(),
+        "issues": get_traits_schema_issues(),
+    }
 
 
 @app.get("/admin/settings", dependencies=[Depends(require_admin)])
@@ -1755,10 +1799,10 @@ def admin_inbound_callbacks():
         out["callbacks"].append({
             "name": "Sinch Fax Inbound",
             "url": f"{base}/sinch-inbound",
-            "auth": {
-                "basic": bool(settings.sinch_inbound_basic_user)
-            },
-            "notes": "Set webhook in Sinch Fax console. You can optionally enforce Basic auth in Faxbot.",
+            "auth": {"basic": bool(settings.sinch_inbound_basic_user)},
+            "notes": "Set webhook in Sinch Fax Customer Dashboard. Sinch webhooks are not provider‑signed; you may enforce Basic auth.",
+            "content_types": ["application/json", "multipart/form-data"],
+            "preferred_content_type": "application/json",
         })
     elif backend == "signalwire":
         out["callbacks"].append({
@@ -2237,6 +2281,12 @@ async def run_diagnostics():
             for m in p.get("manifests", []):
                 for issue in (m.get("issues") or []):
                     warnings.append(f"Plugin {m.get('id')}: {issue}")
+    except Exception:
+        pass
+    # Attach traits so clients can render consistently across screens
+    try:
+        from .config import get_provider_registry
+        diag["traits"] = {"registry": get_provider_registry(), "active": {"outbound": ob, "inbound": ib}}
     except Exception:
         pass
     diag["summary"] = {"healthy": len(critical) == 0, "critical_issues": critical, "warnings": warnings}
@@ -3646,10 +3696,20 @@ async def sinch_inbound(request: Request):
     # Note: Sinch Fax API does not provide HMAC signatures for fax webhooks.
     # We intentionally do not support HMAC verification here to avoid false expectations.
 
+    # Accept JSON or multipart form
+    data: dict[str, Any] = {}
+    ctype = (request.headers.get("content-type") or "").lower()
     try:
         data = await request.json()
     except Exception:
-        data = {}
+        if "multipart/form-data" in ctype or "application/x-www-form-urlencoded" in ctype:
+            try:
+                form = await request.form()
+                data = {k: (form.get(k)) for k in form.keys()}  # type: ignore
+            except Exception:
+                data = {}
+        else:
+            data = {}
 
     provider_sid = data.get("id") or data.get("fax_id")
     from_number = data.get("from") or data.get("from_number")
@@ -3659,7 +3719,8 @@ async def sinch_inbound(request: Request):
     file_url = data.get("file_url") or data.get("media_url")
 
     if not provider_sid:
-        return {"status": "ignored"}
+        # Treat as a failure so provider consoles show an error during test
+        return JSONResponse({"detail": "invalid payload: missing id"}, status_code=400)
 
     duplicate_evt = False
     with SessionLocal() as db:
