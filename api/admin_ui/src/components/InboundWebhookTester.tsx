@@ -46,7 +46,7 @@ interface TestResult {
 export default function InboundWebhookTester({ client, docsBase }: InboundWebhookTesterProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { active, traitValue } = useTraits();
+  const { active, traitValue, getWebhookUrl, getSamplePayload, getProviderHeaders } = useTraits();
 
   const [testPayload, setTestPayload] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
@@ -59,98 +59,27 @@ export default function InboundWebhookTester({ client, docsBase }: InboundWebhoo
   const activeInbound = active?.inbound || '';
   const inboundVerification = traitValue('inbound', 'inbound_verification') || 'none';
 
-  const getWebhookUrl = () => {
-    const baseUrl = window.location.origin;
-    if (activeInbound === 'phaxio') {
-      return `${baseUrl}/phaxio-inbound`;
-    } else if (activeInbound === 'sinch') {
-      return `${baseUrl}/sinch-inbound`;
-    } else if (activeInbound === 'signalwire') {
-      return `${baseUrl}/signalwire-callback`;
-    }
-    return `${baseUrl}/webhook-inbound`;
-  };
+  const webhookUrl = getWebhookUrl('inbound') || `${window.location.origin}/webhook-inbound`;
 
   const getCurlCommand = () => {
-    const webhookUrl = getWebhookUrl();
-    const headers: string[] = ['-H "Content-Type: application/json"'];
+    const headers = getProviderHeaders('inbound', webhookSecret);
     
-    if (inboundVerification === 'hmac' && webhookSecret) {
-      if (activeInbound === 'phaxio') {
-        headers.push('-H "X-Phaxio-Signature: <calculated_hmac>"');
-      } else if (activeInbound === 'sinch') {
-        headers.push('-H "X-Sinch-Signature: <calculated_hmac>"');
-      }
-    } else if (inboundVerification === 'basic' && webhookSecret) {
+    // Add basic auth if needed
+    if (inboundVerification === 'basic' && webhookSecret) {
       const auth = btoa(`user:${webhookSecret}`);
       headers.push(`-H "Authorization: Basic ${auth}"`);
     }
 
-    const payload = testPayload || '{"example": "payload"}';
+    const payload = testPayload || getSamplePayload('inbound');
     
     return `curl -X POST ${webhookUrl} \\
   ${headers.join(' \\\n  ')} \\
   -d '${payload}'`;
   };
 
-  const getSamplePayload = () => {
-    if (activeInbound === 'phaxio') {
-      return JSON.stringify({
-        direction: 'received',
-        fax: {
-          id: 12345,
-          num_pages: 2,
-          cost: 7,
-          status: 'success',
-          is_test: true,
-          requested_at: new Date().toISOString(),
-          completed_at: new Date().toISOString(),
-          recipients: [
-            {
-              phone_number: '+15551234567',
-              status: 'success'
-            }
-          ],
-          caller_id: '+15559876543',
-          from_number: '+15559876543',
-          to_number: '+15551234567'
-        }
-      }, null, 2);
-    } else if (activeInbound === 'sinch') {
-      return JSON.stringify({
-        eventType: 'INBOUND_FAX_COMPLETED',
-        faxId: 'fax-12345',
-        to: '+15551234567',
-        from: '+15559876543',
-        status: 'COMPLETED',
-        pages: 2,
-        timestamp: new Date().toISOString()
-      }, null, 2);
-    } else if (activeInbound === 'signalwire') {
-      return JSON.stringify({
-        FaxSid: 'FX12345',
-        AccountSid: 'AC12345',
-        From: '+15559876543',
-        To: '+15551234567',
-        Status: 'received',
-        NumPages: '2',
-        DateCreated: new Date().toISOString()
-      }, null, 2);
-    }
-    
-    return JSON.stringify({
-      event: 'inbound_fax_received',
-      fax_id: 'test-12345',
-      from: '+15559876543',
-      to: '+15551234567',
-      status: 'completed',
-      pages: 2,
-      timestamp: new Date().toISOString()
-    }, null, 2);
-  };
 
   const handleLoadSample = () => {
-    setTestPayload(getSamplePayload());
+    setTestPayload(getSamplePayload('inbound'));
   };
 
   const handleTestPayload = async () => {

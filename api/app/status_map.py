@@ -4,6 +4,7 @@ import os
 from typing import Dict, List
 
 _STATUS_MAP: Dict[str, Dict[str, List[str]]] = {}
+_SCHEMA_VERSION = 1
 
 
 def load_status_map(path: str | None = None) -> None:
@@ -14,6 +15,9 @@ def load_status_map(path: str | None = None) -> None:
             obj = json.load(f)
         if not isinstance(obj, dict) or "providers" not in obj:
             raise ValueError("invalid status map schema")
+        if int(obj.get("schema_version", 0)) != _SCHEMA_VERSION:
+            # Accept but warn (best‑effort forward compatibility)
+            pass
         _STATUS_MAP = obj.get("providers", {}) or {}
         # Basic validation: each provider has all canonical keys
         for prov, m in _STATUS_MAP.items():

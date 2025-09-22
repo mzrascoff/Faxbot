@@ -19,7 +19,7 @@ import {
   Paper,
 } from '@mui/material';
 import { Chip } from '@mui/material';
-import AdminAPIClient from '../api/client';
+import AdminAPIClient from '../api/client';\nimport { useTraits } from '../hooks/useTraits';
 import SecretInput from './common/SecretInput';
 
 interface SetupWizardProps {
@@ -52,6 +52,7 @@ interface WizardConfig {
 }
 
 function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
+  const { active, hasTrait } = useTraits();
   const [activeStep, setActiveStep] = useState(0);
   const [config, setConfig] = useState<WizardConfig>({
     backend: 'phaxio',
