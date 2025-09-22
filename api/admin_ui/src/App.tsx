@@ -776,7 +776,7 @@ function AppContent() {
               {toolsTab === 0 && <Terminal apiKey={apiKey} />}
               {toolsTab === 1 && (
                 <Box>
-                  <Diagnostics client={client!} onNavigate={handleTabChange} docsBase={adminConfig?.branding?.docs_base} />
+                  <Diagnostics client={client!} onNavigate={handleNavigate} docsBase={adminConfig?.branding?.docs_base} />
                   <Box sx={{ mt: 4 }}>
                     <OutboundSmokeTests client={client!} />
                   </Box>

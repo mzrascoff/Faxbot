@@ -452,6 +452,7 @@ function Settings({ client }: SettingsProps) {
 
           {/* Backend-Specific Configuration */}
           {active?.outbound === 'phaxio' && (
+                  <>
                   <Box id="settings-phaxio" />
                   <ResponsiveSettingSection
                     title="PHAXIO Configuration"
@@ -502,9 +503,11 @@ function Settings({ client }: SettingsProps) {
                       showCurrentValue={!!settings.phaxio.callback_url}
                     />
                   </ResponsiveSettingSection>
+                  </>
                 )}
 
                 {active?.outbound === 'sinch' && (
+                  <>
                   <Box id="settings-sinch" />
                   <ResponsiveSettingSection
                     title="Sinch Fax API v3 Configuration"
@@ -616,6 +619,7 @@ function Settings({ client }: SettingsProps) {
                       showCurrentValue={false}
                     />
                   </ResponsiveSettingSection>
+                  </>
                 )}
 
                 {active?.outbound === 'documo' && (
@@ -651,6 +655,7 @@ function Settings({ client }: SettingsProps) {
                 )}
 
                 {active?.outbound === 'sip' && (
+                  <>
                   <Box id="settings-sip" />
                   <ResponsiveSettingSection
                     title="SIP / Asterisk Configuration"
@@ -687,6 +692,7 @@ function Settings({ client }: SettingsProps) {
                       showCurrentValue={!!settings.sip.station_id}
                     />
                   </ResponsiveSettingSection>
+                </>
                 )}
 
           {/* Feature Flags */}

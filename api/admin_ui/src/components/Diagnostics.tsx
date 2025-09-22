@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -49,7 +49,7 @@ import { ResponsiveFormSection } from './common/ResponsiveFormFields';
 
 interface DiagnosticsProps {
   client: AdminAPIClient;
-  onNavigate?: (index: number) => void;
+  onNavigate?: (to: number | string) => void;
   docsBase?: string;
 }
 
@@ -88,14 +88,14 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     'phaxio-status-callback-url': 'https://www.phaxio.com/docs/api/v1/send/sendCallback',
   };
 
-  const hrefFor = (topic: string): string | undefined => (anchors[topic] || thirdParty[topic]);
+  // const hrefFor = (topic: string): string | undefined => (anchors[topic] || thirdParty[topic]);
 
   // Load anchor mapping from docs site for precise deep links
   useEffect(() => {
     const loadAnchors = async () => {
       try {
         const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
-        const topics: string[] = [ 'security', 'diagnostics', 'inbound', 'storage', 'plugins', 'mcp' ];
+        const topics: string[] = [ 'security', 'diagnostics', 'inbound', 'storage', 'plugins', 'mcp', 'scripts', 'setup', 'send', 'jobs', 'tunnels', 'keys', 'logs', 'sip', 'signalwire', 'freeswitch', 'documo' ];
         const provs = [active?.outbound, active?.inbound].filter(Boolean) as string[];
         for (const p of provs) { if (!topics.includes(p)) topics.push(p); }
         topics.push('all');
@@ -108,6 +108,8 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
             }
           } catch { /* ignore per-scope failure */ }
         }
+        // Merge provided fallback anchors from this build
+        setAnchors(prev => ({ ...providedAnchors, ...prev }));
       } catch {
         /* ignore */
       }
@@ -280,6 +282,25 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       add('sinch-troubleshoot-auth-fail', 'Troubleshooting auth failures in Diagnostics');
       add('sinch-troubleshoot-inbound-fail', 'Troubleshooting inbound failures');
       add('sinch-register-webhook-limitations', 'Limitations of auto “Register with Sinch”');
+    }
+
+    if (t.includes('inbound')) {
+      docs.push({ text: 'Inbound Overview', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/inbound/` });
+      const addI = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
+      addI('inbound-enable', 'Enable inbound receiving');
+      addI('inbound-retention', 'Retention days');
+      addI('inbound-token-ttl', 'PDF token TTL');
+      addI('inbound-rate-limits', 'Inbound rate limits');
+      addI('inbound-webhook-test', 'Testing inbound webhooks');
+    }
+
+    if (t.includes('storage')) {
+      docs.push({ text: 'Storage Guide', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/storage/` });
+      const addSt = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
+      addSt('storage-local-vs-s3', 'Local vs S3');
+      addSt('storage-s3-kms', 'S3 KMS encryption');
+      addSt('storage-s3-endpoint', 'S3-compatible endpoints');
+      addSt('storage-phi', 'PHI storage considerations');
     }
     
     return docs;
