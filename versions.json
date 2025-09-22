@@ -1,5 +1,12 @@
 [
   {
+    "version": "f29339c",
+    "title": "f29339c",
+    "aliases": [
+      "latest"
+    ]
+  },
+  {
     "version": "dcbcbdb",
     "title": "dcbcbdb",
     "aliases": []
@@ -17,8 +24,6 @@
   {
     "version": "48d4114",
     "title": "48d4114",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   }
 ]
