@@ -99,6 +99,7 @@ export default function Plugins({ client }: Props) {
   const [bulkImportRes, setBulkImportRes] = useState<any | null>(null);
   const [manifestExpanded, setManifestExpanded] = useState(false);
   const [bulkExpanded, setBulkExpanded] = useState(false);
+  const [pluginsEnabled, setPluginsEnabled] = useState<boolean | null>(null);
 
   const theme = useTheme();
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -107,6 +108,13 @@ export default function Plugins({ client }: Props) {
     try {
       setLoading(true);
       setError('');
+      // Check admin config to see if feature is enabled
+      let enabled = false;
+      try {
+        const cfg = await client.getConfig();
+        enabled = Boolean(cfg?.v3_plugins?.enabled);
+      } catch {}
+      setPluginsEnabled(enabled);
       const [listRes, regRes] = await Promise.all([
         client.listPlugins().catch(() => ({ items: [] })),
         client.getPluginRegistry().catch(() => ({ items: [] })),
@@ -207,6 +215,11 @@ export default function Plugins({ client }: Props) {
       </Box>
 
       <Stack spacing={3}>
+        {pluginsEnabled === false && (
+          <Alert severity="info" sx={{ borderRadius: 2 }}>
+            v3 Plugins are disabled. Enable it under Settings → Feature Flags → "Enable v3 Plugin System" to manage plugins here.
+          </Alert>
+        )}
         <Paper sx={{ p: 2, borderRadius: 2 }}>
           <TextField 
             size="medium" 

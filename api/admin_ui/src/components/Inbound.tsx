@@ -58,7 +58,6 @@ function Inbound({ client, docsBase }: InboundProps) {
   const [copySnackbar, setCopySnackbar] = useState<string>('');
   // Precise help anchors (lightweight resolver for inbound failures)
   const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
-  const anchor = (topic: string) => `${base}/anchors/diagnostics.json`; // loader is not available here; use known pages below
   const anchors: Record<string,string> = {
     // Our docs pages
     'inbound-overview': `${base}/inbound/`,

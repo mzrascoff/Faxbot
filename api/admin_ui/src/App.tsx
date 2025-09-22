@@ -167,15 +167,15 @@ function AppContent() {
         break;
       case 'tools/plugins':
         setTabValue(5);
-        setToolsTab(3); // Plugins entry only present when enabled
+        setToolsTab(3);
         break;
       case 'tools/scripts':
         setTabValue(5);
-        setToolsTab(adminConfig?.v3_plugins?.enabled ? 4 : 3);
+        setToolsTab(4);
         break;
       case 'tools/tunnels':
         setTabValue(5);
-        setToolsTab(adminConfig?.v3_plugins?.enabled ? 5 : 4);
+        setToolsTab(5);
         break;
       case 'settings/setup':
         setTabValue(4);
@@ -285,11 +285,12 @@ function AppContent() {
     { label: 'MCP', icon: <CodeIcon /> },
   ];
 
+  // Always include Plugins tab; component will guide when feature disabled
   const toolsItems = [
     { label: 'Terminal', icon: <TerminalIcon /> },
     { label: 'Diagnostics', icon: <AssessmentIcon /> },
     { label: 'Logs', icon: <DescriptionIcon /> },
-    ...(adminConfig?.v3_plugins?.enabled ? [{ label: 'Plugins', icon: <ExtensionIcon /> }] : []),
+    { label: 'Plugins', icon: <ExtensionIcon /> },
     { label: 'Scripts & Tests', icon: <ScienceIcon /> },
     { label: 'Tunnels', icon: <VpnLockIcon /> },
   ];
@@ -786,9 +787,9 @@ function AppContent() {
                 </Box>
               )}
               {toolsTab === 2 && <Logs client={client!} />}
-              {toolsTab === 3 && adminConfig?.v3_plugins?.enabled && <Plugins client={client!} />}
-              {(toolsTab === 4 || (toolsTab === 3 && !adminConfig?.v3_plugins?.enabled)) && <ScriptsTests client={client!} docsBase={adminConfig?.branding?.docs_base} />}
-              {toolsTab === (adminConfig?.v3_plugins?.enabled ? 5 : 4) && (
+              {toolsTab === 3 && <Plugins client={client!} />}
+              {toolsTab === 4 && <ScriptsTests client={client!} docsBase={adminConfig?.branding?.docs_base} />}
+              {toolsTab === 5 && (
                 <TunnelSettings
                   client={client!}
                   docsBase={adminConfig?.branding?.docs_base}

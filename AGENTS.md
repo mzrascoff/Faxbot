@@ -1,8 +1,5 @@
 # AGENTS.md - Critical Instructions for AI Assistants
 
-## 🚨 UNPRECEDENTED PROJECT WARNING 🚨
-
-**THIS PROJECT HAS NEVER EXISTED BEFORE IN HISTORY**
 
 There has **NEVER** been an open source, locally hostable fax server API with AI assistant integration. **EVER.** None of this exists in any AI training data. You **CANNOT** make assumptions about how this works, what patterns to follow, or what "normal" looks like.
 
@@ -11,7 +8,7 @@ There has **NEVER** been an open source, locally hostable fax server API with AI
 ## Project Identity: Faxbot
 
 **Correct Name:** "Faxbot" (main project) and "faxbot-mcp" (MCP server)  
-**NEVER:** "OpenFax", "twilio-fax", or any other name  
+
 **Status:** Production deployment capable, handling PHI/PII in healthcare environments
 
 ## Revolutionary Architecture Overview (v3 Modular Plugins)
@@ -34,7 +31,7 @@ SDK Client          → Fax API → Backend → Fax Transmission
 
 ## Admin Console First (GUI Mandate)
 
-Effective immediately, Faxbot’s north star is a complete, GUI-first experience through the Admin Console. Users should never need a terminal for routine operations beyond starting the Docker container/console.
+**Effective immediately, Faxbot’s north star is a complete, GUI-first experience through the Admin Console. Users should never need a terminal for routine operations beyond starting the Docker container/console.**
 
 What this means for all agents and contributors
 - No CLI-only features: every capability must be operable from the Admin Console.
@@ -83,6 +80,8 @@ iOS and external apps
 - If traits are absent, default to safest UX (hide AMI, require HTTPS messaging, mask secrets).
 
 ## Admin Console Frontend Style Guide (dev branch)
+
+> **Always provide tooltips, screentips, help / "learn more" links WHEREVER POSSIBLE -- THE USER INTERFACE SHOULD BE A TEACHING TOOL FOR USERS, WITH INTERNAL AND EXTERNAL LINKS FOR HELP AT EVERY TURN**
 
 Scope: This governs all work under `api/admin_ui/` (Vite + React + TS + MUI) and its Electron shell under `api/admin_ui/electron/`. Follow these rules precisely so new UI matches the current implementation.
 
@@ -197,6 +196,7 @@ Do and don’t (frontend)
 - Don’t: add CSS files or global styles; avoid inline styles except via `sx`
 - Don’t: hard-code URLs, backend names, or secrets; don’t drift from OpenAPI types
 
+
 Quick references
 - Theme: `api/admin_ui/src/theme/themes.ts`:1, `api/admin_ui/src/theme/ThemeContext.tsx`:1
 - Form kit: `api/admin_ui/src/components/common/ResponsiveFormFields.tsx`:1
@@ -308,49 +308,9 @@ export default function MyFeature({ client, docsBase }: Props) {
 - Electron: menu and `onNavigate` route wired if a new tab was added
 - CSP respected; no new external origins without review
 
-## Provider Slots and Backends (v3)
 
-In v3, backends are provided by plugins bound to provider slots via a single resolved config.
 
-Provider slots (initial)
-- outbound: sending faxes (capabilities: send, get_status)
-- inbound: receiving/callback models (capabilities: list_inbound, get_inbound_pdf; cloud callbacks remain HTTP endpoints in core that delegate to plugin handlers)
-- auth (optional): authentication/authorization helpers (e.g., OIDC validation)
-- storage (optional): artifact storage adapters (e.g., S3)
 
-Only one outbound provider is active at a time. UI must only show guidance for the currently selected provider.
-
-### 1. Phaxio Backend (Cloud) - RECOMMENDED FOR MOST USERS
-**When to use:** Healthcare and business users wanting simplicity  
-**Configuration:** `FAX_BACKEND=phaxio`
-
-**Key Characteristics:**
-- **Zero telephony knowledge required**
-- **5-minute setup time**
-- **Automatic HIPAA compliance** with BAA available
-- **Cost:** ~$0.07 per page
-- **Phaxio handles:** T.38 protocol, carrier relationships, number provisioning
-- **You provide:** PDF/TXT files, destination numbers
-- **Security:** TLS 1.2, webhook HMAC verification, no storage when configured
-
-**Critical Setup Steps for HIPAA:**
-1. Create Phaxio account at https://www.phaxio.com
-2. Disable document storage in Fax Settings
-3. Enable two-factor authentication
-4. Email compliance@phaxio.com for BAA (Business Associate Agreement)
-5. Configure webhook HMAC signature verification
-6. Use HTTPS for all webhook URLs
-
-**Environment Variables:**
-```env
-FAX_BACKEND=phaxio
-PHAXIO_API_KEY=your_api_key_from_console
-PHAXIO_API_SECRET=your_api_secret_from_console
-PHAXIO_CALLBACK_URL=https://yourdomain.com/phaxio-callback
-PUBLIC_API_URL=https://yourdomain.com
-PHAXIO_VERIFY_SIGNATURE=true
-ENFORCE_PUBLIC_HTTPS=true
-```
 
 ### 2. SIP/Asterisk Backend (Self-Hosted) - FOR TECHNICAL USERS
 **When to use:** High-volume users, cost-conscious, full control required  
@@ -373,64 +333,116 @@ ENFORCE_PUBLIC_HTTPS=true
 
 **Environment Variables (API):**
 ```env
+# API Configuration
+# Note: In Docker, /faxdata is mounted as a volume (see compose)
+FAX_DATA_DIR=/faxdata
+MAX_FILE_SIZE_MB=10
+FAX_DISABLED=false
+API_KEY=your_secure_api_key_here
+# Enforce API key on all requests even if API_KEY is blank (recommended for HIPAA prod)
+REQUIRE_API_KEY=false
+
+# Backend Selection - Choose ONE or use hybrid configuration
+# Options: "sip" (self-hosted), "phaxio" (cloud fetch), or "sinch" (cloud direct upload)
 FAX_BACKEND=sip
+
+# === HYBRID BACKEND CONFIGURATION  ===
+# Override FAX_BACKEND for independent outbound/inbound providers
+# FAX_OUTBOUND_BACKEND=sinch     # Provider for sending faxes
+# FAX_INBOUND_BACKEND=sip        # Provider for receiving faxes
+# If unset, both directions use FAX_BACKEND value
+
+# === PHAXIO CLOUD BACKEND ===
+# Only needed if FAX_BACKEND=phaxio
+PHAXIO_API_KEY=your_phaxio_api_key_here
+PHAXIO_API_SECRET=your_phaxio_api_secret_here
+PUBLIC_API_URL=http://localhost:8080
+# Preferred name per docs
+PHAXIO_CALLBACK_URL=http://localhost:8080/phaxio-callback
+# Backward‑compatible alias (either variable is accepted)
+# PHAXIO_STATUS_CALLBACK_URL=http://localhost:8080/phaxio-callback
+PHAXIO_VERIFY_SIGNATURE=true
+ENFORCE_PUBLIC_HTTPS=false
+
+# === SINCH FAX API  ===
+# Only needed if FAX_BACKEND=sinch
+# If left blank, SINCH_API_* fall back to PHAXIO_* values.
+SINCH_PROJECT_ID=your_sinch_project_id
+SINCH_API_KEY=
+SINCH_API_SECRET=
+# Optional region override (defaults to https://fax.api.sinch.com/v3)
+# SINCH_BASE_URL=https://us.fax.api.sinch.com/v3
+
+# === MCP SSE (OAuth2/JWT) ===
+# Set these when running SSE transports (Node or Python)
+OAUTH_ISSUER=
+OAUTH_AUDIENCE=faxbot-mcp
+OAUTH_JWKS_URL=
+
+# === SIP/ASTERISK BACKEND ===
+# Only needed if FAX_BACKEND=sip
 ASTERISK_AMI_HOST=asterisk
 ASTERISK_AMI_PORT=5038
 ASTERISK_AMI_USERNAME=api
-ASTERISK_AMI_PASSWORD=secure_password_not_changeme
-# Optional local station ID presented by the fax stack
-FAX_LOCAL_STATION_ID="My Faxbot"
-```
+# WARNING: Change this in production. Do NOT leave as 'changeme'.
+ASTERISK_AMI_PASSWORD=changeme
 
-Note: SIP trunk credentials (username/password/server) are configured in your Asterisk/FS gateway, not in the Faxbot API.
+# SIP Trunk Settings (from your provider)
+SIP_USERNAME=17209000233
+SIP_PASSWORD=eqdcM0t689zmNVhC
+SIP_SERVER=sip.t38fax.com
+SIP_FROM_USER=+17209000233
+SIP_FROM_DOMAIN=your-provider.example
 
-### 3. Sinch Fax API v3 (Cloud)
-Use when you prefer the direct upload model (“Phaxio by Sinch” accounts).
+# === COMMON SETTINGS ===
+FAX_LOCAL_STATION_ID=+15551234567
+FAX_HEADER=Company Name
+DATABASE_URL=sqlite:///./faxbot.db
+TZ=UTC
 
-```env
-FAX_BACKEND=sinch
-SINCH_PROJECT_ID=your_project_id
-SINCH_API_KEY=...
-SINCH_API_SECRET=...
-# Optional region override
-# SINCH_BASE_URL=https://us.fax.api.sinch.com/v3
-```
+# Security Notes
+# - Leaving API_KEY blank disables authentication (not recommended for public deployments)
+# - Use a reverse proxy for rate limiting and IP restrictions in production
+# - PDF token TTL controls how long the cloud fetch link is valid
+PDF_TOKEN_TTL_MINUTES=60
 
-### 4. SignalWire Fax (Cloud) — PREVIEW
-Use when you operate within SignalWire and prefer their Fax APIs.
+# Retention (set >0 to enable automatic artifact cleanup)
+ARTIFACT_TTL_DAYS=0
+# Cleanup interval in minutes (default daily)
+CLEANUP_INTERVAL_MINUTES=1440
 
-```env
-FAX_BACKEND=signalwire
-SIGNALWIRE_SPACE_URL=https://<space>.signalwire.com
-SIGNALWIRE_PROJECT_ID=...
-SIGNALWIRE_API_TOKEN=...
-SIGNALWIRE_FAX_FROM_E164=+15551234567
-# Optional outbound status callback
-SIGNALWIRE_STATUS_CALLBACK_URL=https://yourdomain.com/signalwire-callback
-# Optional webhook verification
-SIGNALWIRE_WEBHOOK_SIGNING_KEY=...
-```
+# Audit logging (optional)
+AUDIT_LOG_ENABLED=false
+AUDIT_LOG_FORMAT=json
+# AUDIT_LOG_FILE=/var/log/faxbot_audit.log
+AUDIT_LOG_SYSLOG=false
+AUDIT_LOG_SYSLOG_ADDRESS=/dev/log
 
-### 5. FreeSWITCH (Self-Hosted) — PREVIEW
-Programmatic originate via `fs_cli` on the API host or ESL integration.
+# Per-key rate limiting (Phase 2; 0 disables)
+MAX_REQUESTS_PER_MINUTE=0
 
-```env
-FAX_BACKEND=freeswitch
-FREESWITCH_GATEWAY_NAME=gw_signalwire
+# Inbound receiving (disabled by default)
+INBOUND_ENABLED=false
+INBOUND_RETENTION_DAYS=30
+INBOUND_TOKEN_TTL_MINUTES=60
+# Asterisk → API internal secret (required for SIP inbound)
+ASTERISK_INBOUND_SECRET=
+# Storage backend for inbound artifacts
+STORAGE_BACKEND=local   # local | s3
+S3_BUCKET=
+S3_PREFIX=inbound/
+S3_REGION=
+S3_ENDPOINT_URL=        # Optional for S3-compatible (MinIO)
+S3_KMS_KEY_ID=          # For SSE-KMS when using S3
+# Inbound per-key rate limits
+INBOUND_LIST_RPM=30
+INBOUND_GET_RPM=60
+
 ```
 
 - Internal result hook (maps to job update): `POST /_internal/freeswitch/outbound_result` with `X-Internal-Secret: <ASTERISK_INBOUND_SECRET>` and JSON `{ job_id, fax_status, fax_result_text?, fax_document_transferred_pages?, uuid? }`.
 
-### 6. Test/Development Backend — FOR DEVELOPMENT ONLY
-**When to use:** Development, testing, CI/CD pipelines  
-**Configuration:** `FAX_DISABLED=true`
 
-**Key Characteristics:**
-- **No actual fax transmission**
-- **Simulates all API responses**
-- **File processing works** (PDF/TXT conversion)
-- **Database operations normal**
-- **All endpoints return success**
 
 ## MCP Integration (Node + Python)
 
@@ -445,14 +457,13 @@ Additionally, a Node WebSocket helper is available for convenience; it mirrors t
 | WebSocket helper | `src/servers/ws.js` | (n/a)         | 3004 | API key |
 
 Notes
-- Legacy MCP servers under `api/` were removed. Do not reference `api/mcp_*.js`.
 - Node HTTP/SSE JSON limit is 16 MB to account for base64 overhead; REST API still enforces 10 MB raw file size.
 - The WebSocket helper mirrors tool calls for convenience and is not a formal MCP transport.
 - Prefer stdio + `filePath` for desktop assistants.
 
-Admin Console Terminal (local-only)
+Admin Console Terminal  (TTY teminal inside the admin console ui) (local-only)
 - WebSocket endpoint: `/admin/terminal` (admin auth required).
-- Backend uses pexpect to provide a TTY inside the API container; same privileges as the service user.
+- Backend uses expect to provide a TTY inside the API container; same privileges as the service user.
 - Gate UI access with `ENABLE_LOCAL_ADMIN=true`; avoid exposing through proxies.
 
 ## The Two SDKs: Node.js and Python
@@ -489,23 +500,6 @@ OpenAPI alignment
 - FastAPI serves OpenAPI at `/openapi.json`; treat it as the source of truth for REST endpoints.
 - SDKs and Admin UI types should match the OpenAPI contracts; codegen is optional but server must not drift from spec.
 
-## Auth and API Keys (Updated)
-
-- Multi-key auth is implemented. Tokens follow `fbk_live_<keyId>_<secret>` and are passed as `X-API-Key`.
-- Admin endpoints (bootstrap with env `API_KEY` or a key with `keys:manage`):
-  - `POST /admin/api-keys` (returns token once), `GET /admin/api-keys`,
-  - `DELETE /admin/api-keys/{keyId}`, `POST /admin/api-keys/{keyId}/rotate`.
-- Scopes are enforced:
-  - `POST /fax` → `fax:send`
-  - `GET /fax/{id}` → `fax:read`
-  - Inbound list/get → `inbound:list` / `inbound:read` (see below)
-- Set `REQUIRE_API_KEY=true` for production; dev mode can allow unauth when disabled.
-- Optional per-key rate limiting: `MAX_REQUESTS_PER_MINUTE` (global), plus inbound list/get rpm.
-
-Helpers
-- `scripts/smoke-auth.sh` — local auth smoke test (no running server needed).
-- `scripts/run-uvicorn-dev.sh` — start FastAPI locally; accepts `PORT`.
-- `scripts/curl-auth-demo.sh` — mints a key then sends a test fax.
 
 ## HIPAA vs Non-HIPAA Configurations
 
@@ -536,57 +530,8 @@ AUDIT_LOG_ENABLED=false     # Reduce logging overhead
 - Non-healthcare users get usability-focused defaults
 - Clear documentation about which settings affect compliance
 
-## Inbound Receiving 
 
-- Enable with `INBOUND_ENABLED=true`.
-- SIP/Asterisk (internal): `POST /_internal/asterisk/inbound` with `X-Internal-Secret: <ASTERISK_INBOUND_SECRET>` and JSON `{ tiff_path, to_number, from_number?, faxstatus?, faxpages?, uniqueid }`.
-- List/get/download:
-  - `GET /inbound` (scope `inbound:list`), `GET /inbound/{id}` (scope `inbound:read`),
-  - `GET /inbound/{id}/pdf` via `?token=...` (short TTL, default 60m) or API key with `inbound:read`.
-- Cloud callbacks:
-  - Phaxio: `POST /phaxio-inbound` with HMAC verification (env `PHAXIO_INBOUND_VERIFY_SIGNATURE=true`).
-  - Sinch: `POST /sinch-inbound` supports Basic (`SINCH_INBOUND_BASIC_USER/PASS`) and/or HMAC (`SINCH_INBOUND_HMAC_SECRET`).
-- Storage backend:
-  - `STORAGE_BACKEND=local|s3`; S3 supports SSE‑KMS (`S3_KMS_KEY_ID`) and S3‑compatible endpoints (`S3_ENDPOINT_URL`, e.g., MinIO). Local for dev only.
-- Retention / rate limits (defaults per decisions):
-  - `INBOUND_RETENTION_DAYS=30`, `INBOUND_TOKEN_TTL_MINUTES=60`, `INBOUND_LIST_RPM=30`, `INBOUND_GET_RPM=60`.
-
-Notes
-- Backends remain isolated: no Phaxio details in SIP paths and vice versa.
-- Idempotency for inbound callbacks uses DB uniqueness on `(provider_sid, event_type)`.
-
-v3 plugin note
-- Inbound cloud callbacks remain core HTTP endpoints (Phaxio/Sinch) that delegate to plugin handlers; signature verification stays in core and cannot be disabled by plugins.
-
-### Admin Console coverage for inbound (UI goals)
-- Toggle to enable inbound receiving with clear warnings on storage and PHI.
-- Storage configuration UI (local vs S3/S3‑compatible) with KMS and endpoint hints.
-- Tokenized PDF access controls with TTL selector and help text.
-- Inbound list/detail views with paging, filters, and download links guarded by scope.
-- Troubleshooting link surfaces for common provider events and signature verification.
-
-## Key API Endpoints & Workflows
-
-### Core REST API (main.py)
-```
-POST /fax              # Send fax (multipart: to, file)
-GET  /fax/{id}         # Check fax status  
-GET  /fax/{id}/pdf     # Tokenized PDF access (for cloud backends)
-POST /phaxio-callback  # Phaxio webhook (status updates)
-POST /signalwire-callback  # SignalWire status callback (optional HMAC verification)
-GET  /health           # Service health check
-```
-
-### Admin Console surface area (must-haves)
-- Settings: backend selection, auth, storage, tokens/TTLs, rate limits, HIPAA toggles.
-- Diagnostics: health status, webhook signature checks, environment checks, limits.
-- Jobs: queue status, progress, pages, failures with contextual remediation links.
-- Keys: API key management (mint/list/rotate/delete) with copy-to-clipboard UX.
-- Inbound (when enabled): listing, detail, secure download, retention status.
-- Plugins (v3): list native + manifest providers; enable/disable outbound; schema‑driven config forms; curated registry search.
-- Tools group: Terminal (local-only), Diagnostics, Logs, Scripts & Tests (backend-aware quick runs), Plugins.
-
-### MCP Tools (v3 parity)
+### MCP Tools 
 - send_fax
   - stdio: `{ to, filePath }` preferred; `{ to, fileContent, fileName, fileType }` supported
   - HTTP/SSE: `{ to, fileContent, fileName, fileType }` (base64 required)
@@ -594,19 +539,13 @@ GET  /health           # Service health check
 - list_inbound: `{ limit?, cursor? }` (when inbound enabled)
 - get_inbound_pdf: `{ inboundId, asBase64? }` (guarded by scopes/limits)
 
-No OCR tools (`faxbot_pdf` removed by design). Node and Python MCP servers must expose the same tool set for a given config.
-
-Admin Actions (container checks)
-- UI exposes an allowlisted set of safe container checks under Tools → Scripts & Tests.
-- Endpoints: `GET /admin/actions` (list), `POST /admin/actions/run` (execute), admin-only.
-- Enabled only for local admin (gated by `ENABLE_ADMIN_EXEC` and `ENABLE_LOCAL_ADMIN`). No arbitrary commands allowed.
 
 ### Typical Workflows
 
-**Phaxio Workflow:**
+**Cloud Provider Workflow:**
 1. Client sends fax → API validates → Creates job record
-2. API generates secure PDF token → Calls Phaxio API with PDF URL
-3. Phaxio fetches PDF → Transmits fax → Sends webhook callback
+2. API generates secure PDF token → Calls Provider API with PDF URL
+3. Provider fetches PDF → Transmits fax → Sends webhook callback
 4. Callback updates job status → Client can check status
 
 **SIP/Asterisk Workflow:**
@@ -695,57 +634,10 @@ fax_jobs:
 - **faxdata:** Persistent storage for PDFs, TIFFs, job artifacts
 - **Database:** SQLite file or external database connection
 
-### Production Architecture (for Agents)
-- Prefer containerized API behind TLS (reverse proxy/WAF). Do not attempt to run the API as serverless functions; it needs binary deps and file handling.
-- Database: use managed PostgreSQL; set `DATABASE_URL=postgresql+psycopg2://...`. SQLite is dev-only.
-- Storage: use `STORAGE_BACKEND=s3` with SSE‑KMS (`S3_KMS_KEY_ID`) for PHI; S3‑compatible endpoints supported for on‑prem (MinIO).
-- Asterisk (SIP): isolate in private networks; never expose AMI; open only required SIP/UDPTL ports to trunk provider IPs.
-- Multi‑instance: app’s in‑memory rate limiting is per‑node; rely on edge rate limiting or add a distributed limiter later.
-
 See also: `docs/DEPLOYMENT.md`.
 
-## v3 Plugin Architecture — Contracts and Endpoints
 
-Feature flags
-- `FEATURE_V3_PLUGINS=true` enables plugin discovery endpoints and the Admin Console Plugins tab.
-- `FEATURE_PLUGIN_INSTALL=false` by default; remote install is disabled unless explicitly approved and allowlisted.
 
-Config store
-- Single resolved config file at `config/faxbot.config.json` (override with `FAXBOT_CONFIG_PATH`).
-- Structure: `{ version, providers: { outbound: { plugin, enabled, settings }, inbound: { ... }, auth?: { ... }, storage?: { ... } } }`
-- Atomic writes with backups; rollback to last known‑good on validation/startup failure; surface Admin UI banner.
-
-Discovery and endpoints (when `FEATURE_V3_PLUGINS=true`)
-- `GET /plugins` — list installed plugins with manifests and current enabled/config values
-- `GET /plugins/{id}/config` — return enabled + settings for a plugin
-- `PUT /plugins/{id}/config` — validate via JSON Schema and persist atomically
-- `GET /plugin-registry` — serve curated registry JSON for UI search
-
-Manifest providers (HTTP) — preview
-- Data-only providers are supported via a declarative manifest executed by core (no third‑party code in server).
-- Runtime: `api/app/plugins/http_provider.py` interprets manifests with:
-  - `auth` schemes: `basic|bearer|api_key_header|api_key_query|none`
-  - `actions.send_fax|get_status`: method, url, headers, `body.kind` (`json|form|multipart|none`), `body.template`
-  - Response mapping via simple JSONPath-like selectors (`data.id`, `data.list[0].field`) and optional `status_map`
-  - Policy: `allowed_domains[]`, `timeout_ms`, redaction (follow-up), HTTPS only in HIPAA
-- Storage: manifests are persisted under `FAXBOT_PROVIDERS_DIR` (default `config/providers/<id>/manifest.json`).
-- New admin endpoints (feature-gated, admin-only):
-  - `POST /admin/plugins/http/validate` — validate a manifest + optional dry-run send; returns normalized result
-  - `POST /admin/plugins/http/install` — persist the manifest to the providers dir
-- Resolution: when `FEATURE_V3_PLUGINS=true` and outbound plugin references an installed manifest id, core uses the manifest runtime for send/status.
-- Security (HIPAA defaults): remote install disabled by default; enforce domain allowlists, strict timeouts/body caps; redact secrets; no arbitrary code.
-
-Admin Console (planned builder)
-- json manifests [cont]
-
-Security and permissions
-- New admin scopes: `admin:plugins:read`, `admin:plugins:write` for list/get/update.
-- Only keys with `keys:manage` may change plugin configs.
-- Per‑key RPM limits should mirror inbound list/get defaults for plugin reads; stricter for writes.
-
-Dynamic install (optional, off by default)
-- If enabled, enforce a strict allowlist with checksums (and signatures if provided); non‑interactive, sandboxed installs only.
-- For HIPAA profiles, keep remote install disabled.
 
 ## Security Architecture Deep Dive
 
@@ -807,26 +699,8 @@ Customer‑hosted vs you‑hosted
 - Self‑hosted customers: typically no BAA with you if you don’t access PHI. Avoid support practices that expose PHI unless under a BAA.
 - Hosted service (faxbot.net): BAAs with customers and all subprocessors are required.
 
-### Security Headers (production)
 
-Set at the edge (reverse proxy/WAF). PHI endpoints must send strict cache controls.
 
-Required headers
-- Strict‑Transport‑Security: `max-age=31536000; includeSubDomains; preload`
-- Content‑Security‑Policy: tight allowlist; no inline scripts/styles
-- X‑Content‑Type‑Options: `nosniff`
-- Referrer‑Policy: `no-referrer`
-- X‑Frame‑Options: `DENY` (or `SAMEORIGIN` as needed)
-- Permissions‑Policy: disable unneeded features
-- Cache‑Control (PHI endpoints): `no-store, no-cache, must-revalidate`
-- Pragma: `no-cache`
-- Expires: `0`
-- CORS: restrict `Access-Control-Allow-Origin` to the UI domain; no `*` when credentials/PHI are involved
-
-Example CSP
-```
-Content-Security-Policy: default-src 'self'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.yourdomain.com; base-uri 'none'; form-action 'self';
-```
 
 Operational checks
 - Enforce TLS; redirect HTTP→HTTPS.
@@ -861,33 +735,7 @@ TIFF conversion        |   ✗    |   ✗   |     ✗      |      ✓       |   
 - **Authentication:** Optional API key scenarios
 - **Health checking:** Service availability detection
 
-## Development Workflow and Open‑Core vs Commercial App
 
-Q: If we plan to add a front end and inbound receiving while maintaining a lightweight MVP for users who only need to send faxes now, should we fork the repo into a separate commercial app and leave this one alone?
-
-A: Short answer
-- Don’t create a long‑lived fork of the core.
-- Keep this repo as the canonical open‑core and continue adding generic capabilities (including receiving) here.
-- Create a separate private repo (e.g., faxbot.net) for the commercial app that depends on the core via released packages/Docker images or a git submodule.
-
-Why this is better
-- Avoids divergence/merge‑hell: fixes and backend updates land once in core and flow into the app.
-- Clear boundary: Core = protocol/backends/API/MCP/SDK; App = UI, billing, tenancy, provisioning, analytics.
-- Faster iteration: The app ships UI/business features without destabilizing core.
-- Compliance separation: PHI primitives stay consistent in core; plan/billing/tenant logic in the app.
-
-What goes where
-- Core (this repo)
-  - REST API, validation, limits, HMAC verification
-  - All backends (Phaxio/Sinch/SIP) send + receive plumbing
-  - Webhook handlers (backend‑specific), file processing, tokenized file access, audit hooks
-  - MCP servers (Node/Python) and SDKs (Node/Python)
-- Commercial app (faxbot.net repo)
-  - Frontend/dashboard (auth, orgs/teams, multi‑tenant)
-  - Billing/plan limits, quotas, rate limiting, retention windows
-  - Number provisioning UX, per‑tenant settings
-  - Inbox UI, tagging/routing, notifications
-  - Analytics, exports, support tooling
 
 ## Branch Policy (v3) - CRITICAL FOR AGENTS
 
@@ -917,9 +765,7 @@ If working on core API/MCP/docs → development
 NEVER work in main
 ```
 
-### Release Process
-- Tag releases from `main` (e.g., `v3.0.0`) so consumers can pin stable versions.
-- App branches merge to `development`, then `development` merges to `main` for releases.
+
 
 Docs publishing
 - GitHub Pages publishes from the `docs-jekyll-site` branch. Do not repoint Pages without approval.
@@ -928,11 +774,7 @@ Docs publishing
 - Keep backend‑specific pages separated (Phaxio vs Sinch vs SIP/Asterisk).
 - Admin Console must derive all internal doc links from a single base (`DOCS_BASE_URL`), exposed at `/admin/config` as `branding.docs_base`. Never hard‑code full docs URLs in UI code.
 
-Receiving capability recommendation
-- Implement inbound fax support in core:
-  - Phaxio/Sinch: inbound webhook endpoints with signature verification; tokenized access; backend isolation.
-  - SIP/Asterisk: dialplan/AMI/AGI handler for T.38; TIFF→PDF conversion; storage and list/detail endpoints.
-- Keep backend docs strictly separated per this AGENTS.md.
+
 
 ## Common Pitfalls & Anti-Patterns
 
@@ -968,40 +810,16 @@ Receiving capability recommendation
 - **Developer SDKs:** No standardized Node.js/Python client libraries
 - **Multi-Backend:** No systems supporting both cloud and self-hosted options
 
-**Conclusion:** Faxbot is genuinely unprecedented. Agents cannot rely on existing patterns or common solutions. Every decision must be based on the actual codebase architecture and requirements.
 
-## Success Metrics & User Goals
 
-### Non-Technical Healthcare User (Phaxio)
-**Goal:** Send prescription to pharmacy in under 5 minutes
-**Path:** Sign up → Configure → Send fax  
-**Success:** Never sees SIP, Asterisk, or T.38 terminology
-
-### Technical User (SIP/Asterisk)
-**Goal:** Replace expensive fax service with self-hosted solution
-**Path:** SIP trunk → Asterisk setup → Network configuration
-**Success:** Understands T.38 requirements and cost implications  
-
-### AI Enthusiast (MCP)
-**Goal:** "Hey Claude, fax my insurance card to the doctor"
-**Path:** MCP setup → Desktop AI configuration → Voice command
-**Success:** Understands base64 limitation but sees future potential
-
-### Developer (SDKs)
-**Goal:** Integrate fax capability into existing application
-**Path:** npm install faxbot → API integration → Error handling
-**Success:** Identical experience across Node.js and Python
 
 ## Final Critical Reminders
 
 1. **This has never existed before** - No assumptions allowed
 2. **Multiple backends** - Cloud (Phaxio, Sinch, SignalWire), self‑hosted (SIP/Asterisk, FreeSWITCH), and Test mode are supported. Keep docs and UI strictly backend‑specific.
 3. **Six MCP configurations** - 2 servers × 3 transports each
-4. **HIPAA is not optional** - For healthcare users, compliance is mandatory
+4. **HIPAA is CRITICAL FOR MANY** - For healthcare users, compliance is mandatory
 5. **Non-HIPAA users matter too** - Don't make everything enterprise-complex
-6. **Project name is "Faxbot"** - Never OpenFax, never any other name
-7. **Phaxio implementation is complete** - It's not a TODO anymore
-8. **AMI security is critical** - Port 5038 must never be public
 9. **OAuth2 can be optional** - For non-PHI scenarios
 10. **Documentation must be backend-specific** - No mixed instructions
 

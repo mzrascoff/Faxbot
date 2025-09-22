@@ -1,12 +1,24 @@
 <p align="center">
   <img src="assets/faxbot_full_logo.png" alt="Faxbot logo" width="100%" />
 </p>
-
 <p align="center">
   <a href="https://dmontgomery40.github.io/Faxbot/">
     <img alt="View the Documentation" src="https://img.shields.io/badge/Docs-Faxbot-2b5fff?style=for-the-badge">
   </a>
 </p>
+
+<p align="center">
+  <a href="https://faxbot.net">
+    <img alt="Visit the Website" src="https://img.shields.io/badge/Website-faxbot.net-00c853?style=for-the-badge">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://faxbot.net/admin-demo">
+    <img alt="UI Demo" src="https://img.shields.io/badge/UI%20Demo-Admin%20Console-ff9800?style=for-the-badge">
+  </a>
+</p>
+
 
 The first and only open‑source, self‑hostable fax platform with a GUI‑first Admin Console, multi‑backend adapters (cloud + self‑hosted), and AI assistant integration.
 
@@ -16,15 +28,17 @@ The first and only open‑source, self‑hostable fax platform with a GUI‑firs
 - Traits‑first UI: screens render only what your active provider supports.
 
 ## Why Faxbot
-- One API, many backends: Phaxio and Sinch (cloud), or self‑hosted SIP/Asterisk.
-- HIPAA‑aligned controls: HMAC webhook verification, short‑TTL tokens, no secret logging.
-- AI integration: official MCP servers (Node & Python) for stdio/HTTP/SSE.
-- Identical SDKs: Node.js and Python with the same surface and errors.
+- One API, many backends: Phaxio, Documo, Sinch, SignalWire, and more (cloud), or self‑hosted FreeSWTICH, SIP/Asterisk, or anything else you can dream up.
+- Ability to mix and match outbound and inbound providers, total freedom, fit to your infrastructure.
+- HIPAA‑aligned controls: HMAC webhook verification, short‑TTL tokens, compliant logging.
+- AI integration: official MCP servers (Node & Python) for stdio/HTTP/SSE with Webhook support.
+- Identical SDKs: Node.js and Python with the same surface.
 
 ## Quick start (Docker Compose)
 1) Copy `.env` (see `.env.example`). Pick a backend:
 - Phaxio (recommended): set `FAX_BACKEND=phaxio` and `PHAXIO_API_KEY/PHAXIO_API_SECRET`.
 - Sinch: set `FAX_BACKEND=sinch`, `SINCH_PROJECT_ID/SINCH_API_KEY/SINCH_API_SECRET`.
+> Or one of 20 others that we have pre-made manifests for you to quickly load. 
 - SIP/Asterisk: set `FAX_BACKEND=sip` and AMI vars (see docs).
 
 2) Start the API (and Admin Console):
@@ -43,11 +57,6 @@ Optional MCP servers:
 docker compose --profile mcp up -d --build faxbot-mcp
 docker compose --profile mcp up -d --build faxbot-mcp-sse
 ```
-
-## Backends
-- [Phaxio Setup](docs/PHAXIO_SETUP.md)
-- [Sinch Setup](docs/SINCH_SETUP.md)
-- [SIP/Asterisk Setup](docs/SIP_SETUP.md)
 
 ## SDKs
 - Python: `pip install faxbot`
@@ -68,10 +77,6 @@ Docs:
 - Use `X-API-Key` (multi‑key) for auth.
 - Enforce HTTPS and HMAC signature verification for cloud webhooks.
 - No PHI in logs; only IDs/metadata are surfaced.
-
-## Notes
-- Receiving is feature‑gated by provider traits; see Admin Console → Diagnostics.
-- File types: PDF and TXT only. Convert images to PDF first.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md). Please open issues/PRs; this project is GUI‑first and traits‑first—avoid backend‑name checks in new code.
