@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -22,12 +22,8 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import {
-  CloudQueue as CloudIcon,
   Router as SipIcon,
-  Science as TestIcon,
   CheckCircle as CheckIcon,
-  Warning as WarningIcon,
-  Info as InfoIcon,
   Settings as SettingsIcon,
   Security as SecurityIcon,
   Webhook as WebhookIcon,
@@ -37,7 +33,6 @@ import { useTraits } from '../hooks/useTraits';
 import { getProviderDisplayName, getProviderIcon } from '../utils/providerIcons';
 import {
   ResponsiveTextField,
-  ResponsiveSelect,
   ResponsiveCheckbox,
   ResponsiveFormSection,
 } from './common/ResponsiveFormFields';
@@ -47,7 +42,6 @@ interface ProviderSetupWizardProps {
   open: boolean;
   onClose: () => void;
   onComplete: () => void;
-  docsBase?: string;
 }
 
 interface ProviderConfig {
@@ -99,11 +93,10 @@ export default function ProviderSetupWizard({
   open,
   onClose,
   onComplete,
-  docsBase,
 }: ProviderSetupWizardProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { registry, hasTrait, traitValue } = useTraits();
+  const { registry } = useTraits();
 
   const [activeStep, setActiveStep] = useState(0);
   const [config, setConfig] = useState<ProviderConfig>({ provider: '' });

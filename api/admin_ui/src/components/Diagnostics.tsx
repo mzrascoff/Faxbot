@@ -70,7 +70,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { active, registry, hasTrait, traitValue } = useTraits();
+  const { active, registry } = useTraits();
 
   const runDiagnostics = async () => {
     try {

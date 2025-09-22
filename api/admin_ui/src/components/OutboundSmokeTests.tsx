@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -18,7 +18,6 @@ import {
 } from '@mui/material';
 import {
   Send as SendIcon,
-  Cancel as CancelIcon,
   Refresh as RefreshIcon,
   ExpandMore as ExpandIcon,
   CheckCircle as SuccessIcon,
@@ -30,13 +29,11 @@ import {
 } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
 import { useTraits } from '../hooks/useTraits';
-import { getProviderDisplayName, getProviderIcon } from '../utils/providerIcons';
+import { getProviderDisplayName } from '../utils/providerIcons';
 import { ResponsiveFormSection } from './common/ResponsiveFormFields';
-import type { FaxJob } from '../api/types';
 
 interface OutboundSmokeTestsProps {
   client: AdminAPIClient;
-  docsBase?: string;
 }
 
 interface TestJob {
@@ -70,10 +67,8 @@ const TEST_TYPES = [
   },
 ];
 
-export default function OutboundSmokeTests({ client, docsBase }: OutboundSmokeTestsProps) {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { active, traitValue } = useTraits();
+export default function OutboundSmokeTests({ client }: OutboundSmokeTestsProps) {
+  const { active } = useTraits();
 
   const [testJobs, setTestJobs] = useState<TestJob[]>([]);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
@@ -81,7 +76,6 @@ export default function OutboundSmokeTests({ client, docsBase }: OutboundSmokeTe
 
   const activeOutbound = active?.outbound || '';
   const providerName = getProviderDisplayName(activeOutbound);
-  const providerIcon = getProviderIcon(activeOutbound);
 
   const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'info' | 'default' => {
     switch (status.toLowerCase()) {
@@ -127,12 +121,12 @@ export default function OutboundSmokeTests({ client, docsBase }: OutboundSmokeTe
     } else if (type === 'pdf') {
       // Generate a simple PDF
       const pdfContent = generateSimplePdf(`Faxbot Test PDF - ${providerName}`);
-      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+      const blob = new Blob([pdfContent.buffer], { type: 'application/pdf' });
       return new File([blob], 'faxbot_test.pdf', { type: 'application/pdf' });
     } else {
       // Generate a PDF with graphics (image test)
       const pdfContent = generateGraphicsPdf(`Faxbot Graphics Test - ${providerName}`);
-      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+      const blob = new Blob([pdfContent.buffer], { type: 'application/pdf' });
       return new File([blob], 'faxbot_image_test.pdf', { type: 'application/pdf' });
     }
   };
@@ -237,7 +231,7 @@ export default function OutboundSmokeTests({ client, docsBase }: OutboundSmokeTe
     }
   };
 
-  const pollJobStatus = async (jobId: string, testType: string) => {
+  const pollJobStatus = async (jobId: string, _testType: string) => {
     let attempts = 0;
     const maxAttempts = 30; // 1 minute of polling
     

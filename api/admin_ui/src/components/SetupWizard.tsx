@@ -53,7 +53,7 @@ interface WizardConfig {
 }
 
 function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
-  const { active, hasTrait, traitValue, getWebhookUrl } = useTraits();
+  const { hasTrait, traitValue, getWebhookUrl } = useTraits();
   const [activeStep, setActiveStep] = useState(0);
   const [config, setConfig] = useState<WizardConfig>({
     backend: 'phaxio',

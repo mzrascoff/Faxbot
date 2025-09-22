@@ -1,4 +1,4 @@
-import React from 'react';
+// Provider icons and utilities
 import {
   CloudQueue as CloudIcon,
   Router as SipIcon,

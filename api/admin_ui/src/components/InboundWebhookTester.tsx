@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -44,8 +44,6 @@ interface TestResult {
 }
 
 export default function InboundWebhookTester({ client, docsBase }: InboundWebhookTesterProps) {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { active, traitValue, getWebhookUrl, getSamplePayload, getProviderHeaders } = useTraits();
 
   const [testPayload, setTestPayload] = useState('');
@@ -55,7 +53,6 @@ export default function InboundWebhookTester({ client, docsBase }: InboundWebhoo
   const [showCurl, setShowCurl] = useState(false);
   const [showRawResponse, setShowRawResponse] = useState(false);
 
-  const activeOutbound = active?.outbound || '';
   const activeInbound = active?.inbound || '';
   const inboundVerification = traitValue('inbound', 'inbound_verification') || 'none';
 
@@ -167,7 +164,7 @@ export default function InboundWebhookTester({ client, docsBase }: InboundWebhoo
           </Typography>
           <Typography variant="body2">
             Verification: {inboundVerification} • 
-            Webhook URL: {getWebhookUrl()}
+            Webhook URL: {getWebhookUrl('inbound')}
           </Typography>
         </Alert>
 
@@ -203,10 +200,10 @@ export default function InboundWebhookTester({ client, docsBase }: InboundWebhoo
               wordBreak: 'break-all'
             }}>
               <Typography variant="body2" sx={{ fontFamily: 'monospace', flex: 1 }}>
-                {getWebhookUrl()}
+                {getWebhookUrl('inbound')}
               </Typography>
               <Tooltip title="Copy URL">
-                <IconButton size="small" onClick={() => copyToClipboard(getWebhookUrl())}>
+                <IconButton size="small" onClick={() => copyToClipboard(getWebhookUrl('inbound') || '')}>
                   <CopyIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
