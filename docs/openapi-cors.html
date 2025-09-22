@@ -1,0 +1,96 @@
+---
+layout: null
+---
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Faxbot OpenAPI - CORS Proxy</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .button { 
+            display: inline-block; 
+            padding: 10px 20px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            margin: 10px 5px;
+        }
+        .button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Faxbot OpenAPI Specification</h1>
+        <p>Access the Faxbot API specification without CORS restrictions:</p>
+        
+        <h2>🔗 Direct Links</h2>
+        <a href="https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml" class="button">
+            📄 Raw YAML (No CORS)
+        </a>
+        <a href="https://petstore.swagger.io/?url=https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml" class="button">
+            🔍 Swagger UI
+        </a>
+        <a href="https://editor.swagger.io/?url=https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml" class="button">
+            ✏️ Swagger Editor
+        </a>
+
+        <h2>📋 For Copy/Paste</h2>
+        <p>Use this URL in any OpenAPI tool:</p>
+        <pre><code>https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml</code></pre>
+
+        <h2>🛠️ Tool-Specific Instructions</h2>
+        
+        <h3>Postman</h3>
+        <ol>
+            <li>Open Postman</li>
+            <li>Click "Import" → "Link"</li>
+            <li>Paste: <code>https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml</code></li>
+            <li>Click "Continue" → "Import"</li>
+        </ol>
+
+        <h3>Insomnia</h3>
+        <ol>
+            <li>Create new Request Collection</li>
+            <li>Click "Import/Export" → "Import Data" → "From URL"</li>
+            <li>Paste the raw GitHub URL</li>
+        </ol>
+
+        <h3>VS Code (OpenAPI Extension)</h3>
+        <ol>
+            <li>Install "OpenAPI (Swagger) Editor" extension</li>
+            <li>Open Command Palette (Cmd/Ctrl+Shift+P)</li>
+            <li>Run "OpenAPI: Show Preview"</li>
+            <li>Use the raw GitHub URL</li>
+        </ol>
+
+        <h2>🔧 Why This Works</h2>
+        <p>GitHub's raw content delivery (<code>raw.githubusercontent.com</code>) serves files with proper CORS headers, 
+        allowing external tools to access the OpenAPI specification without cross-origin restrictions.</p>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // Test if the raw URL is accessible
+        fetch('https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml')
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('status').innerHTML = 
+                        '<p class="success">✅ OpenAPI specification is accessible and ready to use!</p>';
+                } else {
+                    throw new Error('Not found');
+                }
+            })
+            .catch(error => {
+                document.getElementById('status').innerHTML = 
+                    '<p class="error">⚠️ Specification may still be publishing. Try again in a few minutes.</p>';
+            });
+    </script>
+</body>
+</html>

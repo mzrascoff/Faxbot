@@ -20,7 +20,7 @@ The first and only open‑source, self‑hostable fax API. Send faxes with a sin
 ### 🚀 Getting Started
 - **[API Reference](/Faxbot/api/)** - Complete REST API documentation
 - **[OpenAPI YAML](/Faxbot/openapi.yaml)** - Machine-readable specification
-- **[Interactive API Explorer](https://petstore.swagger.io/?url=https://faxbot.github.io/Faxbot/openapi.yaml)** - Try the API
+- **[Interactive API Explorer](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/DMontgomery40/Faxbot/docs-jekyll-site/docs/openapi.yaml)** - Try the API
 
 ### 🤖 AI Integration  
 - **[MCP Integration](/Faxbot/ai-integration/)** - Claude Desktop, Cursor, and custom assistants
