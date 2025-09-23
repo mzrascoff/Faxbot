@@ -58,6 +58,13 @@ docker compose --profile mcp up -d --build faxbot-mcp
 docker compose --profile mcp up -d --build faxbot-mcp-sse
 ```
 
+
+## iOS App (TestFlight)
+
+The iOS companion lets you send faxes and check status from your phone. Email david@faxbot.net for an invite.
+
+![iOS Send Screen](assets/ios_send_screenshot.png)
+
 ## SDKs
 - Python: `pip install faxbot`
 - Node.js: `npm install faxbot`
