@@ -55,8 +55,8 @@ Learn more
 These example manifests live in the repo and can be used as starting points.
 
 - id `faxplus` — Fax.Plus
-- id `ringcentral` — RingCentral
-- id `interfax` — InterFAX
+- id `ringcentral` — RingCentral — [Try it](try-ringcentral.md)
+- id `interfax` — InterFAX — [Try it](try-interfax.md)
 - id `sfax` — Sfax (Consensus)
 - id `pamfax` — PamFax
 - id `dropbox_fax` — Dropbox Fax
