@@ -2,14 +2,29 @@ from __future__ import annotations
 import json
 import os
 from typing import Dict, List
+from pathlib import Path
 
 _STATUS_MAP: Dict[str, Dict[str, List[str]]] = {}
 _SCHEMA_VERSION = 1
 
 
+def _default_status_map_path() -> str:
+    """Resolve provider_status_map.json relative to repo root (stable across cwd).
+    Falls back to CWD if necessary.
+    """
+    try:
+        repo_root = Path(__file__).resolve().parents[2]
+        p = repo_root / "config" / "provider_status_map.json"
+        if p.exists():
+            return str(p)
+    except Exception:
+        pass
+    return os.path.join(os.getcwd(), "config", "provider_status_map.json")
+
+
 def load_status_map(path: str | None = None) -> None:
     global _STATUS_MAP
-    p = path or os.path.join(os.getcwd(), "config", "provider_status_map.json")
+    p = path or _default_status_map_path()
     try:
         with open(p, "r", encoding="utf-8") as f:
             obj = json.load(f)
@@ -38,4 +53,3 @@ def canonical_status(provider: str, raw_status: str) -> str:
             return canon
     # default when unmapped
     return raw or "queued"
-
