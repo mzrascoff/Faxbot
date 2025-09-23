@@ -92,9 +92,7 @@
   {
     "version": "888d6744",
     "title": "888d6744",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "249dc51",
@@ -105,6 +103,13 @@
     "version": "98d8062",
     "title": "98d8062",
     "aliases": []
+  },
+  {
+    "version": "83bc8740",
+    "title": "83bc8740",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "81c2416",
