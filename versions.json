@@ -7,14 +7,19 @@
   {
     "version": "f9441af4",
     "title": "f9441af4",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "f772a9d",
     "title": "f772a9d",
     "aliases": []
+  },
+  {
+    "version": "dfefd2b8",
+    "title": "dfefd2b8",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "dcbcbdb",
