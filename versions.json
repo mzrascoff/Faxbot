@@ -37,14 +37,19 @@
   {
     "version": "1894069a",
     "title": "1894069a",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "28602b7",
     "title": "28602b7",
     "aliases": []
+  },
+  {
+    "version": "5076f9ea",
+    "title": "5076f9ea",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "249dc51",
