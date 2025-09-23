@@ -18,6 +18,7 @@ theme:
     - navigation.footer
     - navigation.instant
     - navigation.tracking
+    - content.tabs.link
     - toc.integrate
     - search.suggest
     - search.highlight

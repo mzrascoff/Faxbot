@@ -192,6 +192,9 @@ API_KEY=generate_a_strong_key
 
 === "curl"
 
+!!! tip "Tab anchors"
+    You can right‑click a tab to copy a direct link to it. For example, link to the “Sinch (Direct Upload)” tab with `#sinch-direct-upload`.
+
     ```bash
     # assumes API_KEY is enabled; replace placeholders
     BASE="http://localhost:8080"
