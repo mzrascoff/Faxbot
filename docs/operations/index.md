@@ -2,14 +2,28 @@
 
 Operate and troubleshoot Faxbot day to day.
 
-Areas
-- Admin Console and Terminal
-- Scripts & Tests
-- Troubleshooting and third‑party references
+## Areas
 
-Links
-- Admin Console: ../admin-console.md
-- Terminal: ../terminal.md
-- Tools: ../tools/scripts-and-tests.md
-- Troubleshooting: ../troubleshooting.md
-- Third‑Party: ../third-party.md
+- [Admin Console](../admin-console.md)
+- [Terminal](../terminal.md)
+- Tools: [Scripts & Tests](../tools/scripts-and-tests.md) · [Node MCP Scripts](../tools/node-mcp-scripts.md) · [API Tests](../tools/api-tests.md)
+- [Troubleshooting](../troubleshooting.md)
+- [Third‑Party References](../third-party.md)
+
+## Quick Links
+
+<div class="grid cards" markdown>
+
+- :material-stethoscope: **Diagnostics**  
+  Health checks and actionable guidance.  
+  [Open](../admin-console/diagnostics.md)
+
+- :material-download: **Inbound**  
+  Enable receiving, storage, and secure PDF access.  
+  [Guide](../inbound.md)
+
+- :material-script-text: **Run Scripts & Tests**  
+  E2E and helpers for quick validation.  
+  [Tools](../tools/scripts-and-tests.md)
+
+</div>

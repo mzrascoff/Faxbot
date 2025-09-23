@@ -1,26 +1,70 @@
 # Faxbot
 
-<div class="home-hero">
-  <img src="assets/images/faxbot_full_logo.png" alt="Faxbot logo" width="320" height="320" />
+<div class="home-hero" align="center" markdown>
+<img src="assets/images/faxbot_full_logo.png" alt="Faxbot logo" width="240" height="240" />
+
+Open‑source, self‑hostable fax API with modular backends, a mobile‑ready Admin Console, and AI assistant tooling.
+
+<br/>
+
+<div class="grid cards" markdown>
+
+- :material-rocket-launch: **Getting Started**  
+  Launch locally and run the Setup Wizard.  
+  [:octicons-arrow-right-24: Guide](getting-started.md)
+
+- :material-cog: **Admin Console**  
+  Configure providers, auth, storage; see Diagnostics.  
+  [Open](admin-console.md)
+
+- :material-cloud-lock: **Deployment**  
+  Checklist before exposing your API publicly.  
+  [Read](deployment.md)
+
+- :material-shield-lock: **Security**  
+  Auth, OAuth/OIDC, HIPAA notes.  
+  [Docs](security/index.md)
+
+- :material-api: **API & SDKs**  
+  REST reference and client libraries.  
+  [API](api.md) · [SDKs](sdks/index.md)
+
+- :material-robot-excited: **MCP (AI)**  
+  Node and Python servers + transports.  
+  [Learn](mcp/index.md)
+
 </div>
-
-Faxbot is the first open-source fax platform with modular provider plugins, a mobile-ready Admin Console, and AI assistant tooling.
-
-- HIPAA-aligned defaults with optional relaxed profiles
-- Runtime backend switching through the Admin Console
-- SDKs for Node.js and Python plus MCP servers for assistants
-
-## Start Here
-
-- Launch locally with the [Getting Started](getting-started.md) guide and Setup Wizard walkthrough
-- Explore the [Admin Console](admin-console.md) tabs to configure providers, auth, and storage with inline help
-- Review the [Deployment](deployment.md) checklist before exposing the API publicly
+</div>
 
 ## Backends & Operations
 
-- Provider playbooks: [Go-Live overview](go-live/index.md) with [Phaxio](go-live/phaxio.md), [Sinch](go-live/sinch.md), and [SIP/Asterisk](go-live/sip-asterisk.md)
-- Day-2 guides: [Inbound Receiving](inbound.md), [Images & PDFs](guides/images-and-pdfs.md), [Networking & Tunnels](networking/tunnels.md)
-- Troubleshoot quickly with [Diagnostics](admin-console/diagnostics.md) and the [Troubleshooting](troubleshooting.md) checklist
+<div class="grid cards" markdown>
+
+- :material-fax: **Provider Playbooks**  
+  Go‑Live overview and backend specifics.  
+  [Overview](go-live/index.md) · [Phaxio](go-live/phaxio.md) · [Sinch](go-live/sinch.md) · [SIP/Asterisk](go-live/sip-asterisk.md)
+
+- :material-inbox-arrow-down: **Inbound & Storage**  
+  Enable inbound, choose storage, token TTLs.  
+  [Inbound](inbound.md)
+
+- :material-image: **Images & PDFs**  
+  File types, limits, and conversion tips.  
+  [Guide](guides/images-and-pdfs.md)
+
+- :material-lan: **Networking & Tunnels**  
+  Options for public access during evaluation.  
+  [Guide](networking/tunnels.md)
+
+- :material-stethoscope: **Troubleshooting**  
+  Common errors and quick fixes.  
+  [Checklist](troubleshooting.md)
+
+- :material-monitor-account: **Admin Demo**  
+  Hosted, simulated console (no providers).  
+  [Try it](admin-demo.md)
+
+</div>
 
 ## Build & Integrate
 
