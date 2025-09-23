@@ -83,3 +83,51 @@ The Plugins tab uses these discovery endpoints when `FEATURE_V3_PLUGINS=true`.
 
 - `/plugins` returns 404 → enable `FEATURE_V3_PLUGINS=true` and restart the API  
 - Config write errors → check permissions on `FAXBOT_CONFIG_PATH` (default lives under the `faxdata` volume)
+
+---
+
+## Quick examples
+
+=== "Registry JSON"
+
+```json
+{
+  "providers": [
+    {
+      "id": "phaxio",
+      "name": "Phaxio (Cloud)",
+      "type": "outbound",
+      "version": "1.0.0",
+      "manifest": {
+        "actions": { "send_fax": { "method": "POST", "url": "https://api.phaxio.com/..." } },
+        "allowed_domains": ["api.phaxio.com"]
+      }
+    }
+  ]
+}
+```
+
+=== "/plugins response"
+
+```json
+{
+  "plugins": [
+    {
+      "id": "phaxio",
+      "enabled": true,
+      "settings": { "api_key": "***", "api_secret": "***" },
+      "type": "outbound"
+    }
+  ]
+}
+```
+
+=== "Enable plugin (curl)"
+
+```bash
+BASE="http://localhost:8080"
+API_KEY="your_admin_api_key"
+curl -sS -X PUT "$BASE/plugins/phaxio/config" \
+  -H "X-API-Key: $API_KEY" -H 'content-type: application/json' \
+  -d '{"enabled":true, "settings": {"api_key":"...","api_secret":"..."}}'
+```
