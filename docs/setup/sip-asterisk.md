@@ -99,12 +99,18 @@ docker compose up -d --build
 - CGNAT / no port forwarding → use a cloud VM or Phaxio backend.
 
 ## Test Send
-```
+```bash
 curl -X POST http://localhost:8080/fax \
   -H "X-API-Key: your_secure_api_key" \
   -F to=+15551234567 \
   -F file=@./example.pdf
 ```
+
+=== "Console"
+
+    - Open Admin Console → Send Fax  
+    - Enter a valid E.164 number; attach a small PDF  
+    - Watch Jobs for status; see Asterisk logs if calls fail
 
 ## Choosing a SIP Provider (T.38)
 Pick one of these two (beginner-friendly):

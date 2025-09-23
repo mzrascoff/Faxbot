@@ -33,6 +33,28 @@ curl -X POST http://localhost:8080/fax \
 ```
 The response includes a job ID and the `backend: "sinch"` field.
 
+### Quick examples (SDKs)
+
+=== "Node"
+
+```js
+const FaxbotClient = require('faxbot');
+const client = new FaxbotClient('http://localhost:8080', process.env.API_KEY);
+(async () => {
+  const job = await client.sendFax('+15551234567', './example.pdf');
+  console.log('Queued:', job.id);
+})();
+```
+
+=== "Python"
+
+```python
+from faxbot import FaxbotClient
+client = FaxbotClient('http://localhost:8080', api_key=os.getenv('API_KEY'))
+job = client.send_fax('+15551234567', './example.pdf')
+print('Queued', job['id'])
+```
+
 Status updates
 - Immediate status is mapped from Sinch’s response. Additional webhook handling may be added later; for now, poll your own app state via `GET /fax/{id}`.
 

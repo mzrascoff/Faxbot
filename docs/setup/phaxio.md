@@ -57,6 +57,28 @@ curl -X POST http://localhost:8080/fax \
 curl -H "X-API-Key: your_secure_api_key" http://localhost:8080/fax/<job_id>
 ```
 
+### Quick examples (SDKs)
+
+=== "Node"
+
+```js
+const FaxbotClient = require('faxbot');
+const client = new FaxbotClient('http://localhost:8080', process.env.API_KEY);
+(async () => {
+  const job = await client.sendFax('+15551234567', './example.pdf');
+  console.log('Queued:', job.id);
+})();
+```
+
+=== "Python"
+
+```python
+from faxbot import FaxbotClient
+client = FaxbotClient('http://localhost:8080', api_key=os.getenv('API_KEY'))
+job = client.send_fax('+15551234567', './example.pdf')
+print('Queued', job['id'])
+```
+
 5) Configure callback (optional but recommended)
 - Phaxio will POST status to your callback URL (`PHAXIO_CALLBACK_URL` or `PHAXIO_STATUS_CALLBACK_URL`).
 - This API exposes `POST /phaxio-callback` and will update job status when the request includes `?job_id=<id>`.

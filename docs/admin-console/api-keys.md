@@ -19,22 +19,51 @@ Manage and test REST API credentials without leaving the Admin Console.
 - View the auto-generated curl example in the sidebar if you need to script verification
 - Diagnostics → **API Auth** lists recent successes/failures with reasons
 
-### Optional CLI validation
+### Quick examples
 
-If you still want to confirm via terminal, copy the curl snippet shown in the console or run:
+=== "Console"
 
-```bash
-curl -X POST "$BASE/fax" \
-  -H "X-API-Key: $API_KEY" \
-  -F to=+15551234567 \
-  -F file=@./document.pdf
-```
+    1. Open Admin Console → API Keys  
+    2. Create a key with the scopes you need (e.g., `fax:send`, `fax:read`)  
+    3. Open Send Fax and queue a test while the key is selected  
+    4. Check Jobs for status updates
 
-Then check status:
+=== "curl"
 
-```bash
-curl -H "X-API-Key: $API_KEY" "$BASE/fax/$JOB_ID"
-```
+    ```bash
+    BASE="http://localhost:8080"
+    curl -X POST "$BASE/fax" \
+      -H "X-API-Key: $API_KEY" \
+      -F to=+15551234567 \
+      -F file=@./document.pdf
+    
+    # Then check status
+    curl -H "X-API-Key: $API_KEY" "$BASE/fax/$JOB_ID"
+    ```
+
+=== "Node"
+
+    ```js
+    const FaxbotClient = require('faxbot');
+    const client = new FaxbotClient('http://localhost:8080', process.env.API_KEY);
+    (async () => {
+      const job = await client.sendFax('+15551234567', './document.pdf');
+      console.log('Queued:', job.id);
+      const status = await client.getStatus(job.id);
+      console.log('Status:', status.status);
+    })();
+    ```
+
+=== "Python"
+
+    ```python
+    from faxbot import FaxbotClient
+    client = FaxbotClient('http://localhost:8080', api_key=os.getenv('API_KEY'))
+    job = client.send_fax('+15551234567', './document.pdf')
+    print('Queued', job['id'])
+    status = client.get_status(job['id'])
+    print('Status', status['status'])
+    ```
 
 ## Troubleshooting
 
