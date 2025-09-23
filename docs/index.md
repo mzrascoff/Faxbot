@@ -1,5 +1,3 @@
-# Faxbot
-
 <div class="home-hero" align="center" markdown>
 <picture>
   <source srcset="assets/images/faxbot_mini_banner_light.png" media="(prefers-color-scheme: light)">
