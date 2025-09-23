@@ -1,25 +1,24 @@
 # Setup Wizard (Beginner Friendly)
 
-New to fax? Start here. This wizard gets you sending in minutes and explains each choice with inline help and deep links.
+New to fax? Start here. This wizard gets you sending in minutes and explains each choice in plain language, with direct links to the third‑party pages you’ll need.
 
 What you’re choosing
-- Phaxio by Sinch (cloud): Phaxio fetches your PDF from your server via a public URL (webhooks for status). Best if you have a domain/tunnel.
-- Sinch (Direct Upload): Faxbot uploads the PDF directly (send‑only works without a public URL).
+- Phaxio by Sinch (cloud): A developer fax API (Phaxio is part of Sinch). Two flows in Faxbot:
+  - Phaxio: provider fetches your PDF from a public URL. Best if you have a domain/tunnel. Supports webhooks.
+  - Sinch (Direct Upload): Faxbot uploads the PDF directly. Send‑only works without a public URL.
 - Documo (mFax): Direct upload; no public URL required for sending.
-- SIP / Asterisk (self‑hosted): No third‑party cloud, uses your SIP trunk (advanced).
+- SIP / Asterisk (self‑hosted): Uses your SIP trunk. Advanced.
 
 Do I need a domain?
-- No, if you pick “Sinch (Direct Upload)” or Documo.
-- Yes (or a tunnel) if you pick “Phaxio” and want callbacks or provider PDF fetch.
+- No, if you pick “Sinch (Direct Upload)”.
+- Yes (or a tunnel) if you pick “Phaxio” and want status callbacks or provider PDF fetch.
 
 Beginner 5‑minute path (no domain required)
 1) Choose backend: “Sinch (Direct Upload)”.
-2) Create a Sinch/Phaxio account and project; obtain Project ID, API key/secret.
-3) Paste values into the wizard and Apply.
+2) Sign up at the Sinch dashboard; create a project; get Project ID and API key/secret.
+3) Paste values into the wizard and Apply. Send a test fax in Admin Console.
 
 If you have a domain (or can run a temporary tunnel)
 1) Choose backend: “Phaxio (Recommended)”.
-2) Get `PHAXIO_API_KEY`/`PHAXIO_API_SECRET`.
-3) Set `PUBLIC_API_URL` (domain or quick tunnel) and Apply.
-
-After Apply, send a test fax from the console or via SDK.
+2) Get `PHAXIO_API_KEY` and `PHAXIO_API_SECRET`.
+3) Set `PUBLIC_API_URL` and Apply. Use the tunnel helper if needed.
