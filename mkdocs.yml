@@ -99,6 +99,8 @@ nav:
       - Overview: security/index.md
       - Authentication: security/authentication.md
       - OAuth/OIDC Setup: security/oauth-setup.md
+      - Network & Transports: security/network.md
+      - HIPAA Requirements: HIPAA_REQUIREMENTS.md
   - Reference:
     - Overview: reference/index.md
     - API:
@@ -124,6 +126,7 @@ nav:
       - Setup Wizard: admin-console/setup-wizard.md
       - Settings: admin-console/settings.md
       - Diagnostics: admin-console/diagnostics.md
+      - Diagnostics Matrix: admin-console/diagnostics-matrix.md
       - API Keys: admin-console/api-keys.md
       - Plugin Builder: admin-console/plugin-builder.md
       - Annotated Demo: admin-console/annotated-demo.md

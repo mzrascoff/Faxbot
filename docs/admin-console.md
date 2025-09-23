@@ -1,59 +1,90 @@
-# Faxbot Local‑Only Admin Console — Production‑Ready Plan (v1)
 
-## Purpose
-- Deliver a pragmatic, local‑only admin console that rides on the existing API.
-- v1 goal: help operators do the basics without hand‑editing `.env`: keys, readiness/diagnostics, simple send, inbound view (when enabled).
-- Keep it local‑only by default, safe to ship, and easy to implement incrementally.
+# Admin Console
 
-## Architecture Overview (grounded in current code)
+The Admin Console lets you manage keys, jobs, inbound inbox, diagnostics, and settings without editing `.env` by hand.
 
-### Runtime Topology
-- Serve the UI from the existing FastAPI app under `GET /admin/ui/*` as static files (`ENABLE_LOCAL_ADMIN=true`).
-- Reuse existing endpoints: `/admin/api-keys`, `/admin/config`, `/admin/settings`, `/health`, `/fax`, `/fax/{id}`, and inbound endpoints.
-- Local‑only by default: middleware 403‑blocks remote clients for `/admin/ui` unless explicitly allowed for demo (`ADMIN_UI_ALLOW_TUNNEL=true`).
-- No extra ports in v1.
+- Local‑only by default; access is restricted to loopback in current builds
+- Works with any backend (Phaxio, Sinch, SIP/Asterisk, SignalWire)
+- Provides copy‑ready configuration after validation
 
-### Security Model
-- Middleware blocks non‑loopback access for `/admin/ui`; tunnel access blocked unless `ADMIN_UI_ALLOW_TUNNEL=true` (demo only).
-- UI uses an API key with `keys:manage` (or bootstrap `API_KEY`) and stores it locally for this browser session. All admin calls send `X-API-Key`.
-- Strict headers on `/admin/*`; no PHI in UI.
-- Terminal is local‑only and requires `ENABLE_LOCAL_ADMIN=true`.
+## Usage
 
-### Settings Strategy
-- Read with `/admin/settings` and `/admin/config`.
-- Apply with `PUT /admin/settings` and `POST /admin/settings/reload`; export/persist via `/admin/settings/export` and `/admin/settings/persist`.
-- Validate with `POST /admin/settings/validate` (provider/AMI checks).
+- Access at `http://localhost:8080/admin/ui/` when the API is running
+- If you see 404, set `ENABLE_LOCAL_ADMIN=true` (or set `ADMIN_UI_DIR=/app/admin_ui_dist`) and restart
+- Explore tabs for Dashboard, Send, Jobs, Inbound, Keys, Settings, Diagnostics
 
-### Events & Real‑Time
-- Polling by default: dashboard polls `/health/ready`; jobs poll `GET /fax/{id}`.
-- MCP transports (HTTP/SSE/WebSocket) optional for assistant integrations.
+### Plugins (preview)
+- When enabled by the server, a Plugins tab appears to help operators view installed providers and persist an outbound selection to the server’s config file. This does not change the running backend immediately; apply changes during maintenance windows.
+- Enable by setting `FEATURE_V3_PLUGINS=true` on the API. The tab uses `/plugins` and related endpoints with admin authentication.
 
-## Admin Endpoints (Summary)
-- API Keys: create/list/rotate/revoke under `/admin/api-keys`.
-- Settings: get/update/reload/validate under `/admin/settings`.
-- Diagnostics: run bounded checks; surface remediation tips.
+## Demo (Simulated)
 
-## Pages & Flows (v1)
-- Dashboard: health, active backend, recent jobs, storage check; actions for Wizard/Send.
-- Setup Wizard: choose backend → validate → security → review/apply.
-- Send Fax: PDF/TXT picker, client size/type checks; submit to `POST /fax`; poll status.
-- Jobs: filters and details; copy job id; re‑send; delete artifacts.
-- Inbound Inbox (optional): list and secure PDF downloads.
-- API Keys: list/create/rotate/revoke; token shown once.
-- Diagnostics: provider ping, AMI connect, Ghostscript, storage, clock drift.
-- About/Version: version/build/licensing.
+- Hosted demo with simulated data: https://faxbot.net/admin-demo/
+- No external calls; intended for showcasing the workflow
 
-## Components & UX
-- Secret inputs masked; copy‑once behavior; re‑entry for changes.
-- Accessible, responsive layouts; mobile tabs.
-- No data retention in browser; no PHI in logs or UI.
+## Live Apply & Export
 
-## Security & Networking
-- Keep `/admin/ui` local‑only; avoid exposing the Terminal via public tunnels.
-- For HIPAA: enforce HTTPS, enable HMAC verification where supported, use audit logging per policy.
+- Setup Wizard: choose a backend (Phaxio/Sinch/SIP), enter credentials, pick security defaults (require API key, enforce HTTPS, audit logging), then click “Apply & Reload”.
+  - Changes apply in‑process immediately.
+  - Click “Generate .env” to export a snippet for persistence across restarts.
+- Settings: quick edits for backend/security and selected provider fields.
+  - Click “Apply & Reload” to take effect immediately.
+  - Backend/storage changes may require a restart to initialize provider clients (e.g., Asterisk AMI) or swap storage drivers safely.
 
-See also
-- Security: security/index.md
-- OAuth/OIDC Setup: security/oauth-setup.md
-- Terminal: terminal.md
-- Tunnels: networking/tunnels.md
+## Persisted Settings (v2)
+
+- Enable loading of a server-side .env on startup: toggle “Load persisted .env at startup” in Settings (sets ENABLE_PERSISTED_SETTINGS=true).
+- Save the current configuration to a persisted file by clicking “Save .env to server”.
+  - Default path: /faxdata/faxbot.env (lives on the `faxdata` volume).
+  - You can still export and download the .env if you prefer manual review.
+- Notes
+  - When enabled, the API loads values from the persisted file before constructing settings, overriding process environment.
+  - Keep this feature local-only and behind the Admin Console gate.
+
+## Restart (Optional)
+
+- If `ADMIN_ALLOW_RESTART=true`, the Diagnostics page shows a “Restart API” button.
+  - This triggers a controlled process exit so your container manager (e.g., Docker) restarts the API.
+  - If the flag is not set, the button returns “Restart not allowed”.
+
+## Storage (S3)
+
+- To use S3 for inbound artifacts, set `STORAGE_BACKEND=s3` and S3 values (`S3_BUCKET`, `S3_REGION`, optional `S3_PREFIX`, `S3_ENDPOINT_URL`, `S3_KMS_KEY_ID`).
+- IAM credentials must come from the runtime (environment or role). The Admin Console does not store or display secrets.
+- Validate S3:
+  - Enable `ENABLE_S3_DIAGNOSTICS=true` on the API to allow Diagnostics to `HeadBucket` and surface `checks.storage.accessible`.
+  - Otherwise, Diagnostics will show only presence checks.
+  - Best practice: apply settings, then run Diagnostics to verify access, and perform an end‑to‑end inbound test.
+
+## Dashboard & Diagnostics
+
+- Dashboard shows the live backend (phaxio/sinch/sip) and simple queue stats. After applying settings, it reflects the new backend.
+- Diagnostics runs a comprehensive check (backend credentials/config, storage, inbound flags, security posture) and shows recommendations.
+
+### Under the Hood
+- The console reads settings from `GET /admin/settings` and health from `GET /admin/health-status`
+- “Apply & Reload” calls `PUT /admin/settings` then `POST /admin/settings/reload`
+- Persisted settings writes a server‑side `.env` via `POST /admin/settings/persist` (when enabled)
+- Jobs table uses admin‑scoped endpoints (`/admin/fax-jobs*`) with masked phone numbers
+
+## Inbound Controls (v2)
+
+- Toggle inbound receiving on/off and configure retention/token TTL in Settings.
+- Backend-specific auth:
+  - SIP/Asterisk: set `ASTERISK_INBOUND_SECRET` for the private `/_internal/asterisk/inbound` route.
+  - Phaxio: enable HMAC verification for inbound webhooks.
+  - Sinch: configure Basic auth and/or HMAC verification for inbound callbacks.
+
+## Outbound PDFs (v2)
+
+- From Jobs, open a job to view details and download the outbound PDF (admin-only). The API generates a PDF per job before dispatching to the selected backend.
+## MCP (v2)
+
+- Embedded Python MCP SSE server is available under `/mcp/sse`.
+- In the UI (MCP tab), enable SSE and optionally require OAuth/JWT.
+- Health check: “SSE Healthy” chip reflects `/mcp/sse/health` status.
+- “Claude Desktop Config” block provides a copy‑ready config snippet.
+- Notes
+  - For HIPAA, enable OAuth/JWT and configure issuer/audience/JWKS.
+  - When disabled, SSE runs without auth for local development only.
+  - Changing MCP flags requires an API restart (use Restart in UI).

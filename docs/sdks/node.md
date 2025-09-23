@@ -1,27 +1,47 @@
-# Node.js SDK
 
-Install
-- Local project includes the SDK in `sdks/node/`. For package usage, require the client class directly.
+# Faxbot Node.js SDK
 
-Usage
-```javascript
+Thin Node.js client for the Faxbot API. Sends faxes and checks status via the unified Faxbot REST API (independent of the server's backend: Phaxio or SIP/Asterisk).
+
+- Package name: `faxbot`
+- Requires: Node.js 18+
+
+## Install
+
+- From npm (once published):
+```
+npm install faxbot
+```
+- From source (this repo):
+```
+cd sdks/node
+npm install
+```
+
+## Usage
+```js
 const FaxbotClient = require('faxbot');
-const client = new FaxbotClient('http://localhost:8080', 'your_api_key');
+const client = new FaxbotClient('http://localhost:8080', 'YOUR_API_KEY');
 
-// Send a fax
-const job = await client.sendFax('+15551234567', '/path/to/document.pdf');
-// Later
-const status = await client.getStatus(job.id);
+async function run() {
+  const job = await client.sendFax('+15551234567', '/path/to/document.pdf');
+  console.log('Queued job:', job.id, job.status);
+  const status = await client.getStatus(job.id);
+  console.log('Status:', status.status);
+}
+
+run().catch(console.error);
 ```
 
-Errors
-- 400: invalid phone or params
-- 401: missing/invalid API key
-- 404: job or endpoint not found
-- 413: file too large
-- 415: unsupported type
+## Notes
+- Only `.pdf` and `.txt` files are accepted.
+- If the server requires an API key, it must be supplied via `X-API-Key` (handled automatically when `apiKey` is provided).
+- Optional helper: `checkHealth()` pings `/health`.
 
-Health check
-```javascript
-const ok = await client.checkHealth();
-```
+## Publishing (maintainers)
+- Configure GitHub secret `NPM_TOKEN`.
+- Create a GitHub Release to trigger publish via CI.
+
+## MCP Note
+- MCP (Model Context Protocol) is not part of this SDK. It is a separate integration layer for AI assistants.
+- Refer to `docs/MCP_INTEGRATION.md` in the repository for MCP setup and usage.
