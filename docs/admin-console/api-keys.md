@@ -10,8 +10,8 @@ Manage and test REST API credentials without leaving the Admin Console.
 3. Copy the generated token (`fbk_live_<id>_<secret>`) — it is only shown once
 4. Rotate or revoke from the same screen; Faxbot records the change in audit logs when enabled
 
-{: .note }
-For production, set `REQUIRE_API_KEY=true` in the Setup Wizard or Security tab so unauthenticated requests are rejected.
+!!! note
+    For production, set `REQUIRE_API_KEY=true` in the Setup Wizard or Security tab so unauthenticated requests are rejected.
 
 ## Smoke test from the console
 

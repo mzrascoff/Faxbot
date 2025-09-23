@@ -20,7 +20,7 @@ Note on branding: New Phaxio signups and dashboards may redirect to Sinch. That 
 
 2) Set environment variables
 - Edit `.env` (or create from `.env.example`). Set:
-```
+```env
 FAX_BACKEND=phaxio
 PHAXIO_API_KEY=your_key
 PHAXIO_API_SECRET=your_secret
@@ -35,7 +35,7 @@ API_KEY=your_secure_api_key   # Optional but recommended; used as X-API-Key
 Sinch v3 vs legacy Phaxio: If you prefer Sinch’s Fax API v3 “direct upload” flow, use the separate `sinch` backend instead (see SINCH_SETUP.md). This guide covers the classic Phaxio-style flow where the provider fetches your PDF via a tokenized URL and posts status to `/phaxio-callback`.
 
 3) Start the API
-```
+```bash
 make up-cloud   # or: docker compose up -d --build api
 ```
 - API will listen on `http://localhost:8080` by default.
@@ -45,7 +45,7 @@ How this works: you talk to the Faxbot API (your local/server endpoint). Faxbot 
 4) Test sending a fax
 - Convert TXT→PDF→TIFF is handled automatically.
 - Example (replace number):
-```
+```bash
 curl -X POST http://localhost:8080/fax \
   -H "X-API-Key: your_secure_api_key" \
   -F to=+15551234567 \
@@ -53,7 +53,7 @@ curl -X POST http://localhost:8080/fax \
 ```
 - Response includes `id`, `status`, `backend`, timestamps.
 - Check status:
-```
+```bash
 curl -H "X-API-Key: your_secure_api_key" http://localhost:8080/fax/<job_id>
 ```
 

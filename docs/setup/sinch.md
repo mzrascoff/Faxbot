@@ -11,7 +11,7 @@ Key differences vs `phaxio` backend
 - `sinch`: Faxbot uploads your PDF directly to Sinch (multipart). PUBLIC_API_URL and `/phaxio-callback` are not used. Webhook integration for Sinch is under evaluation; current builds reflect the provider’s initial status response.
 
 Environment
-```
+```env
 FAX_BACKEND=sinch
 SINCH_PROJECT_ID=your_project_id
 SINCH_API_KEY=your_api_key          # falls back to PHAXIO_API_KEY if unset
@@ -25,7 +25,7 @@ MAX_FILE_SIZE_MB=10
 ```
 
 Send a fax (curl)
-```
+```bash
 curl -X POST http://localhost:8080/fax \
   -H "X-API-Key: $API_KEY" \
   -F to=+15551234567 \
@@ -45,4 +45,3 @@ Troubleshooting
 - 413: file too large → raise `MAX_FILE_SIZE_MB`.
 - 415: unsupported file type → only PDF/TXT.
 - Sinch API errors: verify Project ID, API key/secret, and region.
-
