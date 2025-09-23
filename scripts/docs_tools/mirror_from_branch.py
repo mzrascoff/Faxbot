@@ -17,10 +17,19 @@ import re
 
 
 def git_show(branch: str, path: str) -> str:
-    cp = subprocess.run(["git", "show", f"{branch}:{path}"], capture_output=True, text=True)
-    if cp.returncode != 0:
-        raise RuntimeError(f"git show failed for {branch}:{path}: {cp.stderr.strip()}")
-    return cp.stdout
+    """Return file contents from another branch.
+
+    Tries the exact path first; if missing, also tries path prefixed with
+    'docs/' to support the Jekyll-era layout where content lived under a
+    docs/ subfolder.
+    """
+    for candidate in (path, f"docs/{path}"):
+        cp = subprocess.run(["git", "show", f"{branch}:{candidate}"], capture_output=True, text=True)
+        if cp.returncode == 0:
+            return cp.stdout
+    raise RuntimeError(
+        f"git show failed for {branch}:{path} (also tried docs/{path})"
+    )
 
 
 def strip_front_matter(text: str) -> str:
@@ -76,21 +85,28 @@ def main() -> int:
         ("plugins/sip-provider-plugins.md", "docs/plugins/sip-provider-plugins.md"),
         ("plugins/config-file.md", "docs/plugins/config-file.md"),
         ("plugins/homeassistant.md", "docs/plugins/homeassistant.md"),
+        # Backends (core three present in Sept 20 snapshot)
+        ("backends/phaxio-setup.md", "docs/setup/phaxio.md"),
+        ("backends/sinch-setup.md", "docs/setup/sinch.md"),
+        ("backends/sip-setup.md", "docs/setup/sip-asterisk.md"),
         # Deployment
         ("docs/deployment.md", "docs/deployment.md"),
         # Setup helpers / backends extras
         ("backends/public-access.md", "docs/setup/public-access.md"),
         ("backends/webhooks.md", "docs/setup/webhooks.md"),
         ("backends/images-and-pdfs.md", "docs/guides/images-and-pdfs.md"),
-        ("backends/freeswitch-setup.md", "docs/setup/freeswitch.md"),
-        ("backends/signalwire-setup.md", "docs/setup/signalwire.md"),
-        ("backends/documo-setup.md", "docs/setup/documo.md"),
+        ("backends/freeswitch-setup.md", "docs/setup/freeswitch.md"),  # when present
+        ("backends/signalwire-setup.md", "docs/setup/signalwire.md"),  # when present
+        ("backends/documo-setup.md", "docs/setup/documo.md"),          # when present
         ("backends/test-mode.md", "docs/setup/test-mode.md"),
         # Tools / Troubleshooting / SDKs
         ("development/scripts-and-tests.md", "docs/tools/scripts-and-tests.md"),
         ("development/troubleshooting.md", "docs/troubleshooting.md"),
         ("development/node-sdk.md", "docs/sdks/node.md"),
         ("development/python-sdk.md", "docs/sdks/python.md"),
+        ("development/phaxio-e2e-test.md", "docs/tools/phaxio-e2e-test.md"),
+        ("development/api-reference.md", "docs/api.md"),
+        ("development/sdks.md", "docs/sdks/index.md"),
         # Security
         ("security/index.md", "docs/security/index.md"),
         ("security/oauth-setup.md", "docs/security/oauth-setup.md"),
@@ -103,6 +119,17 @@ def main() -> int:
         ("ai-integration/node-mcp.md", "docs/archive/ai-node-mcp-legacy.md"),
         ("development/index.md", "docs/archive/development-index-legacy.md"),
         ("development/changelog.md", "docs/developers/changelog.md"),
+        # Root-level legacy duplicates sometimes present
+        ("API_REFERENCE.md", "docs/api.md"),
+        ("IMAGES_AND_PDFS.md", "docs/guides/images-and-pdfs.md"),
+        ("MCP_INTEGRATION.md", "docs/archive/mcp-integration-legacy.md"),
+        ("OAUTH_SETUP.md", "docs/security/oauth-setup.md"),
+        ("PHAXIO_E2E_TEST.md", "docs/tools/phaxio-e2e-test.md"),
+        ("PHAXIO_SETUP.md", "docs/setup/phaxio.md"),
+        ("SDKS.md", "docs/sdks/index.md"),
+        ("SINCH_SETUP.md", "docs/setup/sinch.md"),
+        ("SIP_SETUP.md", "docs/setup/sip-asterisk.md"),
+        ("TROUBLESHOOTING.md", "docs/troubleshooting.md"),
     ]
 
     written = 0

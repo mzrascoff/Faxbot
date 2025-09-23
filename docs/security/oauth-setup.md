@@ -1,14 +1,11 @@
-
 # OAuth2 / OIDC Setup for Faxbot MCP (SSE)
 
 This guide shows how to configure JWT validation for the SSE transport. It covers the minimal concepts, the three env vars Faxbot needs, and quick links for popular identity providers.
 
-## Environment variables
-
 What the MCP SSE server validates
 - Issuer (`iss`): matches `OAUTH_ISSUER`
 - Audience (`aud`): matches `OAUTH_AUDIENCE` (e.g., `faxbot-mcp`)
-- Signature: verified against the provider's JWKS (`OAUTH_JWKS_URL`)
+- Signature: verified against the provider’s JWKS (`OAUTH_JWKS_URL`)
 - Expiry / not-before: standard JWT time checks
 
 Environment variables
@@ -35,7 +32,7 @@ Auth0
 - Audience: your API Identifier (e.g., `faxbot-mcp`)
 - JWKS: `https://YOUR_TENANT.auth0.com/.well-known/jwks.json`
 - Docs:
-  - Create API (audience): https://auth0.com/docs/get-started/apis
+  - Create API (audience): https://auth0.com/docs/get-started/apis/enable-api-authorization
   - JWKS and token validation: https://auth0.com/docs/secure/tokens/json-web-tokens/json-web-key-sets
   - Client credentials flow: https://auth0.com/docs/get-started/authentication-and-authorization-flow/client-credentials-flow
 
@@ -49,7 +46,7 @@ Okta
 
 Microsoft Entra ID (Azure AD)
 - Issuer: `https://login.microsoftonline.com/<TENANT_ID>/v2.0`
-- Audience: App Registration → "Expose an API" → Application ID URI (or custom ID you set)
+- Audience: App Registration → “Expose an API” → Application ID URI (or custom ID you set)
 - JWKS: `https://login.microsoftonline.com/<TENANT_ID>/discovery/v2.0/keys`
 - Docs:
   - OIDC discovery: https://learn.microsoft.com/azure/active-directory/develop/v2-protocols-oidc
@@ -67,7 +64,7 @@ Keycloak (self‑hosted)
 - Audience: client ID or custom audience claim (depends on realm configuration)
 - JWKS: `${issuer}/protocol/openid-connect/certs`
 - Docs:
-  - OpenID Connect endpoints: https://www.keycloak.org/docs/latest/server_admin/#_endpoints
+  - OpenID Connect endpoints: https://www.keycloak.org/docs/latest/securing_apps/#openid-connect-endpoints
 
 How to test quickly (Auth0 example)
 ```
@@ -85,6 +82,7 @@ curl -H "Authorization: Bearer $TOKEN" -H "Accept: text/event-stream" http://loc
 ```
 
 Notes
-- You may set `OAUTH_JWKS_URL` explicitly if your provider's JWKS path differs from the default (e.g., Okta's `/v1/keys`, Keycloak's `/protocol/openid-connect/certs`).
+- You may set `OAUTH_JWKS_URL` explicitly if your provider’s JWKS path differs from the default (e.g., Okta’s `/v1/keys`, Keycloak’s `/protocol/openid-connect/certs`).
 - The SSE servers do not mint tokens; they only validate them. Use your IdP or an internal OAuth server to issue client tokens.
 - For HIPAA deployments, ensure your IdP and reverse proxy enforce TLS, MFA, and appropriate policies.
+

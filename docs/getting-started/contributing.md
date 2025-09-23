@@ -1,8 +1,4 @@
 
-<div class="home-hero">
-  <img src="/assets/images/faxbot_full_logo.png" alt="Faxbot logo" />
-</div>
-
 # Contributing to Faxbot
 
 Thanks for your interest in Faxbot! Whether you're reporting a bug, requesting a feature, or contributing code, we're here to help.

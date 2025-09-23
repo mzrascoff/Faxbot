@@ -1,14 +1,13 @@
-
-# MCP Integration
+# MCP_INTEGRATION.md
 
 Demo
-<video src="../assets/images/faxbot_demo.mp4" width="100%" autoplay loop muted playsinline controls>
-  <a href="../assets/images/faxbot_demo.mp4">Watch the demo video</a>
+<video src="../assets/faxbot_demo.mp4" width="100%" autoplay loop muted playsinline controls>
+  <a href="../assets/faxbot_demo.mp4">Watch the demo video</a>
   (Your browser or GitHub may not inline-play videos; use the link.)
 </video>
 
 What MCP is
-- MCP is a protocol. Today, stdio, HTTP, and SSE are the canonical transports. A WebSocket transport for MCP is under discussion (SEP‑1288). Faxbot provides a Node WebSocket helper for convenience; it mirrors tool calls but is not a formal MCP WebSocket transport.
+- MCP is a protocol. “SSE”, “HTTP”, and “stdio” are transports. Faxbot provides two server implementations (Node and Python), each capable of running on any of the transports. Pick a language (Node or Python) and a transport (stdio/HTTP/SSE) that fits your environment.
 
 Quick Start (Claude/Cursor)
 - Add Faxbot MCP to your assistant config (stdio). Then call send_fax with a local filePath.
@@ -27,26 +26,21 @@ Claude Desktop or Cursor config example:
 }
 ```
 
-Use these tools (Node & Python MCP)
-- send_fax: `{ to, filePath }` (stdio) or `{ to, fileUrl }` or `{ to, fileContent, fileName, fileType }`
+Use these tools
+- send_fax: `{ to, filePath }` (stdio) or `{ to, fileContent, fileName, fileType }` (HTTP/SSE)
 - get_fax_status: `{ jobId }`
-- get_fax: `{ id }` — works for outbound job ids and inbound ids
-- list_inbound: `{ limit?, cursor? }` — recent inbound metadata
-- get_inbound_pdf: `{ inboundId, asBase64? }` — returns base64 or a path/URI to fetch
+- faxbot_pdf (stdio convenience): `{ pdf_path, to, header_text? }` — for text‑based PDFs only; do not use for scanned/image PDFs.
 
 Important notes
 - File types: only PDF and TXT. Convert images (PNG/JPG) to PDF first.
 - Stdio: use `filePath` so the MCP reads the file locally and posts it to Faxbot.
-- HTTP/SSE: provide base64 content; MCP JSON limit is ~16 MB; REST API raw limit is 10 MB.
+- HTTP/SSE: provide base64 content and keep files small (≤ ~100 KB).
 - Backends: works with any Faxbot backend (`phaxio`, `sinch`, or `sip`).
+ - Scanned/image PDFs: use `send_fax` with `filePath` to send the original image PDF; do not call `faxbot_pdf`.
 
 Examples
-- Natural language: “Fax insurance_card.pdf to SkyRidge Cardiology.” The MCP client can look up the number using its own tools, then call `send_fax`. Follow with `get_fax_status`.
-- Tool calls:
-  - `send_fax` with `{ to: "+15551234567", filePath: "/Users/me/Documents/letter.pdf" }`
-  - `get_fax_status` with `{ jobId: "<id>" }`
-  - `get_fax` with `{ id: "in_123" }` (inbound) or `{ id: "fbj_ABC" }` (outbound)
-  - `get_inbound_pdf` with `{ inboundId: "in_123", asBase64: true }`
+- “Call send_fax with { to: "+15551234567", filePath: "/Users/me/Documents/letter.pdf" }”
+- “Call get_fax_status with { jobId: "<id>" }”
 
 Docker Quick Start (HTTP MCP)
 - Start the API and MCP via Docker Compose:
@@ -88,9 +82,8 @@ npx @modelcontextprotocol/inspector
 ```
 - Connect the Inspector to your Faxbot MCP server:
   - Stdio: launch `node node_mcp/src/servers/stdio.js` (or `python python_mcp/stdio_server.py`) with `FAX_API_URL` and `API_KEY` env.
-  - HTTP: set transport "streamable-http" and point to `http://localhost:3001`.
-  - SSE: set transport "sse" and point to `http://localhost:3002/sse` (Node) or `http://localhost:3003/sse` (Python). Include `Authorization: Bearer <JWT>`.
-  - WebSocket (Node, helper): connect to `ws://localhost:3004` (optionally add `?key=<API_KEY>`). This helper mirrors tool calls and is not a formal MCP transport.
+  - HTTP: set transport “streamable-http” and point to `http://localhost:3001`.
+  - SSE: set transport “sse” and point to `http://localhost:3002/sse` (Node) or `http://localhost:3003/sse` (Python). Include `Authorization: Bearer <JWT>`.
 
 Example `mcp.json` for MCP Inspector
 ```json
@@ -135,7 +128,9 @@ Notes:
 - For SSE entries, provide `Authorization: Bearer <JWT>` in the Inspector UI headers before connecting.
 - If you keep only one server entry or name one `default-server`, Inspector selects it automatically.
 
-Transports × servers (language matrix)
+Details
+<details>
+<summary>Transports × servers (language matrix)</summary>
 
 2 languages × 3 transports = 6 options.
 
@@ -143,26 +138,32 @@ Node MCP:
 - stdio: `node_mcp/src/servers/stdio.js`
 - HTTP: `node_mcp/src/servers/http.js` (port 3001)
 - SSE+OAuth: `node_mcp/src/servers/sse.js` (port 3002)
-- WebSocket: `node_mcp/src/servers/ws.js` (port 3004)
 
 Python MCP:
 - stdio: `python_mcp/stdio_server.py`
 - HTTP: `python_mcp/http_server.py`
 - SSE+OAuth: `python_mcp/server.py`
 
- 
+Legacy Node servers also exist under `api/` (`mcp_server.js`, `mcp_http_server.js`, `mcp_sse_server.js`).
 
-Node MCP start commands
+</details>
+
+<details>
+<summary>Node MCP start commands</summary>
+
 ```
 cd node_mcp && npm install
 FAX_API_URL=http://localhost:8080 API_KEY=$API_KEY ./scripts/start-stdio.sh     # stdio
 FAX_API_URL=http://localhost:8080 API_KEY=$API_KEY MCP_HTTP_PORT=3001 ./scripts/start-http.sh
 OAUTH_ISSUER=... OAUTH_AUDIENCE=... FAX_API_URL=http://localhost:8080 API_KEY=$API_KEY \
   MCP_SSE_PORT=3002 ./scripts/start-sse.sh
-MCP_WS_PORT=3004 API_KEY=$API_KEY node src/servers/ws.js  # WebSocket
 ```
 
-Python MCP start commands
+</details>
+
+<details>
+<summary>Python MCP start commands</summary>
+
 ```
 cd python_mcp
 python -m venv .venv && source .venv/bin/activate
@@ -174,31 +175,45 @@ python stdio_server.py               # stdio
 # or: uvicorn server:app --host 0.0.0.0 --port 3003 (SSE+OAuth)
 ```
 
-HTTP and SSE details
+OCR (optional): set `FAXBOT_OCR_ENABLE=true` and install Tesseract; see `python_mcp/text_extract.py`.
+
+</details>
+
+<details>
+<summary>HTTP and SSE details</summary>
+
 - HTTP uses Streamable HTTP with sessions: POST `/mcp`, GET `/mcp` (SSE), DELETE `/mcp`.
 - SSE+OAuth requires Bearer JWT with `iss`/`aud`; JWKS is fetched from the issuer.
 - Place HTTP/SSE behind auth/rate limits for production.
 
-Voice examples
-- ❌ "Fax document.pdf to +1234567890" (missing file access/base64)
-- ✅ "Call send_fax with { to: "+1234567890", filePath: "/path/to/file.pdf" }"
-- For HTTP/SSE, read and base64‑encode the file before calling `send_fax`.
+</details>
 
-File conversion hints
+<details>
+<summary>Legacy /api servers</summary>
+
+Scripts and Make targets exist under `api/`. These servers are base64‑only for `send_fax`.
+
+</details>
+
+<details>
+<summary>Voice examples</summary>
+
+❌ “Fax document.pdf to +1234567890” (missing file access/base64)
+
+✅ “Call send_fax with { to: "+1234567890", filePath: "/path/to/file.pdf" }”
+
+For HTTP/SSE, read and base64‑encode the file before calling `send_fax`.
+
+</details>
+
+<details>
+<summary>File conversion hints</summary>
+
 - macOS Preview: File → Export As… → PDF
 - macOS CLI: `sips -s format pdf "in.png" --out "out.pdf"`
 - Linux: `img2pdf in.png -o out.pdf` or `magick convert in.png out.pdf`
-- Windows: "Print to PDF".
+- Windows: “Print to PDF”.
 
-See also: Images vs Text PDFs guide: /backends/images-and-pdfs.html
+</details>
 
-## Secure SSE with OAuth2 (Admin Console path)
-
-1. Open **Settings → MCP** in the Admin Console
-2. Enable `Node SSE` and/or `Python SSE`
-3. Enter the OAuth issuer, expected audience, and optional JWKS URL
-4. Apply and confirm health. Faxbot reloads the MCP workers and refuses connections without a valid Bearer token.
-5. Configure assistants to send a short-lived JWT (`Authorization: Bearer <token>`) on every SSE request.
-
-{: .note }
-Pair SSE with TLS termination and strict scopes when processing PHI. The [Security docs](../security/oauth-setup.md) include IdP-specific examples.
+See also: Images vs Text PDFs guide (docs/IMAGES_AND_PDFS.md).

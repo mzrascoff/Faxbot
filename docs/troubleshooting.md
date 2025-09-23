@@ -1,5 +1,4 @@
-
-# Troubleshooting
+# TROUBLESHOOTING.md
 
 ## General
 - 401 Invalid API key: set `API_KEY` and pass `X-API-Key` header.
@@ -7,20 +6,14 @@
 - 415 Unsupported file type: only PDF and TXT allowed.
 - Prefer HTTPS for `PUBLIC_API_URL` in production. The cloud backend fetches PDFs from your server; use TLS.
 
-## Hybrid Configuration (v3+)
-- Inbound route 404: wrong provider callback URL. Check Admin Console → **Inbound** → **Callback URLs** for the correct endpoint based on your `FAX_INBOUND_BACKEND`.
-- AMI not starting: ensure at least one of `FAX_OUTBOUND_BACKEND` or `FAX_INBOUND_BACKEND` is set to `sip`.
-- Health check failures: verify both outbound and inbound providers are properly configured. Check `/admin/diagnostics/run` for per-direction status.
-- Mixed backend guidance in UI: ensure you're using the Setup Wizard which isolates provider-specific settings.
-
 ## Phaxio Backend
-- "phaxio not configured": ensure `FAX_BACKEND=phaxio` (or `FAX_OUTBOUND_BACKEND=phaxio` for hybrid), `PHAXIO_API_KEY`, `PHAXIO_API_SECRET`.
+- "phaxio not configured": ensure `FAX_BACKEND=phaxio`, `PHAXIO_API_KEY`, `PHAXIO_API_SECRET`.
 - No status updates: verify your callback URL (`PHAXIO_CALLBACK_URL` or `PHAXIO_STATUS_CALLBACK_URL`) and that your server is publicly reachable.
 - 403 on `/fax/{id}/pdf`: invalid token or wrong `PUBLIC_API_URL`.
 - Phaxio API error: confirm credentials and sufficient account balance.
 
 ## Sinch Fax API v3 Backend
-- "sinch not configured": ensure `FAX_BACKEND=sinch` (or `FAX_OUTBOUND_BACKEND=sinch` for hybrid), `SINCH_PROJECT_ID`, `SINCH_API_KEY`, `SINCH_API_SECRET` (or set `PHAXIO_API_KEY/SECRET` which are used as fallback values).
+- "sinch not configured": ensure `FAX_BACKEND=sinch`, `SINCH_PROJECT_ID`, `SINCH_API_KEY`, `SINCH_API_SECRET` (or set `PHAXIO_API_KEY/SECRET` which are used as fallback values).
 - Region/base URL: if requests fail, try `SINCH_BASE_URL` (e.g., `https://us.fax.api.sinch.com/v3`).
 - Webhooks: current build does not expose a Sinch webhook endpoint; status reflects the immediate response from Sinch. Poll your job via `GET /fax/{id}` if needed.
 
@@ -48,10 +41,9 @@ If you're unsure which MCP transport to use:
 
 | Transport | File | Port | Auth | Use Case |
 |-----------|------|------|------|----------|
-| **stdio** | node_mcp/src/servers/stdio.js (Node) or python_mcp/stdio_server.py (Python) | N/A | API key | Desktop AI |
-| **HTTP** | node_mcp/src/servers/http.js | 3001 | API key | Web apps, cloud AI |
-| **SSE+OAuth** | node_mcp/src/servers/sse.js (Node) or python_mcp/server.py (Python) | 3002/3003 | JWT/Bearer | Enterprise, HIPAA |
-| **WebSocket** | node_mcp/src/servers/ws.js | 3004 | API key (optional) | Realtime dev/testing |
+| **stdio** | node_mcp/src/servers/stdio.js (recommended) or api/mcp_server.js (legacy) | N/A | API key | Desktop AI |
+| **HTTP** | api/mcp_http_server.js or node_mcp/src/servers/http.js | 3001 | API key | Web apps, cloud AI |
+| **SSE+OAuth** | api/mcp_sse_server.js or node_mcp/src/servers/sse.js | 3002 | JWT/Bearer | Enterprise, HIPAA |
 
 ### Common MCP Problems
 
@@ -60,8 +52,9 @@ If you're unsure which MCP transport to use:
 - For local files, use tooling that can access your filesystem as needed.
 
 #### Connection & Authentication
-- **MCP server not found**: Ensure you're starting from the correct path:
-  - Node servers: `node_mcp/scripts/start-*.sh`
+- **MCP server not found**: Ensure you’re starting from the correct path:
+  - Legacy servers: `api/scripts/start-mcp*.sh`
+  - New servers (recommended): `node_mcp/scripts/start-*.sh`
   - Python servers: `python_mcp/` (`stdio_server.py`, `http_server.py`, `server.py`)
 
 ### Environment
@@ -72,7 +65,7 @@ If you're unsure which MCP transport to use:
   - SSE+OAuth: Confirm JWT token has correct `iss`, `aud`, and hasn't expired
 - **Connection refused**: 
   - Ensure main Faxbot API is running on `FAX_API_URL` (default: http://localhost:8080)
-  - For HTTP/SSE/WS transports, check port availability (3001/3002/3004)
+  - For HTTP/SSE transports, check port availability (3001/3002)
 - **"No tools available"**: MCP server started successfully but tools not loading - check MCP server logs for initialization errors
 
 #### Filesystem Access Required
@@ -85,7 +78,7 @@ If you're unsure which MCP transport to use:
 - macOS: `sips -s format pdf "in.png" --out "out.pdf"`
 - Linux: `img2pdf in.png -o out.pdf` or `magick convert in.png out.pdf`
 - Filenames with spaces: quote the full path. Example (curl): `-F "file=@'./My File.pdf'"`
-- macOS screenshot names sometimes include a "narrow no‑break space" (U+202F) that looks like a regular space and breaks shell quoting. If a quoted path still fails, try renaming with a wildcard: `cp Screenshot*.pdf doc.pdf` and use the new name.
+- macOS screenshot names sometimes include a “narrow no‑break space” (U+202F) that looks like a regular space and breaks shell quoting. If a quoted path still fails, try renaming with a wildcard: `cp Screenshot*.pdf doc.pdf` and use the new name.
 
 ## Reverse Proxy Examples (Rate Limiting)
 

@@ -1,11 +1,7 @@
 
-<div class="home-hero">
-  <img src="/assets/images/faxbot_full_logo.png" alt="Faxbot logo" />
-</div>
+# Development Resources
 
-# Developer Guides
-
-Resources for building against the Faxbot API and SDKs. For contributing to the project itself, see the top‑level [Contributing](../getting-started/contributing.md) page.
+This section contains technical resources for developers integrating with Faxbot or contributing to the project.
 
 ## API Reference
 
@@ -19,15 +15,9 @@ Pre-built client libraries for Node.js and Python that handle authentication, fi
 
 Guides for testing your integration and resolving common issues.
 
-## Local Docs Preview
+## Contributing
 
-Run the docs site locally:
-
-```
-cd docs
-bundle install
-bundle exec jekyll serve
-```
+Information for developers who want to contribute to the Faxbot project.
 
 ## Advanced Features
 
