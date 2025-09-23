@@ -77,7 +77,6 @@ nav:
     - Contributing: getting-started/contributing.md
   - Setup:
     - Overview: setup/index.md
-    - Backends (Go‑Live): go-live/index.md
     - Phaxio (Cloud): setup/phaxio.md
     - Sinch (Cloud v3): setup/sinch.md
     - SIP/Asterisk (Self‑hosted): setup/sip-asterisk.md
@@ -94,6 +93,20 @@ nav:
       - OAuth/OIDC Setup: security/oauth-setup.md
       - Network & Transports: security/network.md
       - HIPAA Requirements: HIPAA_REQUIREMENTS.md
+  - Operations:
+    - Overview: operations/index.md
+    - Inbound Receiving: inbound.md
+    - Guides:
+      - Images & PDFs: guides/images-and-pdfs.md
+      - Networking & Tunnels: networking/tunnels.md
+    - Tools:
+      - Terminal: terminal.md
+      - Scripts & Tests: tools/scripts-and-tests.md
+      - Node MCP Scripts: tools/node-mcp-scripts.md
+      - API Tests: tools/api-tests.md
+      - Phaxio E2E Test: tools/phaxio-e2e-test.md
+    - Troubleshooting: troubleshooting.md
+    - Admin Demo: admin-demo.md
   - Reference:
     - Overview: reference/index.md
     - API:
@@ -112,25 +125,16 @@ nav:
     - Curated Registry: plugins/registry.md
     - Plugin Config File: plugins/config-file.md
     - Home Assistant Sample: plugins/homeassistant.md
-  - Operations:
-    - Overview: operations/index.md
-    - Admin Console:
-      - Overview: admin-console.md
-      - Setup Wizard: admin-console/setup-wizard.md
-      - Settings: admin-console/settings.md
-      - Diagnostics: admin-console/diagnostics.md
-      - Diagnostics Matrix: admin-console/diagnostics-matrix.md
-      - API Keys: admin-console/api-keys.md
-      - Plugin Builder: admin-console/plugin-builder.md
-      - Annotated Demo: admin-console/annotated-demo.md
-    - Terminal: terminal.md
-    - Tools:
-      - Scripts & Tests: tools/scripts-and-tests.md
-      - Node MCP Scripts: tools/node-mcp-scripts.md
-      - API Tests: tools/api-tests.md
-      - Phaxio E2E Test: tools/phaxio-e2e-test.md
-    - Troubleshooting: troubleshooting.md
-    - Third-Party: third-party.md
+  - Admin Console:
+    - Overview: admin-console.md
+    - Setup Wizard: admin-console/setup-wizard.md
+    - Settings: admin-console/settings.md
+    - Diagnostics: admin-console/diagnostics.md
+    - Diagnostics Matrix: admin-console/diagnostics-matrix.md
+    - API Keys: admin-console/api-keys.md
+    - Plugin Builder: admin-console/plugin-builder.md
+    - Annotated Demo: admin-console/annotated-demo.md
+  - Third-Party: third-party.md
   - Apps:
     - Overview: apps/index.md
     - iOS: apps/ios.md
