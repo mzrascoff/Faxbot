@@ -1007,11 +1007,6 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     # Core
     if payload.backend:
         _set_env_opt("FAX_BACKEND", payload.backend)
-        # If specific hybrid fields not provided, set both to legacy value for convenience
-        if payload.outbound_backend is None:
-            _set_env_opt("FAX_OUTBOUND_BACKEND", payload.backend)
-        if payload.inbound_backend is None:
-            _set_env_opt("FAX_INBOUND_BACKEND", payload.backend)
     # Hybrid overrides when provided
     if payload.outbound_backend:
         _set_env_opt("FAX_OUTBOUND_BACKEND", payload.outbound_backend)
@@ -1116,6 +1111,7 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     old_ib = active_inbound()
     old_storage = (settings.storage_backend or "local").lower()
     reload_settings()
+    # (No debug logs in production path)
     new_backend = settings.fax_backend
     new_ob = active_outbound()
     new_ib = active_inbound()

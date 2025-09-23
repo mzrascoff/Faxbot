@@ -340,7 +340,14 @@ def get_provider_traits(provider_id: Optional[str]) -> Dict[str, Any]:
 
 
 def valid_backends() -> set[str]:
-    return set(get_provider_registry().keys())
+    reg = get_provider_registry() or {}
+    keys = set(reg.keys())
+    # Drop schema metadata key if present
+    keys.discard("_schema")
+    if not keys:
+        # Fallback to known built-ins if traits registry fails to load
+        return {"phaxio", "sinch", "sip", "signalwire", "documo", "freeswitch"}
+    return keys
 
 
 # Valid backend identifiers supported by the core (dynamic)
