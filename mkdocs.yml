@@ -39,6 +39,33 @@ theme:
 plugins:
   - search
   - mike
+  - redirects:
+      redirect_maps:
+        getting-started/index.md: getting-started.md
+        getting-started/contributing.md: getting-started/contributing.md
+        admin-console/index.md: admin-console.md
+        admin-console/setup-wizard.md: admin-console/setup-wizard.md
+        admin-console/settings.md: admin-console/settings.md
+        admin-console/api-keys.md: admin-console/api-keys.md
+        admin-console/diagnostics.md: admin-console/diagnostics.md
+        admin-console/plugin-builder.md: admin-console/plugin-builder.md
+        admin-console/annotated-demo.md: admin-console/annotated-demo.md
+        backends/phaxio-setup.md: setup/phaxio.md
+        backends/sinch-setup.md: setup/sinch.md
+        backends/sip-setup.md: setup/sip-asterisk.md
+        backends/documo-setup.md: setup/documo.md
+        backends/signalwire-setup.md: setup/signalwire.md
+        backends/freeswitch-setup.md: setup/freeswitch.md
+        backends/test-mode.md: setup/test-mode.md
+        backends/public-access.md: setup/public-access.md
+        backends/webhooks.md: setup/webhooks.md
+        backends/images-and-pdfs.md: guides/images-and-pdfs.md
+        development/api-reference.md: api.md
+        development/node-sdk.md: sdks/node.md
+        development/python-sdk.md: sdks/python.md
+        development/scripts-and-tests.md: tools/scripts-and-tests.md
+        development/troubleshooting.md: troubleshooting.md
+        security/hipaa-requirements.md: HIPAA_REQUIREMENTS.md
   - exclude:
       glob:
         - 'api/admin_ui/node_modules/**'
