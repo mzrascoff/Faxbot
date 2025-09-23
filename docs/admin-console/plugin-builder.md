@@ -40,6 +40,6 @@ Developer tips
 - For HIPAA, keep remote install disabled and commit manifests to source control
 
 References
-- Plugins (v3): [Overview](/plugins/)
-- Curated Registry: [Docs](/plugins/registry.html)
-- HTTP Manifest Providers: [Docs](/plugins/manifest-http.html)
+- Plugins (v3): [Overview](../plugins/index.md)
+- Curated Registry: [Docs](../plugins/registry.md)
+- HTTP Manifest Providers: [Docs](../plugins/manifest-http.md)

@@ -76,6 +76,8 @@ def main() -> int:
         ("plugins/sip-provider-plugins.md", "docs/plugins/sip-provider-plugins.md"),
         ("plugins/config-file.md", "docs/plugins/config-file.md"),
         ("plugins/homeassistant.md", "docs/plugins/homeassistant.md"),
+        # Deployment
+        ("docs/deployment.md", "docs/deployment.md"),
         # Setup helpers / backends extras
         ("backends/public-access.md", "docs/setup/public-access.md"),
         ("backends/webhooks.md", "docs/setup/webhooks.md"),

@@ -5,7 +5,7 @@
 
 # Developer Guides
 
-Resources for building against the Faxbot API and SDKs. For contributing to the project itself, see the top‑level [Contributing](/contributing/) page.
+Resources for building against the Faxbot API and SDKs. For contributing to the project itself, see the top‑level [Contributing](../getting-started/contributing.md) page.
 
 ## API Reference
 

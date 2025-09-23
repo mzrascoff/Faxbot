@@ -120,7 +120,7 @@ Warnings and prompts
 - Ghostscript not found for SIP/Asterisk → warn that conversion/pages may be stubbed.
 
 Learn more
-- Phaxio: [Backend setup](/backends/phaxio-setup.html) • Official docs: https://www.phaxio.com/docs/
-- Sinch: [Backend setup](/backends/sinch-setup.html) • Sign up: https://dashboard.sinch.com/signup • Docs: https://developers.sinch.com/docs/fax/overview/
-- SIP/Asterisk: [Backend setup](/backends/sip-setup.html)
-- Security: [Authentication](/security/authentication/), [HIPAA](/security/hipaa-requirements.html), [OAuth/OIDC](/security/oauth-setup.html)
+- Phaxio: [Backend setup](../setup/phaxio.md) • Official docs: https://www.phaxio.com/docs/
+- Sinch: [Backend setup](../setup/sinch.md) • Sign up: https://dashboard.sinch.com/signup • Docs: https://developers.sinch.com/docs/fax/overview/
+- SIP/Asterisk: [Backend setup](../setup/sip-asterisk.md)
+- Security: [Authentication](../security/authentication.md), [HIPAA](../HIPAA_REQUIREMENTS.md), [OAuth/OIDC](../security/oauth-setup.md)

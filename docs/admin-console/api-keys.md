@@ -40,6 +40,6 @@ curl -H "X-API-Key: $API_KEY" "$BASE/fax/$JOB_ID"
 
 - **401 Unauthorized** → Scope missing or wrong key. Reissue the key with `fax:send`/`fax:read` scopes.
 - **Rate limited** → Global limit hit; adjust `MAX_REQUESTS_PER_MINUTE` in **Settings → Security**.
-- **413 / 415** → File too large or wrong type; review [Images & PDFs](/backends/images-and-pdfs.html).
+- **413 / 415** → File too large or wrong type; review [Images & PDFs](../guides/images-and-pdfs.md).
 
-For automation examples, see the [Node SDK](sdks/node.md) and [Python SDK](sdks/python.md).
+For automation examples, see the [Node SDK](../sdks/node.md) and [Python SDK](../sdks/python.md).

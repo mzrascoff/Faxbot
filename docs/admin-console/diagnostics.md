@@ -23,13 +23,13 @@ Actions
 
 If something fails
 - Follow the actionable link beside the check (e.g., Backends, Security)
-- See [Troubleshooting](/troubleshooting/)
+- See [Troubleshooting](../troubleshooting.md)
 
 Related docs
-- Backends: [Phaxio](/backends/phaxio-setup.html), [Sinch](/backends/sinch-setup.html), [SIP/Asterisk](/backends/sip-setup.html)
-- Security: [Authentication](/security/authentication/), [HIPAA](/security/hipaa-requirements.html), [OAuth/OIDC](/security/oauth-setup.html)
-- Deployment: [Guide](/deployment/)
-- Third‑Party: [/third-party/](/third-party/)
+- Backends: [Phaxio](../setup/phaxio.md), [Sinch](../setup/sinch.md), [SIP/Asterisk](../setup/sip-asterisk.md)
+- Security: [Authentication](../security/authentication.md), [HIPAA](../HIPAA_REQUIREMENTS.md), [OAuth/OIDC](../security/oauth-setup.md)
+- Deployment: [Guide](../deployment.md)
+- Third‑Party: [Third-Party](../third-party.md)
 
 ## Under the Hood
 

@@ -18,7 +18,7 @@ SignalWire’s “Compatibility” endpoints mimic the old Twilio Fax API. Faxbo
 5. Apply & reload the config
 
 {: .note }
-Need a quick tunnel? Follow [Public Access & Tunnels](/backends/public-access.html).
+Need a quick tunnel? Follow [Public Access & Tunnels](public-access.md).
 
 ## Send & monitor
 

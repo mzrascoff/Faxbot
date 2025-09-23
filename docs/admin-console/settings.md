@@ -33,7 +33,7 @@ All runtime configuration lives here once the Setup Wizard has been completed. E
 - Download the resolved config for change control
 - Reapply the last known-good configuration if a test change causes an outage
 
-Need step-by-step provider help? Jump to [Backends](/backends/) for detailed walkthroughs tailored to each option.
+Need step-by-step provider help? Jump to [Backends](../setup/index.md) for detailed walkthroughs tailored to each option.
 
 ## Under the Hood
 

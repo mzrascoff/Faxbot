@@ -17,5 +17,5 @@ Admin Console integration
 - UI surfaces only the currently selected outbound provider’s guidance (backend isolation)
 
 Learn more
-- [Curated Registry](/plugins/registry.html)
-- [HTTP Manifest Providers](/plugins/manifest-http.html)
+- [Curated Registry](registry.md)
+- [HTTP Manifest Providers](manifest-http.md)

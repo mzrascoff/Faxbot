@@ -46,4 +46,4 @@ Faxbot queues jobs, generates TIFF artifacts, and triggers `bgapi originate ... 
 - **Jobs stuck in progress** → Faxbot never received the webhook; verify the secret header and URL.
 - **TIFF missing** → Check Faxbot API logs for Ghostscript conversion output.
 
-More FreeSWITCH context lives in [Faxbot third-party references](/third-party/).
+More FreeSWITCH context lives in [Faxbot third-party references](../third-party.md).

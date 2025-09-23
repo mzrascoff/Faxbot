@@ -201,4 +201,4 @@ See also: Images vs Text PDFs guide: /backends/images-and-pdfs.html
 5. Configure assistants to send a short-lived JWT (`Authorization: Bearer <token>`) on every SSE request.
 
 {: .note }
-Pair SSE with TLS termination and strict scopes when processing PHI. The [Security docs](/security/oauth-setup.html) include IdP-specific examples.
+Pair SSE with TLS termination and strict scopes when processing PHI. The [Security docs](../security/oauth-setup.md) include IdP-specific examples.

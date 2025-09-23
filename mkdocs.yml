@@ -41,31 +41,30 @@ plugins:
   - mike
   - redirects:
       redirect_maps:
-        getting-started/index.md: getting-started.md
-        getting-started/contributing.md: getting-started/contributing.md
+        admin-console/annotated-demo/index.md: admin-console/annotated-demo.md
         admin-console/index.md: admin-console.md
-        admin-console/setup-wizard.md: admin-console/setup-wizard.md
-        admin-console/settings.md: admin-console/settings.md
-        admin-console/api-keys.md: admin-console/api-keys.md
-        admin-console/diagnostics.md: admin-console/diagnostics.md
-        admin-console/plugin-builder.md: admin-console/plugin-builder.md
-        admin-console/annotated-demo.md: admin-console/annotated-demo.md
+        backends/documo-setup.md: setup/documo.md
+        backends/freeswitch-setup.md: setup/freeswitch.md
+        backends/images-and-pdfs.md: guides/images-and-pdfs.md
         backends/phaxio-setup.md: setup/phaxio.md
+        backends/public-access.md: setup/public-access.md
+        backends/signalwire-setup.md: setup/signalwire.md
         backends/sinch-setup.md: setup/sinch.md
         backends/sip-setup.md: setup/sip-asterisk.md
-        backends/documo-setup.md: setup/documo.md
-        backends/signalwire-setup.md: setup/signalwire.md
-        backends/freeswitch-setup.md: setup/freeswitch.md
         backends/test-mode.md: setup/test-mode.md
-        backends/public-access.md: setup/public-access.md
         backends/webhooks.md: setup/webhooks.md
-        backends/images-and-pdfs.md: guides/images-and-pdfs.md
+        deployment/index.md: deployment.md
         development/api-reference.md: api.md
         development/node-sdk.md: sdks/node.md
         development/python-sdk.md: sdks/python.md
         development/scripts-and-tests.md: tools/scripts-and-tests.md
         development/troubleshooting.md: troubleshooting.md
-        security/hipaa-requirements.md: HIPAA_REQUIREMENTS.md
+        getting-started/contributing/index.md: getting-started/contributing.md
+        getting-started/index.md: getting-started.md
+        security/authentication/index.md: security/authentication.md
+        third-party/index.md: third-party.md
+        troubleshooting/index.md: troubleshooting.md
+
   - exclude:
       glob:
         - 'api/admin_ui/node_modules/**'
@@ -94,7 +93,7 @@ nav:
     - Test Mode: setup/test-mode.md
     - Public Access & Tunnels: setup/public-access.md
     - Webhooks: setup/webhooks.md
-    - Deployment: DEPLOYMENT.md
+    - Deployment: deployment.md
     - Security:
       - Overview: security/index.md
       - Authentication: security/authentication.md

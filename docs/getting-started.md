@@ -34,13 +34,13 @@ That’s it for onboarding. The provider guides cover details when you’re read
 
 ## What to do next
 
-- Follow the provider guides under [Backends](/backends/) for credentials, networking, and HIPAA notes.
+- Follow the provider guides under [Backends](setup/index.md) for credentials, networking, and HIPAA notes.
 - Manage keys, storage, inbound receiving, and diagnostics from the Admin Console tabs (each screen links to matching docs).
 - Integrate your app using the [Node](sdks/node.md) or [Python](sdks/python.md) SDK once outbound faxing is verified.
 
 ## Need help?
 
-Open an issue or see [Contributing](contributing.html) for support options. Mention which backend you’re using so we can point you to the right playbook.
+Open an issue or see [Contributing](getting-started/contributing.md) for support options. Mention which backend you’re using so we can point you to the right playbook.
 
 ## Under the Hood (for developers)
 
@@ -53,4 +53,4 @@ Open an issue or see [Contributing](contributing.html) for support options. Ment
   - SIP/Asterisk: PDF→TIFF conversion then AMI originate
 - Inbound (optional): cloud callbacks (HMAC/Basic) or Asterisk internal post to `/_internal/asterisk/inbound`
 
-See the full API surface: /development/api-reference.html
+See the full API surface: reference/index.md
