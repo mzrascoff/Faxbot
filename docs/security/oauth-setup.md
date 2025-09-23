@@ -8,14 +8,15 @@ What the MCP SSE server validates
 - Signature: verified against the provider’s JWKS (`OAUTH_JWKS_URL`)
 - Expiry / not-before: standard JWT time checks
 
-Environment variables
-```
-OAUTH_ISSUER     # Your OIDC issuer URL (no trailing slash)
-OAUTH_AUDIENCE   # The audience/identifier of the API you expose to clients (string)
-OAUTH_JWKS_URL   # JWKS endpoint (optional if your issuer uses the default well-known path)
+## Environment variables
+
+```env
+OAUTH_ISSUER="https://YOUR_ISSUER"        # OIDC issuer URL (no trailing slash)
+OAUTH_AUDIENCE="faxbot-mcp"               # Audience/identifier of the API exposed to clients
+OAUTH_JWKS_URL="https://.../jwks.json"    # Optional, if not at the standard discovery path
 ```
 
-General steps (any provider)
+## General steps (any provider)
 1) Create or identify an API/resource in your IdP.
    - Set an identifier value (this becomes the `aud` claim). Example: `faxbot-mcp`.
 2) Create a client/app that can obtain access tokens for that API (client credentials or the flow used by your client).
@@ -25,9 +26,9 @@ General steps (any provider)
 4) Export env vars and start the SSE server (Node or Python).
 5) Obtain a token from the IdP and connect to `/sse` with `Authorization: Bearer <token>`.
 
-Provider specifics and links
+## Provider specifics and links
 
-Auth0
+### Auth0
 - Issuer: `https://YOUR_TENANT.auth0.com`
 - Audience: your API Identifier (e.g., `faxbot-mcp`)
 - JWKS: `https://YOUR_TENANT.auth0.com/.well-known/jwks.json`
@@ -36,38 +37,44 @@ Auth0
   - JWKS and token validation: https://auth0.com/docs/secure/tokens/json-web-tokens/json-web-key-sets
   - Client credentials flow: https://auth0.com/docs/get-started/authentication-and-authorization-flow/client-credentials-flow
 
-Okta
+### Okta
 - Issuer: `https://YOUR_DOMAIN.okta.com/oauth2/default` (or your custom auth server)
 - Audience: the custom API audience you configure
-- JWKS: `${issuer}/v1/keys` (Okta uses `/v1/keys`, not the generic `/.well-known/jwks.json`)
+- JWKS: ``${issuer}/v1/keys`` (Okta uses `/v1/keys`, not the generic `/.well-known/jwks.json`)
 - Docs:
   - Authorization servers & discovery: https://developer.okta.com/docs/guides/customize-authz-server/main/
   - Validate access tokens / JWKS: https://developer.okta.com/docs/guides/validate-access-tokens/main/
 
-Microsoft Entra ID (Azure AD)
+### Microsoft Entra ID (Azure AD)
 - Issuer: `https://login.microsoftonline.com/<TENANT_ID>/v2.0`
-- Audience: App Registration → “Expose an API” → Application ID URI (or custom ID you set)
+- Audience: App Registration → “Expose an API” → Application ID URI (or a custom ID you set)
 - JWKS: `https://login.microsoftonline.com/<TENANT_ID>/discovery/v2.0/keys`
 - Docs:
   - OIDC discovery: https://learn.microsoft.com/azure/active-directory/develop/v2-protocols-oidc
   - App registration / Expose an API: https://learn.microsoft.com/azure/active-directory/develop/quickstart-configure-app-expose-web-apis
 
-Google Identity (Workforce/Cloud)
+### Google Identity (Workforce/Cloud)
 - Issuer: `https://accounts.google.com`
 - Audience: your audience string; ensure your token provider includes it in `aud`
 - JWKS: `https://www.googleapis.com/oauth2/v3/certs`
 - Docs:
   - OIDC discovery: https://accounts.google.com/.well-known/openid-configuration
 
-Keycloak (self‑hosted)
+### Keycloak (self‑hosted)
 - Issuer: `https://YOUR_HOST/realms/YOUR_REALM`
 - Audience: client ID or custom audience claim (depends on realm configuration)
-- JWKS: `${issuer}/protocol/openid-connect/certs`
+- JWKS: ``${issuer}/protocol/openid-connect/certs``
 - Docs:
   - OpenID Connect endpoints: https://www.keycloak.org/docs/latest/securing_apps/#openid-connect-endpoints
 
-How to test quickly (Auth0 example)
-```
+!!! tip
+    JWKS paths vary by provider. If discovery doesn’t return the path you expect, set `OAUTH_JWKS_URL` explicitly (e.g., Okta `.../v1/keys`, Keycloak `/protocol/openid-connect/certs`).
+
+## How to test quickly
+
+=== "Auth0"
+
+```bash
 # 1) Request a token using client credentials
 export AUTH0_DOMAIN=YOUR_TENANT.auth0.com
 export AUTH0_CLIENT_ID=...
@@ -81,8 +88,16 @@ TOKEN=$(curl -s https://$AUTH0_DOMAIN/oauth/token \
 curl -H "Authorization: Bearer $TOKEN" -H "Accept: text/event-stream" http://localhost:3002/sse
 ```
 
+=== "Generic"
+
+```bash
+# Replace the token request with your IdP's client credentials endpoint,
+# then supply the resulting access token when connecting to SSE
+TOKEN="<your_access_token>"
+curl -H "Authorization: Bearer $TOKEN" -H "Accept: text/event-stream" http://localhost:3002/sse
+```
+
 Notes
 - You may set `OAUTH_JWKS_URL` explicitly if your provider’s JWKS path differs from the default (e.g., Okta’s `/v1/keys`, Keycloak’s `/protocol/openid-connect/certs`).
 - The SSE servers do not mint tokens; they only validate them. Use your IdP or an internal OAuth server to issue client tokens.
 - For HIPAA deployments, ensure your IdP and reverse proxy enforce TLS, MFA, and appropriate policies.
-
