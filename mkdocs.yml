@@ -52,13 +52,21 @@ markdown_extensions:
       permalink: true
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
+  - Getting started:
+    - Overview: getting-started.md
+    - Contributing: getting-started/contributing.md
   - Setup:
     - Overview: setup/index.md
     - Backends (Go‑Live): go-live/index.md
     - Phaxio (Cloud): setup/phaxio.md
     - Sinch (Cloud v3): setup/sinch.md
     - SIP/Asterisk (Self‑hosted): setup/sip-asterisk.md
+    - Documo (mFax): setup/documo.md
+    - SignalWire: setup/signalwire.md
+    - FreeSWITCH: setup/freeswitch.md
+    - Test Mode: setup/test-mode.md
+    - Public Access & Tunnels: setup/public-access.md
+    - Webhooks: setup/webhooks.md
     - Deployment: DEPLOYMENT.md
     - Security:
       - Overview: security/index.md
@@ -66,8 +74,8 @@ nav:
       - OAuth/OIDC Setup: security/oauth-setup.md
   - Reference:
     - Overview: reference/index.md
-    - API: api.md
-    - API (Advanced):
+    - API:
+      - Reference: api.md
       - Canonical Events: api/canonical-events.md
     - SDKs: sdks/index.md
     - MCP:
@@ -75,9 +83,23 @@ nav:
       - Node: mcp/node.md
       - Python: mcp/python.md
       - Transports: mcp/transports.md
+  - Plugins (v3):
+    - Overview: plugins/index.md
+    - SIP Provider Plugins: plugins/sip-provider-plugins.md
+    - HTTP Manifest Providers: plugins/manifest-http.md
+    - Curated Registry: plugins/registry.md
+    - Plugin Config File: plugins/config-file.md
+    - Home Assistant Sample: plugins/homeassistant.md
   - Operations:
     - Overview: operations/index.md
-    - Admin Console: admin-console.md
+    - Admin Console:
+      - Overview: admin-console.md
+      - Setup Wizard: admin-console/setup-wizard.md
+      - Settings: admin-console/settings.md
+      - Diagnostics: admin-console/diagnostics.md
+      - API Keys: admin-console/api-keys.md
+      - Plugin Builder: admin-console/plugin-builder.md
+      - Annotated Demo: admin-console/annotated-demo.md
     - Terminal: terminal.md
     - Tools:
       - Scripts & Tests: tools/scripts-and-tests.md
