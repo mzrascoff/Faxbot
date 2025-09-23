@@ -7,9 +7,7 @@
   {
     "version": "f9724da6",
     "title": "f9724da6",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "f9441af4",
@@ -75,6 +73,13 @@
     "version": "1894069a",
     "title": "1894069a",
     "aliases": []
+  },
+  {
+    "version": "488895d5",
+    "title": "488895d5",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "28602b7",
