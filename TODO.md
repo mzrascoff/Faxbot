@@ -76,7 +76,12 @@ Purpose: While auditing AGENTS.md against the codebase and syncing the Admin Con
   - Show Tools → Plugins only when `FEATURE_V3_PLUGINS=true`; ensure no Plugin Builder routes or mentions remain in UI.
   - Validate curated registry parity with server `/plugin-registry`; ensure demo mocks mirror current curated entries.
   - Security passes: manifests respect allowed domains, timeouts, HTTPS in HIPAA; redact secrets in UI.
-  - Add redaction policy in manifest runtime to scrub sensitive fields from any UI‑surfaced debug output.
+- Add redaction policy in manifest runtime to scrub sensitive fields from any UI‑surfaced debug output.
+
+- Update example manifests to traits‑first
+  - Goal: all example manifests (faxplus, ringcentral, interfax, sfax, pamfax, dropbox_fax) include a top‑level `traits` block that aligns with `config/provider_traits.json` (kind, requires_ghostscript, requires_tiff, supports_inbound, inbound_verification, needs_storage, outbound_status_only).  
+  - Done: RingCentral example in docs uses traits‑first.  
+  - TODO: update remaining examples and add validation in dev‑kit to warn when `traits` is missing.
 
 - API Admin Actions & Terminal tests
   - Add tests for `GET /admin/actions` and `POST /admin/actions/run` (gating via `ENABLE_ADMIN_EXEC`, allowlist, backend gating, timeout). New file: `api/tests/test_admin_actions.py`.

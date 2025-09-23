@@ -33,6 +33,10 @@ Faxbot supports a lightweight outbound provider type defined by a JSON manifest.
 :material-key: `auth`
 : `{ scheme: none|basic|bearer|api_key_header|api_key_query, ... }`
 
+:material-shield-check: `traits`
+: Optional traits that describe runtime needs and behavior. Traits override defaults in `config/provider_traits.json`.  
+  Example keys: `kind` (`cloud`|`self_hosted`), `requires_ghostscript`, `requires_tiff`, `supports_inbound`, `inbound_verification` (`hmac`|`none`|`internal_secret`), `needs_storage`, `outbound_status_only`.
+
 :material-domain: `allowed_domains`
 : Array of hostnames
 

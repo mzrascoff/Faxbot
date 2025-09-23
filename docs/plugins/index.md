@@ -61,13 +61,22 @@ These example manifests live in the repo and can be used as starting points.
 - id `pamfax` — PamFax
 - id `dropbox_fax` — Dropbox Fax
 
-=== "RingCentral example"
+=== "RingCentral example (traits-first)"
 
 ```json
 {
   "id": "ringcentral",
   "name": "RingCentral Fax API",
   "auth": { "scheme": "bearer" },
+  "traits": {
+    "kind": "cloud",
+    "requires_ghostscript": true,
+    "requires_tiff": false,
+    "supports_inbound": false,
+    "inbound_verification": "none",
+    "needs_storage": false,
+    "outbound_status_only": false
+  },
   "actions": {
     "send_fax": {
       "method": "POST",
