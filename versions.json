@@ -27,14 +27,19 @@
   {
     "version": "28602b7",
     "title": "28602b7",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "249dc51",
     "title": "249dc51",
     "aliases": []
+  },
+  {
+    "version": "81c2416",
+    "title": "81c2416",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "50c55e0",
