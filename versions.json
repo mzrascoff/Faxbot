@@ -45,11 +45,16 @@
     "aliases": []
   },
   {
-    "version": "5076f9ea",
-    "title": "5076f9ea",
+    "version": "6190fe9c",
+    "title": "6190fe9c",
     "aliases": [
       "latest"
     ]
+  },
+  {
+    "version": "5076f9ea",
+    "title": "5076f9ea",
+    "aliases": []
   },
   {
     "version": "249dc51",
