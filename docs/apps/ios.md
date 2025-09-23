@@ -27,6 +27,20 @@ The iOS app lets you send faxes and check statuses from your phone. It connects 
 - Tunnels guide: [../networking/tunnels.md](../networking/tunnels.md)
 - Admin Console demo: [../admin-demo.md](../admin-demo.md)
 
-## Send Screen (sneak peek)
+## Screens (sneak peek)
 
-![iOS Send Screen](../assets/images/ios_send_screen.png)
+<div class="grid cards" markdown>
+
+- ![Send](../assets/images/ios_send_screen.png)
+  
+  Send screen
+
+- ![Connect](../assets/images/ios_connect_to_server.png)
+  
+  Connect to Server
+
+- ![Type Text](../assets/images/ios_txt_to_fax.png)
+  
+  TXT → Fax
+
+</div>
