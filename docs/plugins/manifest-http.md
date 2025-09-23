@@ -47,6 +47,77 @@ Faxbot supports a lightweight outbound provider type defined by a JSON manifest.
 : - `send_fax`: `{ method, url, headers, body: { kind: json|form|multipart|none, template }, path_params: [], response: { job_id, status, error?, status_map? } }`  
   - `get_status` (optional): `{ ... }`
 
+### Full example (traits‑first)
+
+```jsonc
+{
+  // id: Provider ID (e.g., "acmefax")
+  "id": "ringcentral",
+
+  // name: Display name
+  "name": "RingCentral Fax API",
+
+  // auth: how requests are authenticated
+  //   scheme: none | basic | bearer | api_key_header | api_key_query | ...
+  "auth": { "scheme": "bearer" },
+
+  // traits: runtime needs/behavior; overrides defaults in config/provider_traits.json
+  //   kind: "cloud" | "self_hosted"
+  //   requires_ghostscript, requires_tiff, supports_inbound, needs_storage (true|false)
+  //   inbound_verification: "hmac" | "none" | "internal_secret"
+  //   outbound_status_only: true|false
+  "traits": {
+    "kind": "cloud",
+    "requires_ghostscript": true,
+    "requires_tiff": false,
+    "supports_inbound": false,
+    "inbound_verification": "none",
+    "needs_storage": false,
+    "outbound_status_only": false
+  },
+
+  // allowed_domains: explicit host allowlist to reduce SSRF risk
+  "allowed_domains": ["platform.ringcentral.com"],
+
+  // timeout_ms: request timeout in milliseconds
+  "timeout_ms": 15000,
+
+  // actions: outbound capabilities.
+  // send_fax: method/url/headers and body; response maps provider fields
+  // get_status: optional lookup for a given fax/job id
+  "actions": {
+    "send_fax": {
+      "method": "POST",
+      "url": "https://platform.ringcentral.com/restapi/v1.0/account/~/extension/~/fax",
+      "headers": {},
+      "body": {
+        // kind: json | form | multipart | none
+        "kind": "multipart",
+        // template variables available: {{to}}, {{from}}, {{file}}, {{file_url}}, {{settings}}, {{creds}}
+        "template": "request={\\"to\\":[{\\"phoneNumber\\":\\"{{to}}\\"}]}&attachment={{file}}"
+      },
+      "path_params": [],
+      "response": {
+        // job id path in provider response
+        "job_id": "id",
+        // optional status mapping
+        "status": "messageStatus",
+        "status_map": { "Queued": "queued", "Processing": "in_progress", "Sent": "SUCCESS", "Error": "FAILED" },
+        // optional error field
+        "error": "error"
+      }
+    },
+    "get_status": {
+      "method": "GET",
+      "url": "https://platform.ringcentral.com/restapi/v1.0/account/~/message-store/{{fax_id}}",
+      "headers": {},
+      "body": { "kind": "none", "template": "" },
+      "response": { "status": "messageStatus" }
+    }
+  }
+}
+```
+
 ---
 
 ## Templates
