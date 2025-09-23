@@ -68,6 +68,18 @@ Developer notes
 - Keep copy short and plain; reserve deep detail for the docs site.
 - Avoid logging sensitive data in UI or network tabs; surface IDs/metadata only.
 
+## Quick Scripts (keep updated)
+
+- Docs cleanup (front‑matter + links)
+  - `scripts/docs_tools/cleanup_mkdocs_content.py`
+  - Strips Jekyll front matter and normalizes common legacy links to MkDocs paths. Usage:
+    - `python scripts/docs_tools/cleanup_mkdocs_content.py docs` (adds changes in place)
+    - `python scripts/docs_tools/cleanup_mkdocs_content.py docs --dry-run` (preview only)
+- Docs tree compare (branch audit)
+  - `scripts/docs_tools/compare_docs_trees.sh`
+  - Shows which docs exist only on `development` vs `mkdocs` (or branches you pass):
+    - `bash scripts/docs_tools/compare_docs_trees.sh development mkdocs`
+
 ## Admin Console Frontend Style Guide (dev branch)
 
 Scope: This governs all work under `api/admin_ui/` (Vite + React + TS + MUI) and its Electron shell under `api/admin_ui/electron/`. Follow these rules precisely so new UI matches the current implementation.
