@@ -1,36 +1,85 @@
 
 # Curated Plugin Registry
 
-When `FEATURE_V3_PLUGINS=true`, the API exposes discovery endpoints used by the Admin Console.
+The Plugins tab uses these discovery endpoints when `FEATURE_V3_PLUGINS=true`.
 
-Endpoints (admin scope required)
-- `GET /plugins` — list installed plugins with manifests and current enabled/config values
-- `GET /plugins/{id}/config` — return `enabled` and `settings` for a plugin
-- `PUT /plugins/{id}/config` — validate/persist via the JSON config store
-- `GET /plugin-registry` — serve the curated registry JSON for UI search
+[:material-puzzle-outline: Plugins Overview](index.md){ .md-button }
+[:material-http: HTTP Manifest Docs](manifest-http.md){ .md-button }
+[:material-file-cog: Plugin Config File](config-file.md){ .md-button }
+[:material-puzzle: Plugin Builder](../admin-console/plugin-builder.md){ .md-button }
 
-Config store
-- Resolved config path: `FAXBOT_CONFIG_PATH` (default `config/faxbot.config.json`)
-- Atomic writes with `.bak` backups; roll back to last known‑good on validation/startup failure
+---
 
-Security & permissions
-- New admin scopes: `admin:plugins:read`, `admin:plugins:write`
-- Only keys with `keys:manage` may change plugin configs
-- Per‑key RPM: mirror inbound list/get defaults for reads (stricter for writes)
+## Endpoints (admin scope required)
 
-Dynamic install (optional)
-- Keep `FEATURE_PLUGIN_INSTALL=false` by default
-- If enabled, use a strict allowlist and checksums (signatures if provided); non‑interactive, sandboxed install only
-- For HIPAA profiles, leave remote install disabled
+:material-puzzle: `GET /plugins`
+: List installed plugins with manifests and current enabled/config values
 
-Admin Console behavior
-- The Plugins tab reads `/plugins` and renders schema‑driven forms
-- Only the active outbound provider’s help is shown; switching providers is a guided flow (no mixed instructions)
+:material-cog: `GET /plugins/{id}/config`
+: Return `enabled` and `settings` for a plugin
 
-Notes
-- Backends remain isolated across docs and UI; Phaxio users never see SIP/Asterisk instructions
+:material-content-save-cog: `PUT /plugins/{id}/config`
+: Validate and persist via the JSON config store
+
+:material-database-search: `GET /plugin-registry`
+: Serve the curated registry JSON for UI search
+
+---
+
+## Config store
+
+:material-file-cog: Path
+: `FAXBOT_CONFIG_PATH` (default `config/faxbot.config.json`)
+
+:material-content-save: Writes
+: Atomic writes with `.bak` backups; roll back to last known‑good on validation/startup failure
+
+---
+
+## Security & permissions
+
+:material-shield-key: Scopes
+: `admin:plugins:read`, `admin:plugins:write`
+
+:material-key: Who can write
+: Only keys with `keys:manage` may change plugin configs
+
+:material-speedometer: Rate limits
+: Per‑key RPM: mirror inbound list/get defaults for reads (stricter for writes)
+
+---
+
+## Dynamic install (optional)
+
+:material-toggle-switch-off: Default
+: Keep `FEATURE_PLUGIN_INSTALL=false`
+
+:material-shield-lock: When enabled
+: Use a strict allowlist and checksums (signatures if provided); non‑interactive, sandboxed install only
+
+:material-hospital: HIPAA
+: Leave remote install disabled for HIPAA profiles
+
+---
+
+## Admin Console behavior
+
+:material-view-grid-plus: Plugins tab
+: Reads `/plugins` and renders schema‑driven forms
+
+:material-filter-variant: Backend isolation
+: Only the active outbound provider’s help is shown; switching providers is a guided flow (no mixed instructions)
+
+---
+
+## Notes
+
+- Backends remain isolated across docs and UI; Phaxio users never see SIP/Asterisk instructions  
 - Inbound cloud callbacks remain core HTTP endpoints that delegate to plugin handlers; HMAC/signature verification is enforced in core
 
-Troubleshooting
-- If `/plugins` returns 404, enable the feature flag (`FEATURE_V3_PLUGINS=true`) and restart the API
-- For config write errors, check file permissions on `FAXBOT_CONFIG_PATH` (the default lives under the `faxdata` volume)
+---
+
+## Troubleshooting
+
+- `/plugins` returns 404 → enable `FEATURE_V3_PLUGINS=true` and restart the API  
+- Config write errors → check permissions on `FAXBOT_CONFIG_PATH` (default lives under the `faxdata` volume)
