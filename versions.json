@@ -37,9 +37,7 @@
   {
     "version": "f6b9985a",
     "title": "f6b9985a",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "dfefd2b8",
@@ -250,6 +248,13 @@
     "version": "5ed812f4",
     "title": "5ed812f4",
     "aliases": []
+  },
+  {
+    "version": "5cdffc3b",
+    "title": "5cdffc3b",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "4cc04704",
