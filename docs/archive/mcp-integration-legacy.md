@@ -1,4 +1,11 @@
-# MCP_INTEGRATION.md
+# MCP Integration (Legacy v2)
+
+!!! warning "Legacy (archived)"
+    This page is the older, omnibus MCP guide kept for historical reference.  
+    For the current v3 MCP docs, see:  
+    - [MCP Overview](../mcp/index.md)  
+    - [Node Server](../mcp/node.md) · [Python Server](../mcp/python.md)  
+    - [Transports](../mcp/transports.md) · [OAuth/OIDC Setup](../security/oauth-setup.md)
 
 Demo
 <video src="../assets/faxbot_demo.mp4" width="100%" autoplay loop muted playsinline controls>
@@ -68,7 +75,7 @@ export OAUTH_JWKS_URL=https://YOUR_ISSUER/.well-known/jwks.json
 docker compose --profile mcp up -d --build faxbot-mcp-py-sse
 ```
 - Choose one. Both require Bearer JWTs issued by your IdP; tokens are verified via JWKS.
-- Detailed OIDC setup guidance and provider links: see OAUTH_SETUP.md.
+- Detailed OIDC setup guidance and provider links: see [OAuth/OIDC Setup](../security/oauth-setup.md).
 
 MCP Inspector (explore tools/resources/prompts)
 - Start the Inspector UI via Docker:
