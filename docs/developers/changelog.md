@@ -3,6 +3,25 @@
 
 All notable changes to the Faxbot MCP server will be documented in this file.
 
+## [v0.4-beta] - 2025-09-23
+
+### Documentation overhaul (Material + MkDocs)
+- Migrated and mirrored Jekyll docs → MkDocs with redirects; fixed legacy redirect loops
+- Material theme enabled with tabs, definition lists, buttons, icons, copy buttons, and instant navigation
+- Security moved to top‑level; HIPAA page expanded with HHS/NIST links and CFR mappings
+- Admin Console docs: Setup Wizard, Diagnostics, Diagnostics Matrix, API Keys, Plugin Builder — fully reformatted and action‑oriented
+- Plugins: HTTP Manifest Providers and Curated Registry rewritten; added traits‑first schema and full manifest example; added “Try it” pages (RingCentral, InterFAX)
+- MCP docs: clarified legacy vs current; restored demo video; added transports page polish
+- Header/hero branding updated; GitHub stars/forks badge hidden; improved nav spacing
+
+### Developer experience
+- Added example manifests list and live examples
+- Documented provider traits and config store; added TODO to convert all examples to traits‑first
+
+### Fixes
+- Corrected dozens of formatting issues (run‑on lists), link hygiene, and strict build warnings
+- Restored missing media assets; removed outdated pages (Annotated Demo)
+
 ## [2.0.0] - 2025-01-XX
 
 ### Added
