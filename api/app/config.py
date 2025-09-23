@@ -200,7 +200,7 @@ CANONICAL_TRAIT_KEYS: set[str] = {
 
 
 def _traits_file_path() -> str:
-    # Project-relative config folder
+    # Project-relative config folder (cwd); acceptable for prod, but tests may run from different roots.
     return os.path.join(os.getcwd(), "config", "provider_traits.json")
 
 
@@ -329,7 +329,17 @@ def get_provider_traits(provider_id: Optional[str]) -> Dict[str, Any]:
 
 
 def valid_backends() -> set[str]:
-    return set(get_provider_registry().keys())
+    """Return provider ids known to the system.
+    Falls back to a safe built-in set when the traits registry is unavailable.
+    """
+    reg = get_provider_registry() or {}
+    keys = set(reg.keys())
+    # Drop schema metadata if present
+    keys.discard("_schema")
+    if not keys:
+        # Fallback to known providers to avoid treating everything as legacy
+        return {"phaxio", "sinch", "sip", "signalwire", "documo", "freeswitch"}
+    return keys
 
 
 # Valid backend identifiers supported by the core (dynamic)
