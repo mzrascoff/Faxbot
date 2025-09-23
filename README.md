@@ -1,7 +1,6 @@
 <p align="center">
   <img src="assets/faxbot_full_logo.png" alt="Faxbot logo" width="100%" />
 </p>
-
 <p align="center">
   <a href="https://dmontgomery40.github.io/Faxbot/">
     <img alt="View the Documentation" src="https://img.shields.io/badge/Docs-Faxbot-2b5fff?style=for-the-badge">
@@ -9,141 +8,83 @@
 </p>
 
 <p align="center">
-  <a href="mailto:david@faxbot.net?subject=Faxbot%20iOS%20TestFlight%20Invite">
-    <img alt="iOS TestFlight" src="https://img.shields.io/badge/iOS-TestFlight-blue?style=for-the-badge&logo=apple" />
+  <a href="https://faxbot.net">
+    <img alt="Visit the Website" src="https://img.shields.io/badge/Website-faxbot.net-00c853?style=for-the-badge">
   </a>
 </p>
 
-The first and only open-source, self-hostable fax API. Send faxes with a single function call.
+<p align="center">
+  <a href="https://faxbot.net/admin-demo">
+    <img alt="UI Demo" src="https://img.shields.io/badge/UI%20Demo-Admin%20Console-ff9800?style=for-the-badge">
+  </a>
+</p>
 
-Yes, this repo might look overwhelming at first glance—that's only because Faxbot supports multiple backends (cloud and self-hosted), several MCP transport options for AI integration, and HIPAA-compliant security configurations. Most users will only need one path through this complexity.
 
-**Core function:** `send_fax(phone_number, pdf_file)` → Done.
+The first and only open‑source, self‑hostable fax platform with a GUI‑first Admin Console, multi‑backend adapters (cloud + self‑hosted), and AI assistant integration.
 
-### Why Faxbot
+## GUI‑first: Admin Console
+- One place to configure backends, keys, inbound, storage, and run diagnostics.
+- Open http://localhost:8080 and use the Admin Console (served by the API).
+- Traits‑first UI: screens render only what your active provider supports.
 
-- Open source and self‑hostable end‑to‑end: run it entirely on your infra, modify as needed.
-- One API, many backends: switch Phaxio ↔ Sinch ↔ self‑hosted SIP/Asterisk via environment settings.
-- Bring‑your‑own SIP trunk: choose any SIP provider; migrate later by changing a couple of env vars.
-- Fully local option: when using SIP, no third‑party cloud in the path; artifacts stay on your storage (S3/MinIO supported).
-- AI assistant tools built‑in: MCP servers (Node & Python) for stdio/HTTP/SSE; desktop stdio supports `filePath` (no base64 size pain).
-- Inbound receiving design: cloud webhooks with signature verification or Asterisk ReceiveFAX → TIFF→PDF, mailbox routing, short‑TTL tokens, retention.
-- Test/dev backend: simulate send/receive flows without hitting a paid provider.
-- Vendor‑neutral SDKs: identical Node/Python clients so your app code is portable.
+## Why Faxbot
+- One API, many backends: Phaxio, Documo, Sinch, SignalWire, and more (cloud), or self‑hosted FreeSWTICH, SIP/Asterisk, or anything else you can dream up.
+- Ability to mix and match outbound and inbound providers, total freedom, fit to your infrastructure.
+- HIPAA‑aligned controls: HMAC webhook verification, short‑TTL tokens, compliant logging.
+- AI integration: official MCP servers (Node & Python) for stdio/HTTP/SSE with Webhook support.
+- Identical SDKs: Node.js and Python with the same surface.
 
-Questions? Issues? **Please don't hesitate to reach out.** See [CONTRIBUTING.md](CONTRIBUTING.md) for the best way to get help.
+## Quick start (Docker Compose)
+1) Copy `.env` (see `.env.example`). Pick a backend:
+- Phaxio (recommended): set `FAX_BACKEND=phaxio` and `PHAXIO_API_KEY/PHAXIO_API_SECRET`.
+- Sinch: set `FAX_BACKEND=sinch`, `SINCH_PROJECT_ID/SINCH_API_KEY/SINCH_API_SECRET`.
+> Or one of 20 others that we have pre-made manifests for you to quickly load. 
+- SIP/Asterisk: set `FAX_BACKEND=sip` and AMI vars (see docs).
 
-## Quick Start Options
-
-### Docker Compose (API + optional MCP)
-- Copy and edit `.env` (or start from `.env.example`).
-- Run the API:
+2) Start the API (and Admin Console):
 ```
 docker compose up -d --build api
 ```
-- Optional MCP (HTTP, port 3001):
+
+3) Open the Admin Console: http://localhost:8080
+
+Health checks:
+- API: `curl http://localhost:8080/health`
+- Ready: `curl -i http://localhost:8080/health/ready`
+
+Optional MCP servers:
 ```
 docker compose --profile mcp up -d --build faxbot-mcp
-# or: make mcp-up
-```
-- Optional MCP SSE (OAuth2/JWT, port 3002):
-```
-export OAUTH_ISSUER=https://YOUR_ISSUER
-export OAUTH_AUDIENCE=faxbot-mcp
-export OAUTH_JWKS_URL=https://YOUR_ISSUER/.well-known/jwks.json
 docker compose --profile mcp up -d --build faxbot-mcp-sse
-# or: make mcp-sse-up
 ```
-- Check health: `curl http://localhost:8080/health`
-- Readiness: `curl -i http://localhost:8080/health/ready` (200 when ready; 503 if not)
-- MCP HTTP health: `curl http://localhost:3001/health`
- - MCP SSE health: `curl http://localhost:3002/health`
 
-### Option 1: Phaxio (Recommended for Most Users)
-- 5-minute setup
-- No telephony knowledge required
-- Pay per fax (cloud)
 
-[→ Phaxio Setup Guide](docs/PHAXIO_SETUP.md)
+## iOS App (TestFlight)
 
-### Option 2: Sinch Fax API v3 (Cloud)
-- Direct upload model (no PUBLIC_API_URL fetch)
-- Works with “Phaxio by Sinch” accounts
-- Requires Project ID + API key/secret
+The iOS companion lets you send faxes and check status from your phone. Email david@faxbot.net for an invite.
 
-[→ Sinch Setup Guide](docs/SINCH_SETUP.md)
+![iOS Send Screen](assets/ios_send_screenshot.png)
 
-### Option 3: Self-Hosted SIP/Asterisk
-- Full control
-- No per-fax cloud charges
-- Requires SIP trunk and T.38 knowledge
-
-[→ SIP Setup Guide](docs/SIP_SETUP.md)
-
-## AI Assistant Integration
-[→ MCP Integration Guide](docs/MCP_INTEGRATION.md)
-
-- Node MCP servers live in `node_mcp/` (stdio, HTTP, SSE+OAuth). Python MCP servers live in `python_mcp/`.
-- OAuth2‑protected SSE MCP servers are available in both Node and Python.
-
-Important file-type note
-- Faxbot accepts only PDF and TXT. If you have images (PNG/JPG), convert them to PDF before sending.
-- Quick conversions:
-  - macOS Preview: File → Export As… → PDF
-  - macOS CLI: `sips -s format pdf "in.png" --out "out.pdf"`
-  - Linux: `img2pdf in.png -o out.pdf` or `magick convert in.png out.pdf`
-  - Windows: open image → Print → “Microsoft Print to PDF”.
-
-Stdio “just works” tip
-- For desktop assistants, prefer the Node or Python stdio MCP and call `send_fax` with `filePath` to your local PDF/TXT. This bypasses base64 and avoids token limits.
-
-## Client SDKs
+## SDKs
 - Python: `pip install faxbot`
 - Node.js: `npm install faxbot`
+→ [SDK Usage](docs/SDKS.md)
 
-[→ SDK Usage Guide](docs/SDKS.md)
+## Architecture highlights
+- Traits‑first capabilities: `/admin/providers` and `/admin/config` expose active providers + traits; UI and API gate features by traits.
+- Canonical event & error model: normalized inbound/outbound events, status mapping, and standard error codes.
+- Provider adapters: clean boundaries for verify_webhook/parse_inbound/send/status/cancel.
 
-## Documentation
-Core guides
-- [MCP Integration](docs/MCP_INTEGRATION.md) — Claude/Cursor stdio, HTTP, SSE (Node + Python)
-- [API Reference](docs/API_REFERENCE.md) — Endpoints and examples
-- [Client SDKs](docs/SDKS.md) — Python and Node SDK usage
- - MCP Inspector: use `docker compose --profile mcp up -d mcp-inspector` and open http://localhost:6274 to explore tools/resources/prompts
+Docs:
+- [Canonical Events](docs/api/canonical_events.md)
+- [MCP Integration](docs/MCP_INTEGRATION.md)
+- [API Reference](docs/API_REFERENCE.md)
 
-Backends
-- [Phaxio Setup](docs/PHAXIO_SETUP.md) — Cloud (tokenized PDF URL + HMAC webhook)
-- [Sinch Setup](docs/SINCH_SETUP.md) — Cloud direct upload (v3 API)
-- [SIP/Asterisk Setup](docs/SIP_SETUP.md) — Self-hosted T.38
+## Security
+- Use `X-API-Key` (multi‑key) for auth.
+- Enforce HTTPS and HMAC signature verification for cloud webhooks.
+- No PHI in logs; only IDs/metadata are surfaced.
 
-Security & compliance
-- [HIPAA Requirements](HIPAA_REQUIREMENTS.md) — Security, BAAs, and compliance checklist
-- [OAuth/OIDC Setup](docs/OAUTH_SETUP.md) — Configure SSE with Auth0, Okta, Azure AD, Google, Keycloak
+## Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md). Please open issues/PRs; this project is GUI‑first and traits‑first—avoid backend‑name checks in new code.
 
-File handling
-- [Images vs Text PDFs](docs/IMAGES_AND_PDFS.md) — The right way to fax scans/photos
-
-Advanced
-- [Phaxio End-to-End Test](docs/PHAXIO_E2E_TEST.md) — Simulated callback flow for local testing
-
-Development status
-- v3 plugin work (feature-gated) status: see `docs/V3_PHASE_STATUS.md`.
-
-## Notes
-- Receiving: WIP. Inbound scaffolding exists behind config flags and on the `development` branch (see PHASE_RECEIVE.md). It is not GA yet and remains backend‑isolated (Phaxio/Sinch callbacks, SIP/Asterisk internal). Outbound send is production‑ready.
-- Default backend is `phaxio` for easier onboarding. Set `FAX_BACKEND=sip` explicitly for telephony users or `FAX_BACKEND=sinch` for Sinch v3.
-- Use `X-API-Key` for auth; secure behind a reverse proxy for rate limiting.
-
-Demo
-<video src="assets/faxbot_demo.mp4" width="100%" autoplay muted playsinline controls>
-  <a href="assets/faxbot_demo.mp4">Watch the demo video</a>
-  (Your browser or GitHub may not inline-play videos; use the link.)
-</video>
-
-## iOS (TestFlight)
-
-Request an invite: [david@faxbot.net](mailto:david@faxbot.net?subject=Faxbot%20iOS%20TestFlight%20Invite)
-
-<p>
-  <img src="assets/faxbot_ios_connect-to-server.png" alt="Connect to Server" width="280" />
-  <img src="assets/faxbot_ios_txt-to-fax.png" alt="TXT to Fax" width="280" />
-</p>
