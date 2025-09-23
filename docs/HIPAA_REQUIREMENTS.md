@@ -1,7 +1,13 @@
 
-# HIPAA_REQUIREMENTS.md
+# HIPAA Requirements
 
-This document describes what is required to operate Faxbot in a HIPAA‑aligned manner. It is a technical guide and checklist for engineers and operators. It is not legal advice. Always consult your compliance team and counsel. You (the operator) are responsible for implementing and documenting the controls below and for executing a formal risk analysis and governance program.
+!!! warning "Not legal advice"
+    This page is a technical guide and checklist for engineers and operators.  
+    Always consult your compliance team and counsel. You (the operator) are responsible for implementing and documenting controls and for a formal risk analysis.
+
+[:material-shield-lock: Security](security/index.md){ .md-button }
+[:material-lan: Network & Transports](security/network.md){ .md-button }
+[:material-key: Authentication](security/authentication.md){ .md-button }
 
 ## Scope & Data Flows
 - Covered workflows: sending faxes that may contain PHI.
@@ -24,9 +30,17 @@ PHI touchpoints:
 - Self‑hosted SIP stack does not remove HIPAA obligations; it moves them to you.
 
 ## Technical Safeguards (Security Rule)
+
+!!! info "Authoritative sources"
+    - HHS HIPAA Security Rule (overview): https://www.hhs.gov/hipaa/for-professionals/security/index.html  
+    - Technical safeguards (45 CFR §164.312): https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312  
+    - General rules (45 CFR §164.306): https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.306  
+    - Business Associate contracts (sample provisions): https://www.hhs.gov/hipaa/for-professionals/covered-entities/sample-business-associate-agreement-provisions/index.html  
+    - Cloud computing guidance (OCR): https://www.hhs.gov/hipaa/for-professionals/special-topics/cloud-computing/index.html  
+    - TLS configuration guidance (NIST SP 800‑52r2): https://csrc.nist.gov/pubs/sp/800/52/r2/final
 Implement the following as minimum controls:
 
-1) Transport security
+1) Transport security (164.312(e) Transmission Security)
 - Public API must be served over HTTPS. Use TLS certs from a reputable CA.
 - For Phaxio backend:
   - `PUBLIC_API_URL` must be HTTPS in production.
@@ -34,13 +48,14 @@ Implement the following as minimum controls:
 - For SIP backend:
   - SIP signaling should use TLS if supported by your provider; media (T.38 over UDPTL) is typically not encrypted. Mitigate with a site‑to‑site VPN/private interconnect to your SIP provider and strict firewalling.
   - Never expose AMI (5038/tcp) to the public internet.
+  - Mapping: HIPAA Transmission Security (integrity and encryption) → use TLS/VPN for signaling/transport; T.38 media typically requires network isolation or VPN.
 
-2) Access control
+2) Access control (164.312(a)(1))
 - Require API key on all /fax and /fax/{id} calls (`X-API-Key`). Do not run with blank `API_KEY` in production.
 - Restrict inbound traffic with a reverse proxy: IP allowlists and rate limiting.
 - Rotate credentials and set a strong AMI password. Do not use `changeme`.
 
-3) Data minimization & confidentiality
+3) Data minimization & confidentiality (164.306(a); 164.312(c)(1))
 - Do not log PHI. Ensure request bodies (PDF/TXT) and rendered content are never logged.
 - Faxbot redacts tokenized PDF URLs from logs.
 - Tokenized PDF access:
@@ -52,11 +67,11 @@ Implement the following as minimum controls:
 - Separate storage for development vs production. Limit admin access and use MFA on hosts.
 - Data retention policy: delete PDFs/TIFFs after transmission completes and your minimum retention requirement is satisfied.
 
-5) Integrity & auditing
+5) Integrity & auditing (164.312(c)(1), 164.312(b))
 - Maintain audit logs of access to `/fax/{job_id}/pdf`, job creation, and status changes. No PHI in logs; use job IDs and metadata only.
 - Time synchronize servers (NTP) for accurate audit trails.
 
-6) Availability & recovery
+6) Availability & recovery (164.306(a))
 - Back up database (and optionally artifacts) on a secure, encrypted target with rotation.
 - Document restore procedures and test periodically.
 
