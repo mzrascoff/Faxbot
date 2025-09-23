@@ -62,3 +62,5 @@ _site/
 docs/_site/
 vendor/
 .bundle/
+
+site/

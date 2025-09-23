@@ -41,6 +41,12 @@ export interface Settings {
     type: string;
     disabled: boolean;
   };
+  hybrid?: {
+    outbound_backend: string;
+    inbound_backend: string;
+    outbound_explicit?: boolean;
+    inbound_explicit?: boolean;
+  };
   phaxio: {
     api_key: string;
     api_secret: string;
@@ -163,4 +169,15 @@ export interface InboundFax {
   backend: string;
   pages?: number;
   received_at?: string;
+}
+
+// Tunnel types
+export interface TunnelStatus {
+  enabled: boolean;
+  provider: 'none' | 'cloudflare' | 'wireguard' | 'tailscale';
+  status: 'disabled' | 'connecting' | 'connected' | 'error';
+  public_url?: string;
+  local_ip?: string;
+  last_checked?: string;
+  error_message?: string;
 }

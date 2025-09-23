@@ -8,7 +8,8 @@ RUN npm run build
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DOCKER_CONTAINER=true
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -23,6 +24,9 @@ COPY api/requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY api/app /app/app
+
+# Copy provider traits and any provider manifests
+COPY config /app/config
 
 # MCP (Python) — install and include server for embedded mount
 COPY python_mcp/requirements.txt /app/python_mcp/requirements.txt

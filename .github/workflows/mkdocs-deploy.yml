@@ -1,0 +1,61 @@
+name: Build and Deploy MkDocs (mike)
+
+on:
+  push:
+    branches: [ mkdocs ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install MkDocs toolchain
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material mike mkdocs-exclude mkdocs-redirects
+
+      - name: Preflight build (strict)
+        run: |
+          mkdocs --version
+          echo "Listing docs/" && ls -la docs || true
+          echo "Showing mkdocs.yml" && sed -n '1,160p' mkdocs.yml
+          mkdocs build -v --strict
+
+      - name: Configure Git author
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Deploy docs with mike to gh-pages
+        run: |
+          VERSION=$(git rev-parse --short HEAD)
+          mike deploy --push --branch gh-pages --update-aliases "$VERSION" latest
+          mike set-default --push --branch gh-pages latest
+
+      - name: Ensure CNAME at gh-pages root
+        run: |
+          set -e
+          git fetch origin gh-pages
+          git checkout gh-pages
+          echo "docs.faxbot.net" > CNAME
+          git add CNAME
+          if git diff --staged --quiet; then
+            echo "CNAME unchanged"
+          else
+            git commit -m "docs: add/update CNAME for custom domain"
+            git push origin gh-pages
+          fi
