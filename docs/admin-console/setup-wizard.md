@@ -10,6 +10,62 @@ New to fax? Start here. This wizard gets you sending in minutes and explains eac
 - Documo mFax (cloud): Direct upload to Documo. No domain/tunnel required. Good beginner option alongside Sinch.
 - SIP / Asterisk (self‑hosted): No third‑party cloud, uses your SIP trunk. More advanced; skip for now if you’re just getting started.
 
+=== "Phaxio"
+
+    - Best when you already have a public HTTPS URL or can run a tunnel.  
+    - Webhooks update status; HMAC verification is on by default.  
+    - HIPAA‑friendly with a BAA.
+
+    ```env
+    FAX_BACKEND=phaxio
+    PHAXIO_API_KEY=...
+    PHAXIO_API_SECRET=...
+    PUBLIC_API_URL=https://yourdomain.example
+    PHAXIO_CALLBACK_URL=https://yourdomain.example/phaxio-callback
+    PHAXIO_VERIFY_SIGNATURE=true
+    ```
+
+=== "Sinch (Direct Upload)"
+
+    - Fastest “no‑domain” option; send‑only works without webhooks.  
+    - Credentials live in your Sinch project.
+
+    ```env
+    FAX_BACKEND=sinch
+    SINCH_PROJECT_ID=...
+    SINCH_API_KEY=...
+    SINCH_API_SECRET=...
+    # Optional regional override
+    # SINCH_BASE_URL=https://us.fax.api.sinch.com/v3
+    ```
+
+=== "Documo (mFax)"
+
+    - No domain required; direct upload to Documo.  
+    - Optional sandbox for evaluation.
+
+    ```env
+    FAX_BACKEND=documo
+    DOCUMO_API_KEY=...
+    # DOCUMO_SANDBOX=true
+    ```
+
+=== "SIP / Asterisk"
+
+    - Self‑hosted telephony; requires SIP trunk + AMI.  
+    - PDF→TIFF conversion; result events via AMI.
+
+    ```env
+    FAX_BACKEND=sip
+    ASTERISK_AMI_HOST=asterisk
+    ASTERISK_AMI_PORT=5038
+    ASTERISK_AMI_USERNAME=api
+    ASTERISK_AMI_PASSWORD=change_me
+    ```
+
+!!! note "v3"
+    The wizard writes safe defaults and can export a ready‑to‑use `.env`. You can optionally persist the `.env` on the server from Settings.
+
 !!! tip "Do I need a domain?"
     - No, if you pick “Sinch (Direct Upload)”. You can send faxes without any public URL.  
     - Yes (or a tunnel) if you pick “Phaxio” and want status callbacks or if Phaxio must fetch your PDF from your server.  
@@ -79,7 +135,7 @@ New to fax? Start here. This wizard gets you sending in minutes and explains eac
 
 ## Example .env snippets
 - Phaxio (HIPAA profile)
-```
+```env
 FAX_BACKEND=phaxio
 PHAXIO_API_KEY=... 
 PHAXIO_API_SECRET=...
@@ -92,7 +148,7 @@ AUDIT_LOG_ENABLED=true
 PDF_TOKEN_TTL_MINUTES=60
 ```
 - Sinch (direct upload)
-```
+```env
 FAX_BACKEND=sinch
 SINCH_PROJECT_ID=...
 SINCH_API_KEY=...
@@ -102,7 +158,7 @@ SINCH_API_SECRET=...
 API_KEY=generate_a_strong_key
 ```
 - SIP/Asterisk (self‑hosted)
-```
+```env
 FAX_BACKEND=sip
 ASTERISK_AMI_HOST=asterisk
 ASTERISK_AMI_PORT=5038
