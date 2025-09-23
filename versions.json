@@ -5,6 +5,13 @@
     "aliases": []
   },
   {
+    "version": "f9724da6",
+    "title": "f9724da6",
+    "aliases": [
+      "latest"
+    ]
+  },
+  {
     "version": "f9441af4",
     "title": "f9441af4",
     "aliases": []
@@ -107,9 +114,7 @@
   {
     "version": "83bc8740",
     "title": "83bc8740",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "81c2416",
