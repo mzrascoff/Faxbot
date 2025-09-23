@@ -1,19 +1,37 @@
-# Security
 
-Configuration and guidance for HIPAA‑aligned deployments and OAuth/OIDC setup.
+<div class="home-hero">
+  <img src="/assets/images/faxbot_full_logo.png" alt="Faxbot logo" />
+</div>
 
-Webhooks and Callbacks
-- Outbound status (Phaxio): `POST /phaxio-callback` with HMAC verification. Keep callback URLs HTTPS.
-- Inbound (cloud): `POST /phaxio-inbound` (HMAC) and `POST /sinch-inbound` (consider Basic auth and IP allowlists). Never disable signature checks where the provider supports them.
-- Inbound (self‑hosted): `POST /_internal/asterisk/inbound` with `X-Internal-Secret` on a private network.
+# Security & Compliance
 
-MCP Transports
-- HTTP: protect with an API key and strict CORS.
-- SSE: require OAuth2/JWT; configure issuer/audience/JWKS; run behind TLS.
-- WebSocket (Node helper): protect with an API key; run behind TLS or an authenticated proxy.
+Faxbot is designed to handle sensitive healthcare data and can be configured for HIPAA compliance.
 
-Recommended reading
-- HIPAA Requirements: ../HIPAA_REQUIREMENTS.md
-- OAuth/OIDC Setup: oauth-setup.md
-- Compliance overview: https://faxbot.net/compliance/
+## Security Features
 
+- **API Authentication**: X-API-Key header protection
+- **HTTPS Enforcement**: TLS 1.2+ for all communications
+- **Webhook Verification**: HMAC signature validation
+- **OAuth2/JWT Support**: Enterprise-grade authentication for MCP
+- **Audit Logging**: Comprehensive logging for compliance
+- **PHI Protection**: Configurable data handling policies
+
+## Compliance Considerations
+
+### Healthcare Users (HIPAA Required)
+- Must use secure backends with Business Associate Agreements (BAAs)
+- HTTPS enforcement required
+- Audit logging enabled
+- Strong authentication mandatory
+
+#### BAAs & Audits (Enterprise)
+If we host or operate Faxbot for you, we sign BAAs through a streamlined process and provide architecture documentation for reviews. We welcome security assessments and audits of our stack. See <https://faxbot.net/compliance> for an overview and contact options.
+
+### Non-Healthcare Users
+- Relaxed security settings available for convenience
+- Optional authentication
+- Reduced logging overhead
+- HTTP allowed in development
+
+{: .warning }
+> This documentation provides technical guidance, not legal advice. Always consult your compliance team and legal counsel for HIPAA requirements.

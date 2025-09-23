@@ -57,6 +57,9 @@ def main() -> int:
             return 2
 
     mappings = [
+        # Getting started
+        ("getting-started/index.md", "docs/getting-started.md"),
+        ("getting-started/contributing.md", "docs/getting-started/contributing.md"),
         # Admin Console
         ("admin-console/index.md", "docs/admin-console.md"),
         ("admin-console/api-keys.md", "docs/admin-console/api-keys.md"),
@@ -86,6 +89,18 @@ def main() -> int:
         ("development/troubleshooting.md", "docs/troubleshooting.md"),
         ("development/node-sdk.md", "docs/sdks/node.md"),
         ("development/python-sdk.md", "docs/sdks/python.md"),
+        # Security
+        ("security/index.md", "docs/security/index.md"),
+        ("security/oauth-setup.md", "docs/security/oauth-setup.md"),
+        ("security/hipaa-requirements.md", "docs/HIPAA_REQUIREMENTS.md"),
+        ("security/network.md", "docs/security/network.md"),
+        # Legacy/Archive
+        ("backends/index.md", "docs/archive/backends-overview.md"),
+        ("ai-integration/index.md", "docs/archive/mcp-integration-legacy.md"),
+        ("ai-integration/mcp-integration.md", "docs/archive/mcp-integration-legacy.md"),
+        ("ai-integration/node-mcp.md", "docs/archive/ai-node-mcp-legacy.md"),
+        ("development/index.md", "docs/archive/development-index-legacy.md"),
+        ("development/changelog.md", "docs/developers/changelog.md"),
     ]
 
     written = 0
@@ -106,4 +121,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

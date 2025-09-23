@@ -42,4 +42,4 @@ curl -H "X-API-Key: $API_KEY" "$BASE/fax/$JOB_ID"
 - **Rate limited** → Global limit hit; adjust `MAX_REQUESTS_PER_MINUTE` in **Settings → Security**.
 - **413 / 415** → File too large or wrong type; review [Images & PDFs](/backends/images-and-pdfs.html).
 
-For automation examples, see the [Node SDK](/development/node-sdk.html) and [Python SDK](/development/python-sdk.html).
+For automation examples, see the [Node SDK](sdks/node.md) and [Python SDK](sdks/python.md).

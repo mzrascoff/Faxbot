@@ -1,3 +1,8 @@
+
+<div class="home-hero">
+  <img src="/assets/images/faxbot_full_logo.png" alt="Faxbot logo" />
+</div>
+
 # Getting Started
 
 Faxbot is Admin Console first. Use this short path to bring up the API and walk through the Setup Wizard—no manual config files or CLI tooling required beyond Docker Compose.
@@ -15,9 +20,12 @@ If the Admin Console returns 404, enable the local UI mount and restart the API:
 
 Then run: `docker compose up -d --build api`
 
+{: .note }
+Need a quick tour first? See the [Admin Console](admin-console.md) page and the hosted [Admin Demo](https://faxbot.net/admin-demo/).
+
 ## Complete the Setup Wizard
 
-1. In the console, open Setup Wizard.
+1. In the console, open **Setup Wizard**.
 2. Choose your outbound provider (Phaxio, Sinch, SIP/Asterisk, SignalWire, or Test Mode).
 3. Enter credentials and security preferences (helper text and “Learn more” links guide each field).
 4. Apply settings. The API reloads, and your backend is ready.
@@ -26,9 +34,13 @@ That’s it for onboarding. The provider guides cover details when you’re read
 
 ## What to do next
 
-- Follow the provider guides under Backends for credentials, networking, and HIPAA notes.
+- Follow the provider guides under [Backends](/backends/) for credentials, networking, and HIPAA notes.
 - Manage keys, storage, inbound receiving, and diagnostics from the Admin Console tabs (each screen links to matching docs).
-- Integrate your app using the Node or Python SDK once outbound faxing is verified.
+- Integrate your app using the [Node](sdks/node.md) or [Python](sdks/python.md) SDK once outbound faxing is verified.
+
+## Need help?
+
+Open an issue or see [Contributing](contributing.html) for support options. Mention which backend you’re using so we can point you to the right playbook.
 
 ## Under the Hood (for developers)
 
@@ -40,3 +52,5 @@ That’s it for onboarding. The provider guides cover details when you’re read
   - Cloud (Phaxio/Sinch/SignalWire/Documo): upload or tokenized fetch of your PDF
   - SIP/Asterisk: PDF→TIFF conversion then AMI originate
 - Inbound (optional): cloud callbacks (HMAC/Basic) or Asterisk internal post to `/_internal/asterisk/inbound`
+
+See the full API surface: /development/api-reference.html

@@ -36,6 +36,12 @@ REPLACEMENTS = [
     (re.compile(r"\((?:/)?backends/sinch-setup/?\)"), "(go-live/sinch.md)"),
     (re.compile(r"\((?:/)?backends/sip-setup/?\)"), "(go-live/sip-asterisk.md)"),
     (re.compile(r"\((?:/)?ai-integration/?\)"), "(mcp/index.md)"),
+    # Development SDK links
+    (re.compile(r"\((?:/)?development/node-sdk\.html\)"), "(sdks/node.md)"),
+    (re.compile(r"\((?:/)?development/python-sdk\.html\)"), "(sdks/python.md)"),
+    # Admin console and getting started
+    (re.compile(r"\((?:/)?admin-console/\)"), "(admin-console.md)"),
+    (re.compile(r"\((?:/)?getting-started/\)"), "(getting-started.md)"),
     # Old security deep-links from GitHub Pages folder structure
     (re.compile(r"\((?:/)?Faxbot/security/authentication\.html\)"), "(security/authentication.md)"),
     (re.compile(r"\((?:/)?Faxbot/security/oauth-setup\.html\)"), "(security/oauth-setup.md)"),
@@ -95,4 +101,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

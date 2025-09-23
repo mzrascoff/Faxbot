@@ -1,11 +1,14 @@
+
 # OAuth2 / OIDC Setup for Faxbot MCP (SSE)
 
-This guide shows how to configure JWT validation for the SSE transport. It covers what is validated, the environment variables Faxbot needs, and quick links for popular identity providers.
+This guide shows how to configure JWT validation for the SSE transport. It covers the minimal concepts, the three env vars Faxbot needs, and quick links for popular identity providers.
 
-What the MCP SSE servers validate
-- Issuer (`iss`): must match `OAUTH_ISSUER`
-- Audience (`aud`): must match `OAUTH_AUDIENCE` (e.g., `faxbot-mcp`)
-- Signature: verified against the provider’s JWKS (`OAUTH_JWKS_URL`)
+## Environment variables
+
+What the MCP SSE server validates
+- Issuer (`iss`): matches `OAUTH_ISSUER`
+- Audience (`aud`): matches `OAUTH_AUDIENCE` (e.g., `faxbot-mcp`)
+- Signature: verified against the provider's JWKS (`OAUTH_JWKS_URL`)
 - Expiry / not-before: standard JWT time checks
 
 Environment variables
@@ -19,7 +22,9 @@ General steps (any provider)
 1) Create or identify an API/resource in your IdP.
    - Set an identifier value (this becomes the `aud` claim). Example: `faxbot-mcp`.
 2) Create a client/app that can obtain access tokens for that API (client credentials or the flow used by your client).
-3) Find your issuer URL and JWKS URL (from the OIDC discovery document at `${issuer}/.well-known/openid-configuration`).
+3) Find your issuer URL and JWKS URL.
+   - The issuer is the base of your OIDC realm/tenant.
+   - The JWKS URL is advertised as `jwks_uri` in the OIDC discovery document at `${issuer}/.well-known/openid-configuration`.
 4) Export env vars and start the SSE server (Node or Python).
 5) Obtain a token from the IdP and connect to `/sse` with `Authorization: Bearer <token>`.
 
@@ -29,37 +34,57 @@ Auth0
 - Issuer: `https://YOUR_TENANT.auth0.com`
 - Audience: your API Identifier (e.g., `faxbot-mcp`)
 - JWKS: `https://YOUR_TENANT.auth0.com/.well-known/jwks.json`
-- Docs: create API, JWKS/token validation, client credentials flow
+- Docs:
+  - Create API (audience): https://auth0.com/docs/get-started/apis
+  - JWKS and token validation: https://auth0.com/docs/secure/tokens/json-web-tokens/json-web-key-sets
+  - Client credentials flow: https://auth0.com/docs/get-started/authentication-and-authorization-flow/client-credentials-flow
 
 Okta
 - Issuer: `https://YOUR_DOMAIN.okta.com/oauth2/default` (or your custom auth server)
 - Audience: the custom API audience you configure
-- JWKS: `${issuer}/v1/keys`
+- JWKS: `${issuer}/v1/keys` (Okta uses `/v1/keys`, not the generic `/.well-known/jwks.json`)
+- Docs:
+  - Authorization servers & discovery: https://developer.okta.com/docs/guides/customize-authz-server/main/
+  - Validate access tokens / JWKS: https://developer.okta.com/docs/guides/validate-access-tokens/main/
 
 Microsoft Entra ID (Azure AD)
 - Issuer: `https://login.microsoftonline.com/<TENANT_ID>/v2.0`
-- Audience: App Registration → “Expose an API” → Application ID URI (or custom ID you set)
+- Audience: App Registration → "Expose an API" → Application ID URI (or custom ID you set)
 - JWKS: `https://login.microsoftonline.com/<TENANT_ID>/discovery/v2.0/keys`
+- Docs:
+  - OIDC discovery: https://learn.microsoft.com/azure/active-directory/develop/v2-protocols-oidc
+  - App registration / Expose an API: https://learn.microsoft.com/azure/active-directory/develop/quickstart-configure-app-expose-web-apis
 
-Google Identity
+Google Identity (Workforce/Cloud)
 - Issuer: `https://accounts.google.com`
+- Audience: your audience string; ensure your token provider includes it in `aud`
 - JWKS: `https://www.googleapis.com/oauth2/v3/certs`
+- Docs:
+  - OIDC discovery: https://accounts.google.com/.well-known/openid-configuration
 
 Keycloak (self‑hosted)
 - Issuer: `https://YOUR_HOST/realms/YOUR_REALM`
+- Audience: client ID or custom audience claim (depends on realm configuration)
 - JWKS: `${issuer}/protocol/openid-connect/certs`
+- Docs:
+  - OpenID Connect endpoints: https://www.keycloak.org/docs/latest/server_admin/#_endpoints
 
-Quick test (Auth0 example)
+How to test quickly (Auth0 example)
 ```
-# Request a token (client credentials)
-curl https://$AUTH0_DOMAIN/oauth/token \
+# 1) Request a token using client credentials
+export AUTH0_DOMAIN=YOUR_TENANT.auth0.com
+export AUTH0_CLIENT_ID=...
+export AUTH0_CLIENT_SECRET=...
+export AUDIENCE=faxbot-mcp
+TOKEN=$(curl -s https://$AUTH0_DOMAIN/oauth/token \
   -H 'content-type: application/json' \
-  -d '{"grant_type":"client_credentials","client_id":"'$AUTH0_CLIENT_ID'","client_secret":"'$AUTH0_CLIENT_SECRET'","audience":"'$AUDIENCE'"}'
+  -d '{"grant_type":"client_credentials","client_id":"'"$AUTH0_CLIENT_ID"'","client_secret":"'"$AUTH0_CLIENT_SECRET"'","audience":"'"$AUDIENCE"'"}' | jq -r .access_token)
 
-# Connect to SSE with Authorization: Bearer <token>
+# 2) Connect to SSE (replace 3002 or 3003 depending on Node/Python container)
 curl -H "Authorization: Bearer $TOKEN" -H "Accept: text/event-stream" http://localhost:3002/sse
 ```
 
 Notes
-- The SSE servers validate tokens; they don’t mint them. Use your IdP or an internal OAuth server to issue access tokens.
-- For HIPAA deployments, ensure TLS, MFA, and appropriate access policies at your IdP and proxy.
+- You may set `OAUTH_JWKS_URL` explicitly if your provider's JWKS path differs from the default (e.g., Okta's `/v1/keys`, Keycloak's `/protocol/openid-connect/certs`).
+- The SSE servers do not mint tokens; they only validate them. Use your IdP or an internal OAuth server to issue client tokens.
+- For HIPAA deployments, ensure your IdP and reverse proxy enforce TLS, MFA, and appropriate policies.

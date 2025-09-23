@@ -1,3 +1,4 @@
+
 # HIPAA_REQUIREMENTS.md
 
 This document describes what is required to operate Faxbot in a HIPAA‑aligned manner. It is a technical guide and checklist for engineers and operators. It is not legal advice. Always consult your compliance team and counsel. You (the operator) are responsible for implementing and documenting the controls below and for executing a formal risk analysis and governance program.
@@ -34,10 +35,9 @@ Implement the following as minimum controls:
   - SIP signaling should use TLS if supported by your provider; media (T.38 over UDPTL) is typically not encrypted. Mitigate with a site‑to‑site VPN/private interconnect to your SIP provider and strict firewalling.
   - Never expose AMI (5038/tcp) to the public internet.
 
--2) Access control
-- Require API key on all /fax and /fax/{id} calls (`X-API-Key`). Set `REQUIRE_API_KEY=true` to enforce authentication even if env `API_KEY` is blank. Use DB‑backed, per‑user/service API keys created via admin endpoints instead of sharing a single env key. Rotate keys regularly.
+2) Access control
+- Require API key on all /fax and /fax/{id} calls (`X-API-Key`). Do not run with blank `API_KEY` in production.
 - Restrict inbound traffic with a reverse proxy: IP allowlists and rate limiting.
-- Optional app-level rate limiting: set `MAX_REQUESTS_PER_MINUTE` to bound per-key request rates in addition to reverse proxy/WAF limits.
 - Rotate credentials and set a strong AMI password. Do not use `changeme`.
 
 3) Data minimization & confidentiality
@@ -99,7 +99,7 @@ Implement the following as minimum controls:
 - File handling
   - For stdio, prefer `send_fax` with `filePath` to avoid embedding PHI as base64 in conversations.
   - For HTTP/SSE, tool inputs are JSON; base64 increases size and token exposure. Enforce auth and rate limits and avoid logging request bodies.
-- Do not send PHI to LLMs or external services unless covered by a BAA and approved by policy. Faxbot’s MCP servers call your Faxbot API; they do not upload PHI to model providers.
+- Do not send PHI to LLMs or external services unless covered by a BAA and approved by policy. Faxbot's MCP servers call your Faxbot API; they do not upload PHI to model providers.
 - All MCP servers must require authentication where applicable:
   - REST API: `X-API-Key` for /fax endpoints.
   - MCP HTTP/SSE: `Authorization: Bearer <JWT>` verified against your OIDC JWKS.
@@ -124,8 +124,7 @@ Implement the following as minimum controls:
 
 ## Current Implementation Status (2025‑Q3)
 - Implemented:
-  - Multi‑key API auth with admin endpoints (create/list/revoke/rotate) and bootstrap env key.
-  - `REQUIRE_API_KEY` enforcement flag for production.
+  - API key support, reverse proxy guidance.
   - Tokenized PDF access with equality check and TTL expiry.
   - Phaxio callback signature verification (HMAC‑SHA256).
   - AMI concurrency/backoff improvements; SIP dialplan emits granular results.
@@ -161,4 +160,3 @@ find /path/to/faxdata -type f \( -name '*.pdf' -o -name '*.tiff' \) -mtime +7 -d
 
 ## Legal Notice
 - This document does not constitute legal advice. HIPAA compliance depends on your specific implementation, vendor agreements, and organizational controls. Engage qualified counsel and security professionals.
-
