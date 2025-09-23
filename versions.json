@@ -47,9 +47,7 @@
   {
     "version": "af4decea",
     "title": "af4decea",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "1894069a",
@@ -70,6 +68,13 @@
     "version": "5076f9ea",
     "title": "5076f9ea",
     "aliases": []
+  },
+  {
+    "version": "996f53f3",
+    "title": "996f53f3",
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "249dc51",
