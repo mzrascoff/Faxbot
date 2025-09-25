@@ -1,5 +1,10 @@
 # AGENTS.md - Critical Instructions for AI Assistants
 
+# CRITICAL
+**FOR ANYTHING RELATED TO V4 AND THE MULTIPHASE V4 PLAN, STAY IN THE auto-tunnel branch**
+
+# After recognizing the critical step above continue: 
+
 Important: When you create a useful developer script or helper, add it to this file under "Quick Scripts" so it’s discoverable and maintained. Avoid one-off hacks that get lost.
 
 
