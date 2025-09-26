@@ -142,7 +142,7 @@ const ConsoleBox: React.FC<{ lines: string[]; loading?: boolean; title?: string 
 };
 
 const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
-  const { active, registry } = useTraits();
+  const { outboundTraits } = useTraits();
   const [error, setError] = useState<string>('');
   const [busyAuth, setBusyAuth] = useState<boolean>(false);
   const [busyInbound, setBusyInbound] = useState<boolean>(false);
@@ -554,7 +554,7 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase }) => {
         )}
 
         {/* Show callback URL section when outbound supports status callbacks */}
-        {Boolean(registry && active?.outbound && registry[active.outbound]?.traits?.status_callback) && (
+        {Boolean(outboundTraits?.status_callback) && (
           <Grid item xs={12} lg={6}>
             <ResponsiveFormSection
               title="Status Callback URL"

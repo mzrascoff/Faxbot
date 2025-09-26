@@ -171,7 +171,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { active, registry } = useTraits();
+  const { outboundTraits, inboundTraits } = useTraits();
 
   // const hrefFor = (topic: string): string | undefined => (anchors[topic] || thirdParty[topic]);
 
@@ -973,31 +973,20 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                 <Stack spacing={2}>
                   <Box>
                     <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                      Active Providers
+                      Active Providers (traits)
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <Chip
-                        label={`Outbound: ${active?.outbound || 'None'}`}
-                        color="primary"
-                        variant="outlined"
-                        sx={{ borderRadius: 1 }}
-                      />
-                      <Chip
-                        label={`Inbound: ${active?.inbound || 'None'}`}
-                        color="secondary"
-                        variant="outlined"
-                        sx={{ borderRadius: 1 }}
-                      />
-                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Displaying traits for the active outbound and inbound providers.
+                    </Typography>
                   </Box>
 
-                  {active?.outbound && registry?.[active.outbound]?.traits && (
+                  {outboundTraits && (
                     <Box>
                       <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
                         Outbound Traits
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {Object.entries(registry[active.outbound].traits || {}).map(([key, value]) => (
+                        {Object.entries(outboundTraits || {}).map(([key, value]) => (
                           <Chip
                             key={key}
                             label={`${key}: ${String(value)}`}
@@ -1011,13 +1000,13 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                     </Box>
                   )}
 
-                  {active?.inbound && registry?.[active.inbound]?.traits && active.inbound !== active.outbound && (
+                  {inboundTraits && (
                     <Box>
                       <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
                         Inbound Traits
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {Object.entries(registry[active.inbound].traits || {}).map(([key, value]) => (
+                        {Object.entries(inboundTraits || {}).map(([key, value]) => (
                           <Chip
                             key={key}
                             label={`${key}: ${String(value)}`}

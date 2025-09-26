@@ -12,6 +12,8 @@ interface TraitsHook {
   getSamplePayload: (direction: 'inbound' | 'outbound') => string;
   getProviderHeaders: (direction: 'inbound' | 'outbound', secret?: string) => string[];
   refresh: () => Promise<void>;
+  outboundTraits: Record<string, any> | null;
+  inboundTraits: Record<string, any> | null;
 }
 
 // Global cache to avoid multiple API calls
@@ -224,6 +226,9 @@ export function useTraits(): TraitsHook {
     return headers;
   }, [providers, traitValue]);
 
+  const outboundId = providers?.active?.['outbound'] as string | undefined;
+  const inboundId = providers?.active?.['inbound'] as string | undefined;
+
   return {
     loading,
     error,
@@ -235,6 +240,8 @@ export function useTraits(): TraitsHook {
     getSamplePayload,
     getProviderHeaders,
     refresh,
+    outboundTraits: outboundId && providers?.registry?.[outboundId]?.traits || null,
+    inboundTraits: inboundId && providers?.registry?.[inboundId]?.traits || null,
   };
 }
 
