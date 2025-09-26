@@ -571,16 +571,17 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     
     const { checks } = diagnostics;
     
-    if (active?.outbound === 'phaxio') {
-      const phaxio = checks.phaxio || {};
+    // Provider‑specific guidance based on available diagnostics keys
+    if ((checks as any).phaxio) {
+      const phaxio = (checks as any).phaxio || {};
       if (!phaxio.api_key_set) suggestions.push({ type: 'error', text: 'Set PHAXIO_API_KEY in .env' });
       if (!phaxio.api_secret_set) suggestions.push({ type: 'error', text: 'Set PHAXIO_API_SECRET in .env' });
       if (!phaxio.callback_url_set) suggestions.push({ type: 'warning', text: 'Set PHAXIO_STATUS_CALLBACK_URL (or PHAXIO_CALLBACK_URL)' });
       if (phaxio.public_url_https === false) suggestions.push({ type: 'warning', text: 'Use HTTPS for PUBLIC_API_URL' });
     }
-    
-    if (active?.outbound === 'sip') {
-      const sip = checks.sip || {};
+
+    if ((checks as any).sip) {
+      const sip = (checks as any).sip || {};
       if (sip.ami_password_not_default === false) suggestions.push({ type: 'error', text: 'Change ASTERISK_AMI_PASSWORD from default "changeme"' });
       if (sip.ami_reachable === false) suggestions.push({ type: 'error', text: 'Verify Asterisk AMI host/port/credentials and network reachability' });
     }

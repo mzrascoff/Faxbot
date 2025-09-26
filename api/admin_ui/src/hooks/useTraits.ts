@@ -97,28 +97,31 @@ export function useTraits(): TraitsHook {
     load();
   }, [fetchProviders]);
 
+  // Dot-path getter
+  const dotGet = (obj: any, path: string) => {
+    try {
+      return path.split('.').reduce((acc: any, k: string) => (acc && acc[k] !== undefined ? acc[k] : undefined), obj);
+    } catch {
+      return undefined;
+    }
+  };
+
   const hasTrait = useCallback((direction: 'outbound' | 'inbound', key: string): boolean => {
     if (!providers?.active || !providers?.registry) return false;
-    
     const activeProvider = providers.active[direction];
     if (!activeProvider) return false;
-    
     const providerInfo = providers.registry[activeProvider];
     if (!providerInfo?.traits) return false;
-    
-    return key in providerInfo.traits;
+    return dotGet(providerInfo.traits, key) !== undefined;
   }, [providers]);
 
   const traitValue = useCallback((direction: 'outbound' | 'inbound', key: string): any => {
     if (!providers?.active || !providers?.registry) return undefined;
-    
     const activeProvider = providers.active[direction];
     if (!activeProvider) return undefined;
-    
     const providerInfo = providers.registry[activeProvider];
     if (!providerInfo?.traits) return undefined;
-    
-    return providerInfo.traits[key];
+    return dotGet(providerInfo.traits, key);
   }, [providers]);
 
   const getWebhookUrl = useCallback((direction: 'inbound' | 'outbound'): string | null => {
