@@ -195,6 +195,7 @@ _TRAITS_CACHE: Dict[str, Any] = {"registry": {}, "loaded_mtime": 0.0, "schema_is
 
 # Canonical trait keys — schema contract
 CANONICAL_TRAIT_KEYS: set[str] = {
+    # Core capability flags (v3 compatibility)
     "requires_ghostscript",
     "requires_ami",
     "requires_tiff",
@@ -202,6 +203,17 @@ CANONICAL_TRAIT_KEYS: set[str] = {
     "inbound_verification",
     "needs_storage",
     "outbound_status_only",
+    # v4 canonical keys (schema-driven)
+    # Nested object traits are flattened for validation purposes so that
+    # manifests or registries using dot-notation remain recognized.
+    # Webhook
+    "webhook.path",
+    "webhook.verification",
+    "webhook.verify_header",
+    # Authentication
+    "auth.methods",
+    # Provider regions
+    "regions",
 }
 
 
