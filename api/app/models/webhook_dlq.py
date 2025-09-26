@@ -37,12 +37,13 @@ class WebhookDLQ(Base):
     last_retry_at = Column(DateTime(), nullable=True)
     next_retry_at = Column(DateTime(), nullable=True)
 
-    # Indexes for performance
+    # Indexes for performance and allow extending existing table
     __table_args__ = (
         Index('ix_webhook_dlq_provider_id', 'provider_id'),
         Index('ix_webhook_dlq_status', 'status'),
         Index('ix_webhook_dlq_external_id', 'external_id'),
         Index('ix_webhook_dlq_next_retry_at', 'next_retry_at'),
+        {'extend_existing': True}
     )
 
     def __init__(self, provider_id: str, external_id: Optional[str] = None,
