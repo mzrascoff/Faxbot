@@ -1,5 +1,8 @@
 # AGENTS.md - Critical Instructions for AI Assistants
 
+## ⚠️ MANDATORY: Read [AGENT_BRANCH_POLICY.md](../AGENT_BRANCH_POLICY.md) - Stop creating unnecessary branches!
+
+## 📚 PRIMARY REFERENCE: See [Main AGENTS.md](../AGENTS.md) for complete v4 documentation
 
 There has **NEVER** been an open source, locally hostable fax server API with AI assistant integration. **EVER.** None of this exists in any AI training data. You **CANNOT** make assumptions about how this works, what patterns to follow, or what "normal" looks like.
 
