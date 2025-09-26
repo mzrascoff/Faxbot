@@ -126,12 +126,32 @@ class HierarchicalRateLimiter(BaseHTTPMiddleware):
         user_ctx: UserContext,
         default_limit: int
     ) -> int:
-        """Get the effective rate limit for this user/endpoint combination."""
+        """Get the effective rate limit for this user/endpoint.
+
+        Precedence (Phase 5):
+        1) Prefer RPS (requests per second) key: replace trailing `_rpm` with `_rps` and, if set, convert to RPM by multiplying by 60.
+        2) Fallback to RPM (requests per minute) key as-is.
+        3) Fallback to provided default_limit.
+        """
         try:
-            config_value = await self.config_provider.get_effective(
-                config_key, user_ctx, default_limit
-            )
-            return int(config_value.value)
+            # 1) Prefer RPS key if present
+            rps_key = config_key.replace("_rpm", "_rps") if config_key.endswith("_rpm") else None
+            if rps_key:
+                try:
+                    rps_val = await self.config_provider.get_effective(rps_key, user_ctx, None)
+                    if rps_val is not None and getattr(rps_val, "value", None) is not None:
+                        # Convert RPS → RPM for current windowing strategy
+                        rps = float(rps_val.value)
+                        if rps > 0:
+                            return max(1, int(rps * 60))
+                except Exception:
+                    # Ignore and fall back to RPM
+                    pass
+
+            # 2) RPM key
+            rpm_val = await self.config_provider.get_effective(config_key, user_ctx, default_limit)
+            val = getattr(rpm_val, "value", default_limit)
+            return int(val) if val is not None else default_limit
         except Exception:
             return default_limit
 
