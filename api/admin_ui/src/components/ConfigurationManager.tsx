@@ -38,7 +38,7 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   ExpandMore as ExpandMoreIcon,
-  Cache as CacheIcon,
+  Cached as CacheIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
   Security as SecurityIcon,
