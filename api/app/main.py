@@ -23,7 +23,7 @@ from .config import (
 )
 from .db import init_db, SessionLocal, FaxJob
 from .db import InboundEvent  # for idempotency (provider_sid + event_type)
-from .models import FaxJobOut
+from .schemas import FaxRequest, FaxJobOut
 from .models.events import CanonicalEventDB  # Import to register with metadata
 from .models.config import ConfigGlobal, ConfigTenant, ConfigDepartment, ConfigGroup, ConfigUser, ConfigAudit  # Import to register with metadata
 from .monitoring.health import ProviderHealthMonitor
