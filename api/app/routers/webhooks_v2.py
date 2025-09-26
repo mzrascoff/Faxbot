@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from api.app.services.webhook_processor import WebhookProcessor
 from api.app.plugins.manager import PluginManager
 from api.app.services.events import EventEmitter
-from api.app.config.provider import HybridConfigProvider
+from api.app.config_manager.provider import HybridConfigProvider
 from api.app.main import get_plugin_manager, get_event_emitter, get_config_provider
 
 

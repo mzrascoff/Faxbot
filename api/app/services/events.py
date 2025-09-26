@@ -5,8 +5,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from api.app.database.async_db import AsyncSessionLocal
-from api.app.models.events import CanonicalEventDB
+from ..database.async_db import AsyncSessionLocal
+from ..models.events import CanonicalEventDB
 
 
 class EventType(str, Enum):

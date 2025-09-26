@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Literal, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.app.database.async_db import AsyncSessionLocal  # type: ignore
-from api.app.models.config import (
+from ..database.async_db import AsyncSessionLocal  # type: ignore
+from ..models.config import (
     ConfigGlobal,
     ConfigTenant,
     ConfigDepartment,
@@ -17,7 +17,7 @@ from api.app.models.config import (
     ConfigUser,
     ConfigAudit,
 )
-from api.app.services.cache_manager import CacheManager
+from ..services.cache_manager import CacheManager
 
 from cryptography.fernet import Fernet  # type: ignore
 

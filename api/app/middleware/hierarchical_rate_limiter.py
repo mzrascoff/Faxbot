@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, Tuple
 from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from ..config.hierarchical_provider import HierarchicalConfigProvider, UserContext
+from ..config_manager.hierarchical_provider import HierarchicalConfigProvider, UserContext
 
 
 class HierarchicalRateLimiter(BaseHTTPMiddleware):

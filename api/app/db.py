@@ -1,8 +1,7 @@
 from sqlalchemy import create_engine, Column, String, DateTime, Integer, Text, UniqueConstraint  # type: ignore
 from sqlalchemy.orm import declarative_base, sessionmaker  # type: ignore
 from datetime import datetime
-import app.config as config_module
-settings = config_module.settings
+from .config import settings
 
 
 engine = create_engine(settings.database_url, future=True)

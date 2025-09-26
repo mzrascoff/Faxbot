@@ -5,8 +5,8 @@ from typing import Dict, List, Optional, Literal, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
-from api.app.services.events import EventEmitter, EventType
-from api.app.config.hierarchical_provider import HierarchicalConfigProvider
+from ..services.events import EventEmitter, EventType
+from ..config_manager.hierarchical_provider import HierarchicalConfigProvider
 
 logger = logging.getLogger(__name__)
 

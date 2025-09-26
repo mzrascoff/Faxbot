@@ -23,7 +23,7 @@ from api.app.models.webhook_dlq import WebhookDLQ
 from api.app.models.jobs import Job
 from api.app.plugins.manager import PluginManager
 from api.app.services.events import EventEmitter, EventType
-from api.app.config.provider import HybridConfigProvider
+from api.app.config_manager.provider import HybridConfigProvider
 
 
 logger = logging.getLogger(__name__)

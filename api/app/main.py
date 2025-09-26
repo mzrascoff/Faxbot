@@ -59,7 +59,7 @@ from pydantic import BaseModel
 from .middleware.traits import requires_traits
 from .security.permissions import require_permissions
 from .security.user_traits import pack_user_traits
-from .config.hierarchical_provider import HierarchicalConfigProvider, UserContext
+from .config_manager.hierarchical_provider import HierarchicalConfigProvider, UserContext
 from .services.cache_manager import CacheManager
 from fastapi import APIRouter
 
@@ -132,7 +132,7 @@ def _inbound_dedupe(provider_id: str, external_id: str, window_sec: int = 600) -
 # ===== Phase 3: optional hierarchical config bootstrap (lazy) =====
 try:
     from .services.cache_manager import CacheManager  # type: ignore
-    from .config.hierarchical_provider import HierarchicalConfigProvider  # type: ignore
+    from .config_manager.hierarchical_provider import HierarchicalConfigProvider  # type: ignore
 
     _REDIS_URL = os.getenv("REDIS_URL")
     _cmk = os.getenv("CONFIG_MASTER_KEY", "")
@@ -147,6 +147,17 @@ except Exception:
     app.state.hierarchical_config = None  # type: ignore[attr-defined]
 
 # ===== Phase 3: Admin Config (v4) endpoints (read-only for now) =====
+
+# Define require_admin early to avoid forward reference issues
+def require_admin(x_api_key: Optional[str] = Header(default=None)):
+    # Allow env key as admin for bootstrap
+    if settings.api_key and x_api_key == settings.api_key:
+        return {"admin": True, "key_id": "env"}
+    info = verify_db_key(x_api_key)
+    if not info or ("keys:manage" not in (info.get("scopes") or [])):
+        raise HTTPException(401, detail="Admin authentication failed")
+    return info
+
 router_cfg_v4 = APIRouter(prefix="/admin/config/v4", tags=["ConfigurationV4"], dependencies=[Depends(require_admin)])
 
 
@@ -173,7 +184,7 @@ async def v4_config_effective(request: Request):
     ]
     out: dict[str, dict[str, Any]] = {}
     # Resolve values
-    from .config.hierarchical_provider import UserContext  # type: ignore
+    from .config_manager.hierarchical_provider import UserContext  # type: ignore
     for k in keys:
         try:
             cv = await hc.get_effective(k, UserContext(**user_ctx))
@@ -199,7 +210,7 @@ async def v4_config_hierarchy(key: str):
     hc = getattr(app.state, "hierarchical_config", None)
     if not hc:
         raise HTTPException(503, "Hierarchical configuration not initialized")
-    from .config.hierarchical_provider import UserContext  # type: ignore
+    from .config_manager.hierarchical_provider import UserContext  # type: ignore
     layers = await hc.get_hierarchy(key, UserContext(user_id="admin", tenant_id=None, department=None, groups=[]))
     return {
         "key": key,
@@ -614,7 +625,7 @@ async def on_startup():
 
     # Initialize and start provider health monitoring (Phase 3)
     try:
-        from .config.hierarchical_provider import get_hierarchical_config_provider
+        from .config_manager.hierarchical_provider import get_hierarchical_config_provider
 
         # Get or create event emitter
         event_emitter = getattr(app.state, "event_emitter", None)
@@ -846,16 +857,6 @@ def require_api_key(request: Request, x_api_key: Optional[str] = Header(default=
     return None
 
 
-def require_admin(x_api_key: Optional[str] = Header(default=None)):
-    # Allow env key as admin for bootstrap
-    if settings.api_key and x_api_key == settings.api_key:
-        return {"admin": True, "key_id": "env"}
-    info = verify_db_key(x_api_key)
-    if not info or ("keys:manage" not in (info.get("scopes") or [])):
-        raise HTTPException(401, detail="Admin authentication failed")
-    return info
-
-
 def _has_scope(info: Optional[dict], required: str) -> bool:
     if info is None:
         return False
@@ -1058,7 +1059,7 @@ async def admin_import_env(request: Request):
     except Exception:
         js = {}
     prefixes = js.get("prefixes") or ["PHAXIO_", "SINCH_", "S3_", "AWS_", "STORAGE_"]
-    from .config.migrate import import_env_to_db
+    from .config_manager.migrate import import_env_to_db
     count = import_env_to_db(prefixes)
     return {"ok": True, "discovered": count, "prefixes": prefixes}
 
