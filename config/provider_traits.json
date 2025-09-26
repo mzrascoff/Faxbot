@@ -22,7 +22,17 @@
       "supports_inbound": true,
       "inbound_verification": "hmac",
       "needs_storage": true,
-      "outbound_status_only": false
+      "outbound_status_only": false,
+      "supports_status_callback": true,
+      "webhook_path": "/phaxio-callback",
+      "verify_header": "X-Phaxio-Signature",
+      "webhook.verification": "hmac_sha256",
+      "webhook.path": "/phaxio-callback",
+      "webhook.verify_header": "X-Phaxio-Signature",
+      "auth.methods": ["basic"],
+      "sample_payload": {
+        "fax": { "id": 12345, "num_pages": 3, "status": "success" }
+      }
     }
   },
   "sinch": {
@@ -35,7 +45,23 @@
       "supports_inbound": true,
       "inbound_verification": "basic",
       "needs_storage": true,
-      "outbound_status_only": false
+      "outbound_status_only": false,
+      "supports_status_callback": true,
+      "webhook_path": "/sinch-inbound",
+      "verify_header": "Authorization",
+      "webhook_basic_auth": true,
+      "webhook.verification": "basic_auth",
+      "webhook.path": "/sinch-inbound",
+      "webhook.verify_header": "Authorization",
+      "auth.methods": ["basic", "oauth2"],
+      "env.fallback": "SINCH_*=PHAXIO_*",
+      "sample_payload": {
+        "eventType": "INBOUND_FAX_COMPLETED",
+        "faxId": "fax_01234567",
+        "to": "+15551234567",
+        "from": "+15559876543",
+        "status": "COMPLETED"
+      }
     }
   },
   "signalwire": {

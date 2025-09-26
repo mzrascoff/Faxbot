@@ -22,6 +22,7 @@ from .config import (
     providerTraitValue,
 )
 from .db import init_db, SessionLocal, FaxJob
+from .db import InboundEvent  # for idempotency (provider_sid + event_type)
 from .models import FaxJobOut
 from .conversion import ensure_dir, txt_to_pdf, pdf_to_tiff
 from .ami import ami_client
@@ -84,6 +85,29 @@ STRICT_INBOUND = os.getenv("INBOUND_STRICT_VERIFY", "false").lower() in {"1","tr
 # In-memory per-key rate limiter (fixed window, per minute)
 _rate_buckets: dict[str, dict[str, int]] = {}
 
+# In-memory inbound dedupe (provider_id + external_id) with short TTL window
+_inbound_seen: dict[str, int] = {}
+
+def _inbound_dedupe(provider_id: str, external_id: str, window_sec: int = 600) -> bool:
+    """Return True if this (provider, external_id) was seen recently; else record and return False.
+    Uses a simple in-memory TTL map to prevent duplicate processing storms.
+    """
+    try:
+        now = int(time.time())
+        # Prune old entries
+        cutoff = now - window_sec
+        old_keys = [k for k, ts in _inbound_seen.items() if ts < cutoff]
+        for k in old_keys:
+            _inbound_seen.pop(k, None)
+        key = f"{provider_id}:{external_id}"
+        ts = _inbound_seen.get(key)
+        if ts and ts >= cutoff:
+            return True
+        _inbound_seen[key] = now
+        return False
+    except Exception:
+        return False
+
 
 def _enforce_rate_limit(info: Optional[dict], path: str, limit: Optional[int] = None):
     # Choose provided per-route limit, else global
@@ -112,10 +136,18 @@ def _enforce_rate_limit(info: Optional[dict], path: str, limit: Optional[int] = 
         retry_after = (bucket["window"] + 1) * 60 - int(time.time())
         audit_event("rate_limited", key_id=key_id, path=path, limit=limit)
         from fastapi import HTTPException
+        # Provide standard rate-limit headers for client backoff
+        remaining = 0
+        reset = max(1, retry_after)
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded",
-            headers={"Retry-After": str(max(1, retry_after))},
+            headers={
+                "Retry-After": str(reset),
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": str(remaining),
+                "X-RateLimit-Reset": str(int(time.time()) + reset),
+            },
         )
 
 
@@ -577,6 +609,10 @@ def get_admin_config():
             "docs_base": os.getenv("DOCS_BASE_URL", "https://dmontgomery40.github.io/Faxbot"),
             "logo_path": "/admin/ui/faxbot_full_logo.png",
         },
+        "migration": {
+            "env_to_db_done": (os.getenv("ADMIN_MIGRATION_ENV_TO_DB_DONE", "false").lower() in {"1","true","yes"}),
+            "banner": not (os.getenv("ADMIN_MIGRATION_ENV_TO_DB_DONE", "false").lower() in {"1","true","yes"})
+        },
         # Traits in one call (active + registry)
         "traits": {
             "active": {"outbound": ob, "inbound": ib},
@@ -658,6 +694,22 @@ def get_admin_config():
         cfg["traits"]["registry"] = {}
         cfg["providers"] = []
     return cfg
+
+@app.post("/admin/config/import-env", dependencies=[Depends(require_admin)])
+async def admin_import_env(request: Request):
+    """Import selected environment variables (Phase 3 stub).
+
+    Accepts JSON body { "prefixes": ["PHAXIO_", "SINCH_", ...] }.
+    Returns count of discovered keys. Full DB write occurs in the Phase 3 provider.
+    """
+    try:
+        js = await request.json()
+    except Exception:
+        js = {}
+    prefixes = js.get("prefixes") or ["PHAXIO_", "SINCH_", "S3_", "AWS_", "STORAGE_"]
+    from .config.migrate import import_env_to_db
+    count = import_env_to_db(prefixes)
+    return {"ok": True, "discovered": count, "prefixes": prefixes}
 
 
 # Provider traits and active backends — lightweight helper for clients
@@ -3109,40 +3161,82 @@ async def get_fax_pdf(job_id: str, token: str = Query(...)):
 
 @app.post("/phaxio-callback")
 async def phaxio_callback(request: Request):
-    """Handle Phaxio status callbacks."""
-    # Verify signature if enabled
-    raw_body = await request.body()
-    if settings.phaxio_verify_signature:
-        provided = request.headers.get("X-Phaxio-Signature") or request.headers.get("X-Phaxio-Signature-SHA256")
-        if not provided:
-            raise HTTPException(401, detail="Missing Phaxio signature")
-        secret = (settings.phaxio_api_secret or "").encode()
-        if not secret:
-            raise HTTPException(401, detail="Phaxio secret not configured")
-        digest = hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(digest, provided.strip().lower()):
-            raise HTTPException(401, detail="Invalid Phaxio signature")
+    """Handle Phaxio status callbacks with idempotency and fast 202 ACK.
 
-    form_data = await request.form()
-    callback_data = dict(form_data)
-    
-    # Get job ID from query params
+    - Verify webhook (trait-appropriate; non-strict mode accepts missing/invalid).
+    - Dedupe on (provider_id, external_id) via in-memory TTL and DB unique key.
+    - Update job status once, then always return 202 Accepted.
+    """
+    raw = await request.body()
+    # Trait-driven, non-strict verification (strictness gated by env for dev safety)
+    try:
+        from .config_loader import load_provider_secrets as _lps  # local import to avoid cycles
+        secrets_obj = _lps()
+        hdrs = {k: v for k, v in request.headers.items()}
+        ok = phaxio_inbound_adapter.verify_webhook(hdrs, raw, secrets_obj.phaxio_webhook_secret, strict=(settings.phaxio_verify_signature and STRICT_INBOUND))
+        if not ok and (settings.phaxio_verify_signature and STRICT_INBOUND):
+            raise HTTPException(401, detail="Invalid Phaxio signature")
+    except HTTPException:
+        # Strict mode rejects early
+        raise
+    except Exception:
+        # Fail-open for non-strict environments; we will ACK 202 but avoid processing
+        ok = False
+
+    # Parse payload (JSON or form)
+    data: Dict[str, Any] = {}
+    ctype = (request.headers.get("content-type") or "").lower()
+    if "application/json" in ctype:
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+    else:
+        try:
+            form_data = await request.form()
+            data = dict(form_data)
+        except Exception:
+            data = {}
+
+    # External id used for idempotency
+    ext_id = (
+        data.get("fax[id]")
+        or data.get("id")
+        or data.get("fax_id")
+        or data.get("faxId")
+    )
+
+    # If verification failed in non-strict mode or no external id, ACK and stop
+    if not ok or not ext_id:
+        return JSONResponse({"status": "accepted"}, status_code=202)
+
+    # In-memory dedupe window (10 minutes)
+    if _inbound_dedupe("phaxio", str(ext_id)):
+        return JSONResponse({"status": "accepted"}, status_code=202)
+
+    # DB idempotency guard (unique provider_sid + event_type)
+    with SessionLocal() as db:
+        try:
+            evt = InboundEvent(id=uuid.uuid4().hex, provider_sid=str(ext_id), event_type="phaxio-callback", created_at=datetime.utcnow())
+            db.add(evt)
+            db.commit()
+        except Exception:
+            db.rollback()
+            return JSONResponse({"status": "accepted"}, status_code=202)
+
+    # Proceed with status handling (single-shot per unique ext_id)
     job_id = request.query_params.get("job_id")
-    if not job_id:
-        return {"status": "no job_id provided"}
-    
     phaxio_service = get_phaxio_service()
-    if not phaxio_service:
-        return {"status": "phaxio not configured"}
-    
-    # Process the callback
-    status_info = await phaxio_service.handle_status_callback(callback_data)
-    
-    # Update job status
+    if not phaxio_service or not job_id:
+        return JSONResponse({"status": "accepted"}, status_code=202)
+
+    status_info = await phaxio_service.handle_status_callback(data)
+
+    # Update job status (no PHI)
     with SessionLocal() as db:
         job = db.get(FaxJob, job_id)
         if job:
-            job.status = status_info['status']
+            job.status = status_info.get('status') or job.status
             if status_info.get('error_message'):
                 job.error = status_info['error_message']
             if status_info.get('pages'):
@@ -3151,8 +3245,7 @@ async def phaxio_callback(request: Request):
             db.add(job)  # type: ignore[arg-type]
             db.commit()
     audit_event("job_updated", job_id=job_id, status=status_info.get('status'), provider="phaxio")
-    
-    return {"status": "ok"}
+    return JSONResponse({"status": "accepted"}, status_code=202)
 
 
 async def _send_via_phaxio(job_id: str, to: str, pdf_path: str):
@@ -3747,7 +3840,13 @@ async def phaxio_inbound(request: Request):
 
     if not provider_sid:
         # Accept and ignore if no provider id to avoid retries storm
-        return {"status": "ignored"}
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"status": "accepted"}, status_code=202)
+
+    # Dedupe on provider+external id within window
+    if _inbound_dedupe("phaxio", str(provider_sid)):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"status": "accepted"}, status_code=202)
 
     # Idempotency: unique (provider_sid, event_type)
     with SessionLocal() as db:
@@ -3757,9 +3856,10 @@ async def phaxio_inbound(request: Request):
             db.add(evt)
             db.commit()
         except Exception:
-            # Duplicate → ignore
+            # Duplicate DB event → accept and stop
             db.rollback()
-            return {"status": "ok"}
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"status": "accepted"}, status_code=202)
 
     # Fetch PDF if URL provided
     pdf_bytes: Optional[bytes] = None
@@ -3832,7 +3932,8 @@ async def phaxio_inbound(request: Request):
         db.add(fx)
         db.commit()
     audit_event("inbound_received", job_id=job_id, backend="phaxio")
-    return {"status": "ok"}
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"status": "accepted"}, status_code=202)
 
 
 @app.post("/sinch-inbound")
@@ -3899,7 +4000,13 @@ async def sinch_inbound(request: Request):
 
     if not provider_sid:
         # Treat as a failure so provider consoles show an error during test
-        return JSONResponse({"detail": "invalid payload: missing id"}, status_code=400)
+        # Accept but ignore to avoid retry storms; log audit
+        audit_event("inbound_invalid", provider="sinch", reason="missing id")
+        return JSONResponse({"status": "accepted"}, status_code=202)
+
+    # Dedupe on provider+external id within window
+    if _inbound_dedupe("sinch", str(provider_sid)):
+        return JSONResponse({"status": "accepted"}, status_code=202)
 
     duplicate_evt = False
     with SessionLocal() as db:
@@ -4027,7 +4134,8 @@ async def sinch_inbound(request: Request):
             db.add(fx)
             db.commit()
     audit_event("inbound_received", job_id=job_id, backend="sinch", pdf_error=pdf_error)
-    return {"status": "ok"}
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"status": "accepted"}, status_code=202)
 
 
 @app.post("/webhooks/inbound")
@@ -4547,3 +4655,27 @@ async def admin_terminal_websocket(
     
     # Handle terminal session
     await handle_terminal_websocket(websocket)
+# Optional metrics endpoint
+@app.get("/metrics")
+async def metrics_endpoint():
+    # Minimal stub; integrate Prometheus/Otel in production
+    content = "# HELP faxbot_up 1\n# TYPE faxbot_up gauge\nfaxbot_up 1\n"
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(content, media_type="text/plain; version=0.0.4")
+
+# Startup log
+import logging as _logging
+_logging.getLogger(__name__).info("/metrics ready on :8080")
+
+# Secrets fail-fast (opt-in)
+if os.getenv("ENFORCE_SECRET_CHECKS", "false").lower() in {"1","true","yes"}:
+    cmk = os.getenv("CONFIG_MASTER_KEY", "")
+    pepper = os.getenv("FAXBOT_SESSION_PEPPER", "")
+    missing = []
+    if not (cmk and len(cmk) == 44):
+        missing.append("CONFIG_MASTER_KEY(44b64)")
+    if not pepper:
+        missing.append("FAXBOT_SESSION_PEPPER")
+    if missing:
+        _logging.getLogger(__name__).error(f"Missing required secrets: {', '.join(missing)}")
+        raise SystemExit(1)

@@ -395,15 +395,22 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     const t = (title || '').toLowerCase();
     // Provider isolation
     if (t.includes('sip')) {
-      // Show only if inbound requires AMI or active provider is SIP
-      const needsAmi = Boolean(registry?.[active?.inbound || '']?.traits?.requires_ami);
-      return needsAmi || active?.outbound === 'sip' || active?.inbound === 'sip';
+      // Show only if any active provider requires AMI (trait)
+      const outboundNeedsAmi = Boolean(registry?.[active?.outbound || '']?.traits?.requires_ami);
+      const inboundNeedsAmi = Boolean(registry?.[active?.inbound || '']?.traits?.requires_ami);
+      return outboundNeedsAmi || inboundNeedsAmi;
     }
     if (t.includes('phaxio')) {
-      return active?.outbound === 'phaxio' || active?.inbound === 'phaxio';
+      // Show when active provider uses HMAC verification
+      const obVer = registry?.[active?.outbound || '']?.traits?.['webhook.verification'] || registry?.[active?.outbound || '']?.traits?.['inbound_verification'];
+      const ibVer = registry?.[active?.inbound || '']?.traits?.['webhook.verification'] || registry?.[active?.inbound || '']?.traits?.['inbound_verification'];
+      return obVer === 'hmac_sha256' || ibVer === 'hmac_sha256' || obVer === 'hmac' || ibVer === 'hmac';
     }
     if (t.includes('sinch')) {
-      return active?.outbound === 'sinch' || active?.inbound === 'sinch';
+      // Show when active provider uses Basic auth verification
+      const obVer = registry?.[active?.outbound || '']?.traits?.['webhook.verification'] || registry?.[active?.outbound || '']?.traits?.['inbound_verification'];
+      const ibVer = registry?.[active?.inbound || '']?.traits?.['webhook.verification'] || registry?.[active?.inbound || '']?.traits?.['inbound_verification'];
+      return obVer === 'basic_auth' || ibVer === 'basic_auth' || obVer === 'basic' || ibVer === 'basic';
     }
     // Always show generic sections (system, security, storage, diagnostics)
     return true;

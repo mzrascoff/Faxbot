@@ -127,7 +127,7 @@ export function useTraits(): TraitsHook {
     if (!providerId) return null;
     
     const baseUrl = window.location.origin;
-    const webhookPath = traitValue(direction, 'webhook_path');
+    const webhookPath = traitValue(direction, 'webhook.path') || traitValue(direction, 'webhook_path');
     if (webhookPath) {
       return `${baseUrl}${webhookPath}`;
     }
@@ -200,22 +200,22 @@ export function useTraits(): TraitsHook {
     if (!providerId) return [];
     
     const headers: string[] = ['-H "Content-Type: application/json"'];
-    
-    const signatureHeader = traitValue(direction, 'signature_header');
-    if (signatureHeader && secret) {
-      headers.push(`-H "${signatureHeader}: <calculated_hmac>"`);
+    const verification = traitValue(direction, 'webhook.verification') as string | undefined;
+    const verifyHeader = (traitValue(direction, 'webhook.verify_header') || traitValue(direction, 'verify_header') || traitValue(direction, 'signature_header')) as string | undefined;
+
+    if (verification === 'basic_auth') {
+      // Placeholder Basic auth; operator should replace with real creds
+      headers.push('-H "Authorization: Basic <base64(user:pass)>"');
+    } else if (verification === 'hmac_sha256') {
+      if (verifyHeader && secret) headers.push(`-H "${verifyHeader}: <calculated_hmac>"`);
+    } else if (verifyHeader && secret) {
+      headers.push(`-H "${verifyHeader}: <signature>"`);
     } else {
-      // Fallback for known providers (should be moved to traits)
-      const signatureHeaders: Record<string, string> = {
-        phaxio: 'X-Phaxio-Signature',
-        sinch: 'X-Sinch-Signature',
-        signalwire: 'X-SignalWire-Signature'
-      };
-      
-      const header = signatureHeaders[providerId];
-      if (header && secret) {
-        headers.push(`-H "${header}: <calculated_hmac>"`);
-      }
+      // Fallback for known providers (should be removed once traits are consistent)
+      const fallback: Record<string, string> = { phaxio: 'X-Phaxio-Signature', sinch: 'Authorization' };
+      const hdr = fallback[providerId];
+      if (hdr && (verification === 'basic_auth')) headers.push('-H "Authorization: Basic <base64(user:pass)>"');
+      else if (hdr && secret) headers.push(`-H "${hdr}: <signature>"`);
     }
     
     return headers;

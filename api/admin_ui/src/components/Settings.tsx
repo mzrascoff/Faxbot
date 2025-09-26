@@ -52,6 +52,9 @@ function Settings({ client }: SettingsProps) {
   const [allowRestart, setAllowRestart] = useState<boolean>(false);
   const [persistedEnabled, setPersistedEnabled] = useState<boolean>(false);
   const [docsBase, setDocsBase] = useState<string>('https://dmontgomery40.github.io/Faxbot');
+  const [migrationBanner, setMigrationBanner] = useState<boolean>(false);
+  const [importingEnv, setImportingEnv] = useState<boolean>(false);
+  const [importResult, setImportResult] = useState<{discovered:number; prefixes:string[]} | null>(null);
   const [lastGeneratedSecret, setLastGeneratedSecret] = useState<string>('');
   const { hasTrait, active } = useTraits();
   const handleForm = (field: string, value: any) => setForm((prev: any) => ({ ...prev, [field]: value }));
@@ -94,6 +97,7 @@ function Settings({ client }: SettingsProps) {
         setAllowRestart(!!cfg?.allow_restart);
         setPersistedEnabled(!!cfg?.persisted_settings_enabled);
         if (cfg?.branding?.docs_base) setDocsBase(cfg.branding.docs_base);
+        if (cfg?.migration) setMigrationBanner(Boolean(cfg.migration.banner));
         setForm((prev: any) => ({ ...prev, enable_persisted_settings: !!cfg?.persisted_settings_enabled }));
       } catch {}
     })();
@@ -134,6 +138,20 @@ function Settings({ client }: SettingsProps) {
     ) : (
       <ErrorIcon color="error" />
     );
+  };
+
+  const importEnvToDb = async () => {
+    try {
+      setImportingEnv(true);
+      setError(null);
+      const res = await client.importEnv();
+      setImportResult({ discovered: res.discovered, prefixes: res.prefixes });
+      setSnack(`Imported ${res.discovered} environment keys.`);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to import env');
+    } finally {
+      setImportingEnv(false);
+    }
   };
 
   const handleApplySettings = async () => {
@@ -219,6 +237,22 @@ function Settings({ client }: SettingsProps) {
 
   return (
     <Box>
+      {migrationBanner && (
+        <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={importEnvToDb} disabled={importingEnv}>
+              {importingEnv ? 'Importing…' : 'Import env → DB'}
+            </Button>
+          }
+        >
+          Using .env fallback; importing env keys to the database is recommended for live systems.
+          {importResult && (
+            <Box component="span" sx={{ ml: 1 }}>
+              Imported {importResult.discovered} keys
+            </Box>
+          )}
+        </Alert>
+      )}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
           Settings
