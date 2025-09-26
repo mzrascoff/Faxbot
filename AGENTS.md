@@ -1,5 +1,7 @@
 # AGENTS.md - Critical Instructions for AI Assistants
 
+## ⚠️ MANDATORY: Read [AGENT_BRANCH_POLICY.md](./AGENT_BRANCH_POLICY.md) - Stop creating unnecessary branches!
+
 # CRITICAL: V4 MIGRATION IN PROGRESS
 **FOR ANYTHING RELATED TO V4 AND THE MULTIPHASE V4 PLAN, STAY IN THE auto-tunnel branch**
 
@@ -183,6 +185,8 @@ logger.info(f"Sending fax job {job_id}")
 
 ## Branch Policy (V4 Critical)
 
+**📚 SEE ALSO: [AGENT_BRANCH_POLICY.md](./AGENT_BRANCH_POLICY.md) for branch creation/deletion rules**
+
 | Work Type | Target Branch | Notes |
 |-----------|---------------|-------|
 | **Core API/MCP/Docs** | `auto-tunnel` | All v4 work (Phases 1–5). Merge to `development` via PR after green CI |
@@ -191,7 +195,27 @@ logger.info(f"Sending fax job {job_id}")
 | **iOS App** | `iOS` | App-specific |
 | **Production** | `main` | **NEVER WORK IN MAIN** |
 
+### Branch Cleanup Tools
+```bash
+# Clean up unused branches left by agents
+./scripts/cleanup_branches_auto.sh
+
+# List all branches for review
+git branch -r | grep -v HEAD | sed 's/origin//'
+```
+
 ## Quick Scripts (Keep Updated)
+
+### Check CI Status (Understanding Red X's)
+```bash
+# See what's actually failing and why
+./scripts/check_ci_status.sh
+
+# Quick check if CI is passing the REQUIRED checks
+bash scripts/ci/greps.sh
+```
+**Note:** Red X's from external services (Project preview, Scorecard, etc.) are NOT blocking merges!
+They're from GitHub Apps that can be removed at: Settings > Installations
 
 ### One-Command API Docs Refresh
 ```bash
@@ -203,6 +227,15 @@ scripts/publish-api-docs.sh
 ```bash
 # From faxbot.net repo
 ./scripts/update-demo.sh --force-main
+```
+
+### Branch Cleanup (Remove Agent-Created Mess)
+```bash
+# Auto-delete unused branches left by AI agents
+./scripts/cleanup_branches_auto.sh
+
+# Interactive cleanup with review
+./scripts/cleanup_all_branches.sh
 ```
 
 ## V4 Migration Checklist
@@ -280,15 +313,23 @@ Dev: Docker Compose is canonical. Prod: Kubernetes. Bare-metal is unsupported to
 
 ## CI Guardrails
 
-- OpenAPI diff against pinned snapshot (fail on route/schema drift).
+### ✅ REQUIRED Checks (These block merging)
+- OpenAPI diff against pinned snapshot (fail on route/schema drift)
 - Traits JSON-Schema validation (fail on non-canonical keys/types):
   - `webhook.path` (string), `webhook.verification` (`hmac_sha256|basic_auth|none`), `webhook.verify_header` (string)
   - `auth.methods` (array of enums), `regions` (array)
-- Grep checks:
-  - No provider name checks in UI: `rg -n "=== 'sinch'|=== 'phaxio'|=== 'sip'" api/admin_ui/src`
-  - Require 202 in callback handlers: `rg -n "/(phaxio|sinch).*return.*202" api/app`
-  - No duplicate health monitors: `rg -n "class .*ProviderHealthMonitor" api/app`
+- Grep checks (now using standard `grep` not `rg`):
+  - No provider name checks in UI: `grep -r "=== 'sinch'|=== 'phaxio'|=== 'sip'" api/admin_ui/src`
+  - Require 202 in callback handlers: `grep -r "/(phaxio|sinch).*return.*202" api/app`
+  - No duplicate health monitors: `grep -r "class .*ProviderHealthMonitor" api/app`
   - Secrets present in env/k8s: `CONFIG_MASTER_KEY|FAXBOT_SESSION_PEPPER`
+
+### ❌ EXTERNAL Checks (Red X's that DON'T block merging)
+- **Project preview** - Deployment preview services (Vercel/Netlify)
+- **Scorecard** - OpenSSF security scoring
+- **Respect Monitoring** - External monitoring service
+
+**To remove annoying external checks:** GitHub Settings > Installations > Remove unwanted apps
 
 ## North Star
 
