@@ -4780,6 +4780,84 @@ async def sinch_inbound(request: Request):
     return _ack_response({"status": "ok"})
 
 
+@app.post("/inbound/humblefax/webhook")
+@requires_traits(direction="inbound", keys=["supports_inbound"])
+async def humblefax_inbound(request: Request):
+    """HumbleFax inbound webhook (202 ACK + idempotency; optional HMAC verification).
+
+    - Accepts JSON payloads and ignores unknown fields.
+    - Optional signature verification with `HUMBLEFAX_WEBHOOK_SECRET`.
+    - Dedupe by (provider, external id) with in-memory TTL and DB unique guard.
+    - No PHI is logged; only event ids.
+    """
+    raw = await request.body()
+    # Optional HMAC verification
+    secret = os.getenv("HUMBLEFAX_WEBHOOK_SECRET", "")
+    if secret:
+        sig = (
+            request.headers.get("X-Humblefax-Signature")
+            or request.headers.get("X-HumbleFax-Signature")
+            or request.headers.get("X-HF-Signature")
+            or request.headers.get("X-Signature")
+        )
+        if sig:
+            try:
+                provided = sig.strip()
+                if provided.startswith("sha256="):
+                    provided = provided.split("=", 1)[1]
+                mac = hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+                ok = hmac.compare_digest(mac, provided)
+                if not ok and STRICT_INBOUND:
+                    raise HTTPException(401, detail="Invalid signature (HumbleFax)")
+            except HTTPException:
+                raise
+            except Exception:
+                if STRICT_INBOUND:
+                    raise HTTPException(401, detail="Signature verification error (HumbleFax)")
+
+    # Parse JSON only; providers commonly send JSON
+    data: Dict[str, Any] = {}
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    ext_id = (
+        data.get("faxId")
+        or data.get("id")
+        or data.get("fax_id")
+    )
+    if not ext_id:
+        # ACK silently to avoid retry storms
+        audit_event("inbound_invalid", provider="humblefax", reason="missing id")
+        return _ack_response()
+
+    # In-memory dedupe window (10 minutes)
+    if _inbound_dedupe("humblefax", str(ext_id)):
+        return _ack_response()
+
+    # DB idempotency guard (unique provider_sid + event_type)
+    duplicate_evt = False
+    with SessionLocal() as db:
+        try:
+            evt = InboundEvent(id=uuid.uuid4().hex, provider_sid=str(ext_id), event_type="humblefax-inbound", created_at=datetime.utcnow())
+            db.add(evt)
+            db.commit()
+        except Exception:
+            db.rollback()
+            duplicate_evt = True
+
+    if duplicate_evt:
+        return _ack_response()
+
+    # Minimal audit trail without PHI
+    try:
+        audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
+    except Exception:
+        pass
+    return _ack_response({"status": "ok"})
+
+
 @app.post("/webhooks/inbound")
 async def unified_inbound(request: Request, provider: Optional[str] = Query(default=None)):
     """Unified inbound endpoint with provider autodetect.
