@@ -108,6 +108,25 @@ class PluginManager:
         # SIP adapter intentionally not implemented in the safe skeleton
         raise NotImplementedError("SIP/Asterisk adapter not available in skeleton manager")
 
+    # --- New: stable getters for type + id to avoid brittle display names ---
+    def get_by_type_and_id(self, plugin_type: str, plugin_id: str) -> Any:
+        """Return a plugin/adapter by type and id. For now, only 'transport' is supported."""
+        ptype = (plugin_type or "").lower()
+        pid = (plugin_id or "").lower()
+        if ptype == "transport":
+            if pid == "phaxio":
+                return PhaxioAdapter()
+            if pid == "sinch":
+                return SinchAdapter()
+        raise KeyError(f"Unknown plugin: {plugin_type}:{plugin_id}")
+
+    def get_active_by_type(self, plugin_type: str) -> Any:
+        """Return the currently active plugin for a given type."""
+        ptype = (plugin_type or "").lower()
+        if ptype == "transport":
+            return self.get_outbound_adapter()
+        raise NotImplementedError(f"Unsupported plugin type: {plugin_type}")
+
 
 _manager: Optional[PluginManager] = None
 
@@ -117,4 +136,3 @@ def get_plugin_manager() -> PluginManager:
     if _manager is None:
         _manager = PluginManager()
     return _manager
-

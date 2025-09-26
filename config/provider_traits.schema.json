@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "_schema": { "type": "object", "additionalProperties": true }
+  },
+  "patternProperties": {
+    "^(?!_)[a-z0-9_-]+$": {
+      "type": "object",
+      "required": ["id", "traits"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "traits": {
+          "type": "object",
+          "properties": {
+            "send_fax": { "type": "boolean" },
+            "status_callback": { "type": "boolean" },
+            "inbound_supported": { "type": "boolean" },
+            "webhook": {
+              "type": "object",
+              "properties": {
+                "path": { "type": "string" },
+                "verification": { "enum": ["hmac_sha256", "basic_auth", "none"] },
+                "verify_header": { "type": "string" }
+              },
+              "required": ["path", "verification"],
+              "additionalProperties": true
+            },
+            "auth": {
+              "type": "object",
+              "properties": {
+                "methods": {
+                  "type": "array",
+                  "items": { "enum": ["basic", "oauth2"] }
+                }
+              },
+              "required": ["methods"],
+              "additionalProperties": true
+            },
+            "regions": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

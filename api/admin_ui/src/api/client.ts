@@ -42,6 +42,15 @@ export class AdminAPIClient {
     return res.json();
   }
 
+  async importEnv(prefixes?: string[]): Promise<{ ok: boolean; discovered: number; prefixes: string[] }>{
+    const body = prefixes && prefixes.length ? { prefixes } : {};
+    const res = await this.fetch('/admin/config/import-env', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  }
+
   async getSettings(): Promise<Settings> {
     const res = await this.fetch('/admin/settings');
     return res.json();

@@ -1,0 +1,61 @@
+name: OpenAPI Diff Guardrail
+
+on:
+  push:
+    branches: [ auto-tunnel ]
+  pull_request:
+    branches: [ auto-tunnel ]
+
+jobs:
+  openapi-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps (API)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r api/requirements.txt
+
+      - name: Generate OpenAPI JSON (FastAPI app.openapi)
+        run: |
+          python - << 'PY'
+          import os, sys, json
+          # Ensure we can import from api/
+          sys.path.insert(0, 'api')
+          # Safe defaults to avoid external services during generation
+          os.environ.setdefault('FAXBOT_TEST_MODE', 'true')
+          os.environ.setdefault('FAX_DISABLED', 'true')
+          os.environ.setdefault('DATABASE_URL', 'sqlite:///./test_openapi_ci.db')
+          try:
+              from app.main import app
+          except Exception as e:
+              print(f"Failed to import FastAPI app: {e}")
+              raise
+          spec = app.openapi()
+          with open('openapi.json', 'w') as f:
+              json.dump(spec, f, indent=2)
+          print('✅ Generated openapi.json')
+          PY
+
+      - name: Use pinned snapshot if present
+        run: |
+          if [ -f docs/pinned-openapi.json ]; then
+            cp docs/pinned-openapi.json openapi_snapshot.json
+            echo "Using pinned snapshot: docs/pinned-openapi.json"
+          else
+            echo "No pinned snapshot at docs/pinned-openapi.json; diff will skip (green)."
+          fi
+
+      - name: Diff against pinned snapshot
+        run: |
+          python scripts/ci/diff_openapi.py
+

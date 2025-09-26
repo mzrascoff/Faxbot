@@ -12,6 +12,8 @@ interface TraitsHook {
   getSamplePayload: (direction: 'inbound' | 'outbound') => string;
   getProviderHeaders: (direction: 'inbound' | 'outbound', secret?: string) => string[];
   refresh: () => Promise<void>;
+  outboundTraits: Record<string, any> | null;
+  inboundTraits: Record<string, any> | null;
 }
 
 // Global cache to avoid multiple API calls
@@ -97,28 +99,31 @@ export function useTraits(): TraitsHook {
     load();
   }, [fetchProviders]);
 
+  // Dot-path getter
+  const dotGet = (obj: any, path: string) => {
+    try {
+      return path.split('.').reduce((acc: any, k: string) => (acc && acc[k] !== undefined ? acc[k] : undefined), obj);
+    } catch {
+      return undefined;
+    }
+  };
+
   const hasTrait = useCallback((direction: 'outbound' | 'inbound', key: string): boolean => {
     if (!providers?.active || !providers?.registry) return false;
-    
     const activeProvider = providers.active[direction];
     if (!activeProvider) return false;
-    
     const providerInfo = providers.registry[activeProvider];
     if (!providerInfo?.traits) return false;
-    
-    return key in providerInfo.traits;
+    return dotGet(providerInfo.traits, key) !== undefined;
   }, [providers]);
 
   const traitValue = useCallback((direction: 'outbound' | 'inbound', key: string): any => {
     if (!providers?.active || !providers?.registry) return undefined;
-    
     const activeProvider = providers.active[direction];
     if (!activeProvider) return undefined;
-    
     const providerInfo = providers.registry[activeProvider];
     if (!providerInfo?.traits) return undefined;
-    
-    return providerInfo.traits[key];
+    return dotGet(providerInfo.traits, key);
   }, [providers]);
 
   const getWebhookUrl = useCallback((direction: 'inbound' | 'outbound'): string | null => {
@@ -127,7 +132,7 @@ export function useTraits(): TraitsHook {
     if (!providerId) return null;
     
     const baseUrl = window.location.origin;
-    const webhookPath = traitValue(direction, 'webhook_path');
+    const webhookPath = traitValue(direction, 'webhook.path') || traitValue(direction, 'webhook_path');
     if (webhookPath) {
       return `${baseUrl}${webhookPath}`;
     }
@@ -200,26 +205,29 @@ export function useTraits(): TraitsHook {
     if (!providerId) return [];
     
     const headers: string[] = ['-H "Content-Type: application/json"'];
-    
-    const signatureHeader = traitValue(direction, 'signature_header');
-    if (signatureHeader && secret) {
-      headers.push(`-H "${signatureHeader}: <calculated_hmac>"`);
+    const verification = traitValue(direction, 'webhook.verification') as string | undefined;
+    const verifyHeader = (traitValue(direction, 'webhook.verify_header') || traitValue(direction, 'verify_header') || traitValue(direction, 'signature_header')) as string | undefined;
+
+    if (verification === 'basic_auth') {
+      // Placeholder Basic auth; operator should replace with real creds
+      headers.push('-H "Authorization: Basic <base64(user:pass)>"');
+    } else if (verification === 'hmac_sha256') {
+      if (verifyHeader && secret) headers.push(`-H "${verifyHeader}: <calculated_hmac>"`);
+    } else if (verifyHeader && secret) {
+      headers.push(`-H "${verifyHeader}: <signature>"`);
     } else {
-      // Fallback for known providers (should be moved to traits)
-      const signatureHeaders: Record<string, string> = {
-        phaxio: 'X-Phaxio-Signature',
-        sinch: 'X-Sinch-Signature',
-        signalwire: 'X-SignalWire-Signature'
-      };
-      
-      const header = signatureHeaders[providerId];
-      if (header && secret) {
-        headers.push(`-H "${header}: <calculated_hmac>"`);
-      }
+      // Fallback for known providers (should be removed once traits are consistent)
+      const fallback: Record<string, string> = { phaxio: 'X-Phaxio-Signature', sinch: 'Authorization' };
+      const hdr = fallback[providerId];
+      if (hdr && (verification === 'basic_auth')) headers.push('-H "Authorization: Basic <base64(user:pass)>"');
+      else if (hdr && secret) headers.push(`-H "${hdr}: <signature>"`);
     }
     
     return headers;
   }, [providers, traitValue]);
+
+  const outboundId = providers?.active?.['outbound'] as string | undefined;
+  const inboundId = providers?.active?.['inbound'] as string | undefined;
 
   return {
     loading,
@@ -232,6 +240,8 @@ export function useTraits(): TraitsHook {
     getSamplePayload,
     getProviderHeaders,
     refresh,
+    outboundTraits: outboundId && providers?.registry?.[outboundId]?.traits || null,
+    inboundTraits: inboundId && providers?.registry?.[inboundId]?.traits || null,
   };
 }
 
