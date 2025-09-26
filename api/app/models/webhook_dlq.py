@@ -5,7 +5,7 @@ The DLQ captures webhook callbacks that fail to process after retry attempts,
 storing essential metadata for debugging and reprocessing.
 """
 
-from sqlalchemy import Column, String, Text, DateTime, func
+from sqlalchemy import Column, String, Text, DateTime, func, Index
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -36,6 +36,14 @@ class WebhookDLQ(Base):
     retry_count = Column(String(10), nullable=False, default='0')
     last_retry_at = Column(DateTime(), nullable=True)
     next_retry_at = Column(DateTime(), nullable=True)
+
+    # Indexes for performance
+    __table_args__ = (
+        Index('ix_webhook_dlq_provider_id', 'provider_id'),
+        Index('ix_webhook_dlq_status', 'status'),
+        Index('ix_webhook_dlq_external_id', 'external_id'),
+        Index('ix_webhook_dlq_next_retry_at', 'next_retry_at'),
+    )
 
     def __init__(self, provider_id: str, external_id: Optional[str] = None,
                  error: Optional[str] = None, headers_meta: Optional[Dict[str, Any]] = None,
