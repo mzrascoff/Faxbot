@@ -48,6 +48,7 @@ from .auth import verify_db_key, create_api_key, list_api_keys, revoke_api_key, 
 from .plugins.http_provider import HttpManifest, HttpProviderRuntime
 from .utils.observability import log_event
 from .signalwire_service import get_signalwire_service
+import logging as _logging
 
 # v3 plugins (feature-gated)
 try:
@@ -81,6 +82,15 @@ app = FastAPI(
 # Expose phaxio_service module for tests that reference app.phaxio_service
 from . import phaxio_service as _phaxio_module  # noqa: E402
 app.phaxio_service = _phaxio_module  # type: ignore[attr-defined]
+
+# Log documented credential fallbacks (no secret values)
+try:
+    if not os.getenv("SINCH_API_KEY") and os.getenv("PHAXIO_API_KEY") and settings.sinch_api_key:
+        _logging.getLogger(__name__).info("Using documented PHAXIO_* fallback for SINCH_API_KEY")
+    if not os.getenv("SINCH_API_SECRET") and os.getenv("PHAXIO_API_SECRET") and settings.sinch_api_secret:
+        _logging.getLogger(__name__).info("Using documented PHAXIO_* fallback for SINCH_API_SECRET")
+except Exception:
+    pass
 
 
 PHONE_RE = re.compile(r"^[+]?\d{6,20}$")
