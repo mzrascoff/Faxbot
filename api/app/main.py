@@ -854,6 +854,77 @@ def get_admin_settings():
         },
     }
 
+# === Read-only effective config (env/default; DB in Phase 3) ===
+class EffectiveConfigOut(BaseModel):
+    schema_version: int
+    values: Dict[str, Dict[str, Any]]
+
+
+@app.get("/admin/config/effective", dependencies=[Depends(require_admin)])
+def admin_config_effective() -> EffectiveConfigOut:
+    def src(env_key: str, default: Any) -> dict[str, Any]:  # type: ignore
+        val = os.getenv(env_key)
+        return {"key": env_key, "value": (val if val is not None else default), "source": ("env" if val is not None else "default")}
+
+    values: Dict[str, Dict[str, Any]] = {
+        "FAX_BACKEND": src("FAX_BACKEND", settings.fax_backend),
+        "FAX_OUTBOUND_BACKEND": src("FAX_OUTBOUND_BACKEND", os.getenv("FAX_BACKEND", settings.fax_backend)),
+        "FAX_INBOUND_BACKEND": src("FAX_INBOUND_BACKEND", os.getenv("FAX_BACKEND", settings.fax_backend)),
+        "PUBLIC_API_URL": src("PUBLIC_API_URL", settings.public_api_url),
+        # Provider creds presence only (no PHI)
+        "PHAXIO_API_KEY": {"key": "PHAXIO_API_KEY", "value": bool(settings.phaxio_api_key), "source": ("env" if os.getenv("PHAXIO_API_KEY") else "default")},
+        "PHAXIO_API_SECRET": {"key": "PHAXIO_API_SECRET", "value": bool(settings.phaxio_api_secret), "source": ("env" if os.getenv("PHAXIO_API_SECRET") else "default")},
+        "SINCH_PROJECT_ID": {"key": "SINCH_PROJECT_ID", "value": bool(settings.sinch_project_id), "source": ("env" if os.getenv("SINCH_PROJECT_ID") else "default")},
+        "SINCH_API_KEY": {"key": "SINCH_API_KEY", "value": bool(settings.sinch_api_key), "source": ("env" if os.getenv("SINCH_API_KEY") else "default")},
+        "SINCH_API_SECRET": {"key": "SINCH_API_SECRET", "value": bool(settings.sinch_api_secret), "source": ("env" if os.getenv("SINCH_API_SECRET") else "default")},
+        # Storage
+        "STORAGE_BACKEND": src("STORAGE_BACKEND", settings.storage_backend),
+        "S3_BUCKET": {"key": "S3_BUCKET", "value": bool(settings.s3_bucket), "source": ("env" if os.getenv("S3_BUCKET") else "default")},
+        "S3_REGION": src("S3_REGION", settings.s3_region),
+        "S3_ENDPOINT_URL": src("S3_ENDPOINT_URL", settings.s3_endpoint_url),
+        "S3_KMS_KEY_ID": src("S3_KMS_KEY_ID", settings.s3_kms_key_id),
+    }
+    return EffectiveConfigOut(schema_version=1, values=values)
+
+
+class ProviderTestOut(BaseModel):
+    success: bool
+    message: str
+    latency_ms: float
+
+
+@app.post("/admin/providers/{provider_id}/test", dependencies=[Depends(require_admin)])
+async def admin_provider_test(provider_id: str) -> ProviderTestOut:
+    import time as _time
+    t0 = _time.perf_counter()
+    pid = (provider_id or "").strip().lower()
+    ok = False
+    msg = ""
+    try:
+        if pid == "phaxio":
+            ok = bool(settings.phaxio_api_key and settings.phaxio_api_secret)
+            msg = "credentials present" if ok else "missing PHAXIO_API_KEY/PHAXIO_API_SECRET"
+        elif pid == "sinch":
+            ok = bool(settings.sinch_project_id and settings.sinch_api_key and settings.sinch_api_secret)
+            msg = "credentials present" if ok else "missing SINCH_PROJECT_ID/API_KEY/API_SECRET"
+        elif pid in {"sip", "asterisk"}:
+            ok = bool(settings.ami_password and settings.ami_host)
+            msg = "AMI configured" if ok else "AMI host/password not configured"
+        elif pid == "s3":
+            ok = bool(settings.s3_bucket)
+            msg = "bucket configured" if ok else "S3_BUCKET missing"
+        elif pid == "local":
+            ok = True
+            msg = "local storage ready"
+        else:
+            ok = True
+            msg = "no-op test"
+    except Exception as e:
+        ok = False
+        msg = str(e)
+    dt = max(0.0, (_time.perf_counter() - t0) * 1000.0)
+    return ProviderTestOut(success=ok, message=msg, latency_ms=round(dt, 2))
+
 
 class ValidateSettingsRequest(BaseModel):
     backend: str
