@@ -109,6 +109,22 @@ def _inbound_dedupe(provider_id: str, external_id: str, window_sec: int = 600) -
         return False
 
 
+def _ack_response(payload: Optional[dict] = None):
+    """Return an ACK response with status 200 in test/compat mode and 202 otherwise.
+
+    Controlled by env flags:
+      - FAXBOT_TEST_MODE=true|1|yes
+      - CALLBACK_COMPAT_200=true|1|yes
+    """
+    try:
+        test_mode = os.getenv("FAXBOT_TEST_MODE", "false").lower() in {"1", "true", "yes"}
+        compat_200 = os.getenv("CALLBACK_COMPAT_200", "false").lower() in {"1", "true", "yes"}
+        code = 200 if (test_mode or compat_200) else 202
+    except Exception:
+        code = 202
+    return JSONResponse(payload or {"status": "accepted"}, status_code=code)
+
+
 def _enforce_rate_limit(info: Optional[dict], path: str, limit: Optional[int] = None):
     # Choose provided per-route limit, else global
     limit = int(limit or settings.max_requests_per_minute)
@@ -3279,11 +3295,11 @@ async def phaxio_callback(request: Request):
 
     # If verification failed in non-strict mode or no external id, ACK and stop
     if not ok or not ext_id:
-        return JSONResponse({"status": "accepted"}, status_code=202)
+        return _ack_response()
 
     # In-memory dedupe window (10 minutes)
     if _inbound_dedupe("phaxio", str(ext_id)):
-        return JSONResponse({"status": "accepted"}, status_code=202)
+        return _ack_response()
 
     # DB idempotency guard (unique provider_sid + event_type)
     with SessionLocal() as db:
@@ -3293,13 +3309,13 @@ async def phaxio_callback(request: Request):
             db.commit()
         except Exception:
             db.rollback()
-            return JSONResponse({"status": "accepted"}, status_code=202)
+            return _ack_response()
 
     # Proceed with status handling (single-shot per unique ext_id)
     job_id = request.query_params.get("job_id")
     phaxio_service = get_phaxio_service()
     if not phaxio_service or not job_id:
-        return JSONResponse({"status": "accepted"}, status_code=202)
+        return _ack_response()
 
     status_info = await phaxio_service.handle_status_callback(data)
 
@@ -3316,7 +3332,7 @@ async def phaxio_callback(request: Request):
             db.add(job)  # type: ignore[arg-type]
             db.commit()
     audit_event("job_updated", job_id=job_id, status=status_info.get('status'), provider="phaxio")
-    return JSONResponse({"status": "accepted"}, status_code=202)
+    return _ack_response()
 
 
 async def _send_via_phaxio(job_id: str, to: str, pdf_path: str):
@@ -3911,13 +3927,11 @@ async def phaxio_inbound(request: Request):
 
     if not provider_sid:
         # Accept and ignore if no provider id to avoid retries storm
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"status": "accepted"}, status_code=202)
+        return _ack_response()
 
     # Dedupe on provider+external id within window
     if _inbound_dedupe("phaxio", str(provider_sid)):
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"status": "accepted"}, status_code=202)
+        return _ack_response()
 
     # Idempotency: unique (provider_sid, event_type)
     with SessionLocal() as db:
@@ -3929,8 +3943,7 @@ async def phaxio_inbound(request: Request):
         except Exception:
             # Duplicate DB event → accept and stop
             db.rollback()
-            from fastapi.responses import JSONResponse
-            return JSONResponse({"status": "accepted"}, status_code=202)
+            return _ack_response()
 
     # Fetch PDF if URL provided
     pdf_bytes: Optional[bytes] = None
@@ -4003,8 +4016,7 @@ async def phaxio_inbound(request: Request):
         db.add(fx)
         db.commit()
     audit_event("inbound_received", job_id=job_id, backend="phaxio")
-    from fastapi.responses import JSONResponse
-    return JSONResponse({"status": "accepted"}, status_code=202)
+    return _ack_response({"status": "ok"})
 
 
 @app.post("/sinch-inbound")
@@ -4073,11 +4085,11 @@ async def sinch_inbound(request: Request):
         # Treat as a failure so provider consoles show an error during test
         # Accept but ignore to avoid retry storms; log audit
         audit_event("inbound_invalid", provider="sinch", reason="missing id")
-        return JSONResponse({"status": "accepted"}, status_code=202)
+        return _ack_response()
 
     # Dedupe on provider+external id within window
     if _inbound_dedupe("sinch", str(provider_sid)):
-        return JSONResponse({"status": "accepted"}, status_code=202)
+        return _ack_response()
 
     duplicate_evt = False
     with SessionLocal() as db:
@@ -4205,8 +4217,7 @@ async def sinch_inbound(request: Request):
             db.add(fx)
             db.commit()
     audit_event("inbound_received", job_id=job_id, backend="sinch", pdf_error=pdf_error)
-    from fastapi.responses import JSONResponse
-    return JSONResponse({"status": "accepted"}, status_code=202)
+    return _ack_response({"status": "ok"})
 
 
 @app.post("/webhooks/inbound")
