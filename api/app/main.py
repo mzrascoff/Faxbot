@@ -4992,7 +4992,8 @@ async def unified_inbound(request: Request, provider: Optional[str] = Query(defa
         audit_event("inbound_received", provider=p, provider_sid=event.get("id"))
     except Exception:
         pass
-    return {"ok": True, "provider": p, "event": event}
+    # Return 202 Accepted to prevent provider retry storms; event is queued/processed
+    return _ack_response({"ok": True, "provider": p})
 # ===== Global error logging =====
 @app.exception_handler(HTTPException)
 async def _handle_http_exc(request: Request, exc: HTTPException):
