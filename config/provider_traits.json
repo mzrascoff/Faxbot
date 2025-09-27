@@ -54,6 +54,7 @@
       "webhook.path": "/sinch-inbound",
       "webhook.verify_header": "Authorization",
       "auth.methods": ["basic", "oauth2"],
+      "regions": ["global", "us", "eu"],
       "env.fallback": "SINCH_*=PHAXIO_*",
       "sample_payload": {
         "eventType": "INBOUND_FAX_COMPLETED",
