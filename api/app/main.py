@@ -376,7 +376,7 @@ except Exception:
 
 # Provider health management router
 try:
-from .routers import admin_providers as _providers
+    from .routers import admin_providers as _providers
     app.include_router(_providers.router)
 except Exception:
     # Non-fatal if health monitoring deps missing
