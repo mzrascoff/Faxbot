@@ -11,8 +11,8 @@ from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from api.app.main import require_admin
-from api.app.monitoring.health import ProviderHealthMonitor
+from app.main import require_admin
+from app.monitoring.health import ProviderHealthMonitor
 
 
 router = APIRouter(prefix="/admin/providers", tags=["Provider Health"], dependencies=[Depends(require_admin)])
