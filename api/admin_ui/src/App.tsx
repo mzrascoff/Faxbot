@@ -783,7 +783,7 @@ function AppContent() {
                   <Settings client={client!} readOnly={!hasTrait('role.admin')} />
                 </Box>
               )}
-              {settingsTab === 2 && <ConfigurationManager client={client!} docsBase={uiConfig?.docs_base || adminConfig?.branding?.docs_base} />}
+              {settingsTab === 2 && <ConfigurationManager client={client!} />}
               {settingsTab === 3 && <ApiKeys client={client!} readOnly={!hasTrait('role.admin')} />}
               {settingsTab === 4 && <UserManagement client={client!} />}
               {settingsTab === 5 && <MCP client={client!} />}

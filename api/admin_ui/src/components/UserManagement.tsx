@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Typography, Paper, Alert, Button, TextField, Table, TableHead, TableRow, TableCell, TableBody, Stack } from '@mui/material';
 import AdminAPIClient from '../api/client';
 
@@ -110,4 +110,3 @@ export default function UserManagement({ client }: Props) {
     </Paper>
   );
 }
-
