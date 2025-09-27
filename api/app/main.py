@@ -905,6 +905,38 @@ def health_ready():
     )
 
 
+@app.get("/admin/health-status", dependencies=[Depends(require_admin)])
+async def admin_health_status():
+    """Return provider health summary (alias for /admin/providers/health)."""
+    try:
+        from .routers.admin_providers import get_provider_health_status  # type: ignore
+        from fastapi import Request as _Req
+        # Fabricate a minimal Request-like object with app reference
+        class _R:
+            def __init__(self, app):
+                self.app = app
+        return await get_provider_health_status(_R(app))  # type: ignore
+    except Exception:
+        hm = getattr(app.state, "health_monitor", None)
+        if not hm:
+            raise HTTPException(503, detail="Health monitor not available")
+        statuses = await hm.get_provider_statuses()
+        # Summarize
+        counts = {k: 0 for k in ["healthy", "degraded", "circuit_open", "disabled"]}
+        for s in statuses.values():
+            st = s.get("status", "healthy")
+            if st in counts:
+                counts[st] += 1
+        return {
+            "provider_statuses": statuses,
+            "total_providers": len(statuses),
+            "healthy_count": counts["healthy"],
+            "degraded_count": counts["degraded"],
+            "circuit_open_count": counts["circuit_open"],
+            "disabled_count": counts["disabled"],
+        }
+
+
 def require_api_key(request: Request, x_api_key: Optional[str] = Header(default=None)):
     """Authenticate request using either env API_KEY or DB-backed key.
     Behavior:

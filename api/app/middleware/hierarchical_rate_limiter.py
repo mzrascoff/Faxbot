@@ -212,10 +212,18 @@ class HierarchicalRateLimiter(BaseHTTPMiddleware):
             "retry_after_seconds": retry_after
         }
 
+        # Compute seconds until window reset; fall back to retry_after on error
+        try:
+            now = int(time.time())
+            seconds = 60 - (now % 60)
+        except Exception:
+            seconds = retry_after
+
         headers = {
             "Retry-After": str(retry_after),
             "X-RateLimit-Limit": str(limit),
             "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": str(seconds),
         }
 
         return Response(
@@ -224,3 +232,12 @@ class HierarchicalRateLimiter(BaseHTTPMiddleware):
             headers=headers,
             media_type="application/json"
         )
+
+    def remaining_for(self, bucket_key: str, limit: int) -> int:
+        try:
+            bucket = self.rate_buckets.get(bucket_key, {"count": 0})
+            used = int(bucket.get("count", 0))
+            remaining = max(0, limit - used)
+            return remaining
+        except Exception:
+            return 0
