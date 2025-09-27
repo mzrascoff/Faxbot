@@ -63,3 +63,6 @@ vendor/
 .bundle/
 
 .venv_ci/
+
+# Internal, non-public plans and notes
+internal_docs/
