@@ -50,6 +50,7 @@ import JobsList from './components/JobsList';
 import Plugins from './components/Plugins';
 import ApiKeys from './components/ApiKeys';
 import Settings from './components/Settings';
+import UserManagement from './components/UserManagement';
 import Diagnostics from './components/Diagnostics';
 import MCP from './components/MCP';
 import Logs from './components/Logs';
@@ -298,6 +299,7 @@ function AppContent() {
     { label: 'Settings', icon: <SettingsIcon /> },
     { label: 'Configuration', icon: <TuneIcon /> },
     { label: 'Keys', icon: <VpnKeyIcon /> },
+    { label: 'Users', icon: <VpnKeyIcon /> },
     { label: 'MCP', icon: <CodeIcon /> },
   ];
 
@@ -783,7 +785,8 @@ function AppContent() {
               )}
               {settingsTab === 2 && <ConfigurationManager client={client!} docsBase={uiConfig?.docs_base || adminConfig?.branding?.docs_base} />}
               {settingsTab === 3 && <ApiKeys client={client!} readOnly={!hasTrait('role.admin')} />}
-              {settingsTab === 4 && <MCP client={client!} />}
+              {settingsTab === 4 && <UserManagement client={client!} />}
+              {settingsTab === 5 && <MCP client={client!} />}
             </Box>
           </Paper>
         </TabPanel>

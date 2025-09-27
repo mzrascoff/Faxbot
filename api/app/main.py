@@ -376,7 +376,7 @@ except Exception:
 
 # Provider health management router
 try:
-    from .routers import admin_providers as _providers
+from .routers import admin_providers as _providers
     app.include_router(_providers.router)
 except Exception:
     # Non-fatal if health monitoring deps missing
@@ -5550,3 +5550,9 @@ if os.getenv("ENFORCE_SECRET_CHECKS", "false").lower() in {"1","true","yes"}:
     if missing:
         _logging.getLogger(__name__).error(f"Missing required secrets: {', '.join(missing)}")
         raise SystemExit(1)
+    # Admin users (minimal)
+    try:
+        from .routers import admin_users as _admin_users
+        app.include_router(_admin_users.router)
+    except Exception:
+        pass

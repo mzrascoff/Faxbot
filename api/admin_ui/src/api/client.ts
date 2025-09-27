@@ -201,6 +201,28 @@ export class AdminAPIClient {
     return res.json();
   }
 
+  // Admin Users
+  async listUsers(): Promise<{ users: Array<{ id: string; username: string; display_name?: string; email?: string; is_active: boolean; created_at?: string }> }> {
+    const res = await this.fetch('/admin/users');
+    return res.json();
+  }
+
+  async createUser(payload: { username: string; password: string; display_name?: string; email?: string }): Promise<any> {
+    const res = await this.fetch('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  }
+
+  async patchUser(id: string, payload: { display_name?: string; email?: string; is_active?: boolean }): Promise<any> {
+    const res = await this.fetch(`/admin/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  }
+
   async getHealthStatus(): Promise<HealthStatus> {
     const res = await this.fetch('/admin/health-status');
     return res.json();
