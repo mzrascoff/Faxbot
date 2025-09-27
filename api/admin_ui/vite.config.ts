@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/admin/ui/',
+  resolve: {
+    // Prevent multiple React copies (fixes hooks/dispatcher issues)
+    dedupe: ['react', 'react-dom']
+  },
   css: {
     // Prevent PostCSS from walking up outside the project (avoids permission errors)
     postcss: {}
