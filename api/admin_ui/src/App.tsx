@@ -112,6 +112,12 @@ function AppContent() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [providerWizardOpen, setProviderWizardOpen] = useState(false);
 
+  // Hide hydration banner once React mounts successfully
+  useEffect(() => {
+    const el = document.getElementById('hydration-banner');
+    if (el) el.style.display = 'none';
+  }, []);
+
   const handleLogin = async (key: string) => {
     try {
       const testClient = new AdminAPIClient(key);
@@ -876,10 +882,4 @@ function App() {
 }
 
 export default App;
-  // Hide hydration banner on successful React mount
-  useEffect(() => {
-    const el = document.getElementById('hydration-banner');
-    if (el) {
-      el.style.display = 'none';
-    }
-  }, []);
+ 
