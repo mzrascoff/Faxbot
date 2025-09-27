@@ -32,6 +32,7 @@ from .ami import ami_client
 from .phaxio_service import get_phaxio_service
 from .sinch_service import get_sinch_service
 from .signalwire_service import get_signalwire_service
+from .services.imap_humblefax import HumbleFaxImapWorker
 from .config_loader import load_provider_secrets
 from .providers import sinch as sinch_inbound_adapter
 from .providers import phaxio as phaxio_inbound_adapter
@@ -82,6 +83,8 @@ app = FastAPI(
 # Expose phaxio_service module for tests that reference app.phaxio_service
 from . import phaxio_service as _phaxio_module  # noqa: E402
 app.phaxio_service = _phaxio_module  # type: ignore[attr-defined]
+app.state.hf_imap_worker = None  # type: ignore[attr-defined]
+app.state.hf_imap_task = None    # type: ignore[attr-defined]
 
 # Log documented credential fallbacks (no secret values)
 try:
@@ -167,6 +170,36 @@ def require_admin(x_api_key: Optional[str] = Header(default=None)):
     if not info or ("keys:manage" not in (info.get("scopes") or [])):
         raise HTTPException(401, detail="Admin authentication failed")
     return info
+
+
+# ===== Phase 5: HumbleFax IMAP worker (disabled by default) =====
+@app.on_event("startup")
+async def _start_hf_imap_worker():
+    try:
+        worker = HumbleFaxImapWorker()
+        if worker.enabled and worker.configured():
+            app.state.hf_imap_worker = worker  # type: ignore[attr-defined]
+            app.state.hf_imap_task = asyncio.create_task(worker.run_forever())  # type: ignore[attr-defined]
+    except Exception:
+        # Non-fatal; worker stays disabled
+        pass
+
+
+@app.on_event("shutdown")
+async def _stop_hf_imap_worker():
+    try:
+        w = getattr(app.state, "hf_imap_worker", None)
+        t = getattr(app.state, "hf_imap_task", None)
+        if w is not None:
+            w.stop()
+        if t is not None:
+            # Give it a moment to wind down
+            try:
+                await asyncio.wait_for(t, timeout=2)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 router_cfg_v4 = APIRouter(prefix="/admin/config/v4", tags=["ConfigurationV4"], dependencies=[Depends(require_admin)])
 
