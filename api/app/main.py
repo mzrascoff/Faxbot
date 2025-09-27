@@ -382,6 +382,14 @@ except Exception:
     # Non-fatal if health monitoring deps missing
     pass
 
+# Admin users router (minimal API)
+try:
+    from .routers import admin_users as _admin_users
+    app.include_router(_admin_users.router)
+except Exception:
+    # Non-fatal if identity models not available
+    pass
+
 # Admin marketplace (Phase 4; disabled by default)
 try:
     from .routers import admin_marketplace as _marketplace
@@ -905,11 +913,21 @@ def health_ready():
     )
 
 
-from .routers.admin_providers import ProviderStatusResponse  # type: ignore
+from typing import Dict as _DictAny, Any as _Any
+from pydantic import BaseModel as _BM
 
 
-@app.get("/admin/health-status", response_model=ProviderStatusResponse, dependencies=[Depends(require_admin)])
-async def admin_health_status() -> ProviderStatusResponse:
+class ProviderStatusResponseModel(_BM):
+    provider_statuses: _DictAny[str, _DictAny[str, _Any]]
+    total_providers: int
+    healthy_count: int
+    degraded_count: int
+    circuit_open_count: int
+    disabled_count: int
+
+
+@app.get("/admin/health-status", response_model=ProviderStatusResponseModel, dependencies=[Depends(require_admin)])
+async def admin_health_status() -> ProviderStatusResponseModel:
     """Return provider health summary (alias for /admin/providers/health)."""
     try:
         from .routers.admin_providers import get_provider_health_status  # type: ignore
@@ -930,7 +948,7 @@ async def admin_health_status() -> ProviderStatusResponse:
             st = s.get("status", "healthy")
             if st in counts:
                 counts[st] += 1
-        return ProviderStatusResponse(
+        return ProviderStatusResponseModel(
             provider_statuses=statuses,
             total_providers=len(statuses),
             healthy_count=counts["healthy"],
@@ -5585,9 +5603,3 @@ if os.getenv("ENFORCE_SECRET_CHECKS", "false").lower() in {"1","true","yes"}:
     if missing:
         _logging.getLogger(__name__).error(f"Missing required secrets: {', '.join(missing)}")
         raise SystemExit(1)
-    # Admin users (minimal)
-    try:
-        from .routers import admin_users as _admin_users
-        app.include_router(_admin_users.router)
-    except Exception:
-        pass
