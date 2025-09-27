@@ -10,6 +10,7 @@ import { SmoothLoader, InlineLoader } from './common/SmoothLoader';
 type Props = { client: AdminAPIClient; docsBase?: string; hipaaMode?: boolean; inboundBackend?: string; sinchConfigured?: boolean; readOnly?: boolean };
 
 export default function TunnelSettings({ client, docsBase, hipaaMode, readOnly = false }: Props) {
+  const { traitValue } = useTraits();
   const [status, setStatus] = useState<TunnelStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
