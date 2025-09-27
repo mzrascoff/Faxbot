@@ -64,6 +64,7 @@ from .security.user_traits import pack_user_traits
 from .config_manager.hierarchical_provider import HierarchicalConfigProvider, UserContext
 from .services.cache_manager import CacheManager
 from fastapi import APIRouter
+from .middleware.hierarchical_rate_limiter import HierarchicalRateLimiter
 
 
 app = FastAPI(
@@ -200,6 +201,13 @@ async def _stop_hf_imap_worker():
                 pass
     except Exception:
         pass
+
+# ===== Phase 5: Mount hierarchical rate limiter =====
+try:
+    app.add_middleware(HierarchicalRateLimiter, config_provider=getattr(app.state, "hierarchical_config", None))
+except Exception:
+    # Safe to continue without rate limiting if config provider is unavailable
+    pass
 
 router_cfg_v4 = APIRouter(prefix="/admin/config/v4", tags=["ConfigurationV4"], dependencies=[Depends(require_admin)])
 
