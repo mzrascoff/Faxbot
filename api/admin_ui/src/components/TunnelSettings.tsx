@@ -473,4 +473,3 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, readOnly =
     </Box>
   );
 }
-  const { traitValue } = useTraits();
