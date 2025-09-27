@@ -50,6 +50,11 @@ from .plugins.http_provider import HttpManifest, HttpProviderRuntime
 from .utils.observability import log_event
 from .signalwire_service import get_signalwire_service
 import logging as _logging
+try:
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    _PROM_AVAILABLE = True
+except Exception:  # pragma: no cover
+    _PROM_AVAILABLE = False
 
 # v3 plugins (feature-gated)
 try:
@@ -5495,13 +5500,16 @@ if os.getenv("FAXBOT_SESSIONS_ENABLED", "false").lower() in {"1","true","yes"}:
         }
         response.set_cookie("fb_sess", new_tok, **cookie_opts)
         return {"success": True}
-# Optional metrics endpoint
+# Metrics endpoint (single Prometheus endpoint on API port)
 @app.get("/metrics")
 async def metrics_endpoint():
-    # Minimal stub; integrate Prometheus/Otel in production
-    content = "# HELP faxbot_up 1\n# TYPE faxbot_up gauge\nfaxbot_up 1\n"
-    from fastapi.responses import PlainTextResponse
-    return PlainTextResponse(content, media_type="text/plain; version=0.0.4")
+    from fastapi.responses import Response as _Resp
+    if _PROM_AVAILABLE:
+        data = generate_latest()  # default registry: process/python metrics available
+        return _Resp(content=data, media_type=CONTENT_TYPE_LATEST)
+    # Fallback minimal text if library unavailable
+    content = b"# HELP faxbot_up 1\n# TYPE faxbot_up gauge\nfaxbot_up 1\n"
+    return _Resp(content=content, media_type="text/plain; version=0.0.4")
 
 # Startup log
 import logging as _logging
