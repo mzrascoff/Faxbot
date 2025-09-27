@@ -68,8 +68,12 @@ def _hash_password(password: str, salt: str, rounds: int = 200_000) -> str:
     return dk.hex()
 
 
-@router.get("")
-def list_users() -> dict:
+class UsersOut(BaseModel):
+    users: List[UserOut]
+
+
+@router.get("", response_model=UsersOut)
+def list_users() -> UsersOut:
     # Ensure tables exist (best-effort)
     init_db()
     users: List[UserOut] = []
@@ -95,10 +99,10 @@ def list_users() -> dict:
                 ))
     except Exception:
         users = []
-    return {"users": [u.model_dump() for u in users]}
+    return UsersOut(users=users)
 
 
-@router.post("")
+@router.post("", response_model=UserOut)
 def create_user(payload: CreateUserIn) -> UserOut:
     init_db()
     if not _pepper():
@@ -132,7 +136,7 @@ def create_user(payload: CreateUserIn) -> UserOut:
         raise HTTPException(500, detail=f"create user failed: {e}")
 
 
-@router.patch("/{user_id}")
+@router.patch("/{user_id}", response_model=UserOut)
 def patch_user(user_id: str, payload: PatchUserIn) -> UserOut:
     init_db()
     with SessionLocal() as db:
@@ -169,4 +173,3 @@ def patch_user(user_id: str, payload: PatchUserIn) -> UserOut:
             is_active=is_active,
             created_at=row.created_at.isoformat() if getattr(row, 'created_at', None) else None,
         )
-
