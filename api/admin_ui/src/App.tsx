@@ -876,3 +876,10 @@ function App() {
 }
 
 export default App;
+  // Hide hydration banner on successful React mount
+  useEffect(() => {
+    const el = document.getElementById('hydration-banner');
+    if (el) {
+      el.style.display = 'none';
+    }
+  }, []);
