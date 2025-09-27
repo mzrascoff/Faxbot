@@ -12,6 +12,7 @@ import type {
 export class AdminAPIClient {
   private baseURL: string;
   private apiKey: string;
+  private uiConfigEtag?: string;
 
   constructor(apiKey: string) {
     // Always localhost since we're local-only
@@ -156,7 +157,16 @@ export class AdminAPIClient {
 
   // UI Config (ETag-cached on server)
   async getUiConfig(): Promise<{ schema_version: number; features: any; endpoints: any; docs_base?: string }>{
-    const res = await this.fetch('/admin/ui-config');
+    const headers: Record<string, string> = {};
+    if (this.uiConfigEtag) headers['If-None-Match'] = this.uiConfigEtag;
+    const res = await this.fetch('/admin/ui-config', { headers });
+    // Capture ETag for conditional requests
+    const et = res.headers.get('ETag') || res.headers.get('etag') || undefined;
+    if (et) this.uiConfigEtag = et.trim();
+    if (res.status === 304) {
+      // No change; return a minimal stub to signal no-update
+      return { schema_version: 1, features: {}, endpoints: {} } as any;
+    }
     return res.json();
   }
 
