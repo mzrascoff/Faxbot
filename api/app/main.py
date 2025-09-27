@@ -51,7 +51,7 @@ from .utils.observability import log_event
 from .signalwire_service import get_signalwire_service
 import logging as _logging
 try:
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
     _PROM_AVAILABLE = True
 except Exception:  # pragma: no cover
     _PROM_AVAILABLE = False
@@ -91,6 +91,16 @@ from . import phaxio_service as _phaxio_module  # noqa: E402
 app.phaxio_service = _phaxio_module  # type: ignore[attr-defined]
 app.state.hf_imap_worker = None  # type: ignore[attr-defined]
 app.state.hf_imap_task = None    # type: ignore[attr-defined]
+
+# Minimal Prometheus counters (only when library is available)
+if _PROM_AVAILABLE:
+    INBOUND_FAXES_TOTAL = Counter(
+        'faxbot_inbound_faxes_total',
+        'Inbound fax events processed',
+        ['provider', 'status']
+    )
+else:  # pragma: no cover
+    INBOUND_FAXES_TOTAL = None  # type: ignore
 
 # Log documented credential fallbacks (no secret values)
 try:
@@ -4622,6 +4632,11 @@ async def phaxio_inbound(request: Request):
         db.add(fx)
         db.commit()
     audit_event("inbound_received", job_id=job_id, backend="phaxio")
+    try:
+        if INBOUND_FAXES_TOTAL is not None:
+            INBOUND_FAXES_TOTAL.labels(provider='phaxio', status=str(status)).inc()
+    except Exception:
+        pass
     return _ack_response({"status": "ok"})
 
 
@@ -4823,6 +4838,11 @@ async def sinch_inbound(request: Request):
             db.add(fx)
             db.commit()
     audit_event("inbound_received", job_id=job_id, backend="sinch", pdf_error=pdf_error)
+    try:
+        if INBOUND_FAXES_TOTAL is not None:
+            INBOUND_FAXES_TOTAL.labels(provider='sinch', status=str(status)).inc()
+    except Exception:
+        pass
     return _ack_response({"status": "ok"})
 
 
@@ -4899,6 +4919,8 @@ async def humblefax_inbound(request: Request):
     # Minimal audit trail without PHI
     try:
         audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
+        if INBOUND_FAXES_TOTAL is not None:
+            INBOUND_FAXES_TOTAL.labels(provider='humblefax', status=str(data.get('status') or 'received')).inc()
     except Exception:
         pass
     return _ack_response({"status": "ok"})
