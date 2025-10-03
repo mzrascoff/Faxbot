@@ -53,7 +53,7 @@ interface WizardConfig {
 }
 
 function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
-  const { hasTrait, traitValue, getWebhookUrl } = useTraits();
+  const { registry } = useTraits();
   const [activeStep, setActiveStep] = useState(0);
   const [config, setConfig] = useState<WizardConfig>({
     backend: 'phaxio',
@@ -72,6 +72,22 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   const [verifyFound, setVerifyFound] = useState<any | null>(null);
   const [callbacks, setCallbacks] = useState<any | null>(null);
   const ob = config.outbound_backend || config.backend;
+
+  // Helper to get traits for SELECTED provider (not active provider)
+  const getSelectedProviderTrait = (providerId: string, key: string): any => {
+    if (!registry || !providerId) return undefined;
+    const providerInfo = registry[providerId];
+    if (!providerInfo?.traits) return undefined;
+    try {
+      return key.split('.').reduce((acc: any, k: string) => (acc && acc[k] !== undefined ? acc[k] : undefined), providerInfo.traits);
+    } catch {
+      return undefined;
+    }
+  };
+
+  const hasSelectedProviderTrait = (providerId: string, key: string): boolean => {
+    return getSelectedProviderTrait(providerId, key) !== undefined;
+  };
 
   const steps = ['Choose Providers', 'Configure Credentials', 'Security Settings', 'Apply & Export'];
 
@@ -171,7 +187,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   };
 
   const generateEnvContent = () => {
-    const lines = [];
+    const lines: string[] = [];
     
     const ob = config.outbound_backend || config.backend;
     lines.push(`FAX_BACKEND=${config.backend}`);
@@ -179,6 +195,16 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     if (config.inbound_backend) {
       lines.push(`FAX_INBOUND_BACKEND=${config.inbound_backend}`);
       lines.push(`INBOUND_ENABLED=true`);
+      if (config.inbound_backend === 'humblefax') {
+        lines.push('# HumbleFax inbound (webhook/optional IMAP)');
+        lines.push('HUMBLEFAX_WEBHOOK_SECRET=');
+        lines.push('# HUMBLEFAX_IMAP_ENABLED=false');
+        lines.push('# HUMBLEFAX_IMAP_SERVER=');
+        lines.push('# HUMBLEFAX_IMAP_USERNAME=');
+        lines.push('# HUMBLEFAX_IMAP_PASSWORD=');
+        lines.push('# HUMBLEFAX_IMAP_PORT=993');
+        lines.push('# HUMBLEFAX_IMAP_SSL=true');
+      }
     }
     lines.push(`REQUIRE_API_KEY=${config.require_api_key}`);
     lines.push(`ENFORCE_PUBLIC_HTTPS=${config.enforce_public_https}`);
@@ -187,7 +213,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     lines.push('');
     lines.push('# Backend-specific configuration');
 
-      const m = (traitValue('outbound','auth.methods') || []) as string[];
+      const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[];
       const basicOnly = Array.isArray(m) && m.includes('basic') && !m.includes('oauth2');
       const hasOAuth = Array.isArray(m) && m.includes('oauth2');
       if (basicOnly) {
@@ -214,7 +240,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         lines.push(`PUBLIC_API_URL=${config.public_api_url}`);
         lines.push(`SIGNALWIRE_STATUS_CALLBACK_URL=${config.public_api_url}/signalwire-callback`);
       }
-    } else if (hasTrait('outbound','requires_ami')) {
+    } else if (hasSelectedProviderTrait(ob, 'requires_ami')) {
         lines.push('# SIP/Asterisk Configuration');
         lines.push(`ASTERISK_AMI_HOST=${config.ami_host || 'asterisk'}`);
         lines.push(`ASTERISK_AMI_PORT=${config.ami_port || 5038}`);
@@ -230,6 +256,12 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
       lines.push('# Documo (mFax) Configuration');
       lines.push(`DOCUMO_API_KEY=${config.documo_api_key || 'your_api_key_here'}`);
       lines.push(`DOCUMO_SANDBOX=${config.documo_use_sandbox ? 'true' : 'false'}`);
+    } else if (ob === 'humblefax') {
+      lines.push('# HumbleFax Configuration');
+      lines.push(`HUMBLEFAX_API_KEY=${(config as any).humblefax_api_key || 'your_api_key_here'}`);
+      if ((config as any).humblefax_webhook_secret) {
+        lines.push(`HUMBLEFAX_WEBHOOK_SECRET=${(config as any).humblefax_webhook_secret}`);
+      }
     }
 
     lines.push('');
@@ -246,11 +278,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     setEnvContent('');
     setValidationResults(null);
     try {
+      const effectiveBackend = (config.outbound_backend || config.backend);
       // Derive auth method hints for payload branching
-      const m = (traitValue('outbound','auth.methods') || []) as string[];
+      const m = (getSelectedProviderTrait(effectiveBackend, 'auth.methods') || []) as string[];
       const basicOnly = Array.isArray(m) && m.includes('basic') && !m.includes('oauth2');
       const hasOAuth = Array.isArray(m) && m.includes('oauth2');
-      const effectiveBackend = (config.outbound_backend || config.backend);
       const payload: any = {
         backend: effectiveBackend,
         outbound_backend: effectiveBackend,
@@ -279,7 +311,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
       } else if (ob === 'documo') {
         payload.documo_api_key = config.documo_api_key;
         payload.documo_use_sandbox = config.documo_use_sandbox;
-      } else if (hasTrait('outbound','requires_ami')) {
+      } else if (hasSelectedProviderTrait(effectiveBackend, 'requires_ami')) {
         payload.ami_host = config.ami_host;
         payload.ami_port = config.ami_port;
         payload.ami_username = config.ami_username;
@@ -288,6 +320,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
       } else if (ob === 'freeswitch') {
         (payload as any).fs_gateway_name = (config as any).fs_gateway_name;
         (payload as any).fs_caller_id_number = (config as any).fs_caller_id_number;
+      } else if (ob === 'humblefax') {
+        (payload as any).humblefax_api_key = (config as any).humblefax_api_key;
+        if ((config as any).humblefax_webhook_secret) {
+          (payload as any).humblefax_webhook_secret = (config as any).humblefax_webhook_secret;
+        }
       }
       await client.updateSettings(payload);
       await client.reloadSettings();
@@ -332,6 +369,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               <Select value={config.outbound_backend || config.backend} onChange={(e)=> handleConfigChange('outbound_backend', e.target.value)} label="Outbound Provider">
                 <MenuItem value="phaxio">Phaxio (Cloud - Recommended)</MenuItem>
                 <MenuItem value="sinch">Sinch Fax API v3 (Cloud)</MenuItem>
+                <MenuItem value="humblefax">HumbleFax (Cloud)</MenuItem>
                 <MenuItem value="signalwire">SignalWire (Compatibility API)</MenuItem>
                 <MenuItem value="documo">Documo (mFax)</MenuItem>
                 <MenuItem value="sip">SIP/Asterisk (Self-hosted)</MenuItem>
@@ -345,17 +383,18 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 <MenuItem value="">Same as outbound (recommended)</MenuItem>
                 <MenuItem value="phaxio">Phaxio (Webhook)</MenuItem>
                 <MenuItem value="sinch">Sinch (Webhook)</MenuItem>
+                <MenuItem value="humblefax">HumbleFax (Webhook + IMAP)</MenuItem>
                 <MenuItem value="sip">SIP/Asterisk (Internal)</MenuItem>
               </Select>
             </FormControl>
             
-            {(() => { const m = (traitValue('outbound','auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2'); })() && (
+            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2'); })() && (
               <Alert severity="success" sx={{ mt: 2 }}>
                 Best for healthcare: 5-minute setup, automatic HIPAA compliance with BAA
               </Alert>
             )}
             
-            {hasTrait('outbound','requires_ami') && (
+            {hasSelectedProviderTrait(ob, 'requires_ami') && (
               <Alert severity="warning" sx={{ mt: 2 }}>
                 Requires technical expertise: T.38 support, port forwarding, NAT configuration
               </Alert>
@@ -365,19 +404,19 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 Requires FreeSWITCH with mod_spandsp and gateway; configure result hook to post back status
               </Alert>
             )}
-            {traitValue('inbound', 'inbound_verification') === 'hmac' && (
+            {getSelectedProviderTrait(config.inbound_backend || ob, 'inbound_verification') === 'hmac' && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                Inbound webhook will be <code>{getWebhookUrl('inbound')}</code>. Enable HMAC verification in provider.
+                Inbound webhook will use HMAC verification. Enable HMAC verification in provider.
               </Alert>
             )}
-            {traitValue('inbound', 'inbound_verification') === 'basic' && (
+            {getSelectedProviderTrait(config.inbound_backend || ob, 'inbound_verification') === 'basic' && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                Inbound webhook will be <code>{getWebhookUrl('inbound')}</code>. Sinch webhooks use Basic auth; enforce in Faxbot and consider IP allowlisting.
+                Inbound webhook will use Basic auth. Sinch webhooks use Basic auth; enforce in Faxbot and consider IP allowlisting.
                 <br/>
                 Access keys live in the <a href="https://dashboard.sinch.com/settings/access-keys" target="_blank" rel="noreferrer">Sinch Customer (Build) Dashboard</a>. Other Sinch portals do not expose Fax API access keys.
               </Alert>
             )}
-            {traitValue('inbound', 'inbound_verification') === 'internal_secret' && (
+            {getSelectedProviderTrait(config.inbound_backend || ob, 'inbound_verification') === 'internal_secret' && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Inbound internal endpoint: <code>/_internal/asterisk/inbound</code> (private network only).
               </Alert>
@@ -400,7 +439,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               )}
             </Box>
             
-            {(() => { const m = (traitValue('outbound','auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2'); })() && (
+            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2'); })() && (
               <Grid container spacing={{ xs: 2, md: 3 }}>
                 <Grid item xs={12}>
                   <SecretInput
@@ -439,7 +478,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               </Grid>
             )}
 
-            {(() => { const m = (traitValue('outbound','auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('oauth2'); })() && (
+            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('oauth2'); })() && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Typography variant="body2" color="text.secondary">
@@ -525,6 +564,33 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               </Grid>
             )}
 
+            {ob === 'humblefax' && (
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    HumbleFax supports both webhook and IMAP inbound delivery. Configure webhook for real-time delivery, or IMAP for polling.
+                  </Alert>
+                </Grid>
+                <Grid item xs={12}>
+                  <SecretInput
+                    label="API Key"
+                    value={(config as any).humblefax_api_key || ''}
+                    onChange={(value) => handleConfigChange('humblefax_api_key', value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <SecretInput
+                    label="Webhook Secret (optional)"
+                    value={(config as any).humblefax_webhook_secret || ''}
+                    onChange={(value) => handleConfigChange('humblefax_webhook_secret', value)}
+                    fullWidth
+                    helperText="For HMAC verification of inbound webhooks"
+                  />
+                </Grid>
+              </Grid>
+            )}
+
             {ob === 'freeswitch' && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -543,7 +609,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
 
             
 
-            {hasTrait('outbound','requires_ami') && (
+            {hasSelectedProviderTrait(ob, 'requires_ami') && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Alert severity="error" sx={{ mb: 2 }}>
@@ -601,7 +667,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             )}
 
             {/* Provider Connect */}
-            {Boolean((traitValue('outbound','webhook.path')) || (traitValue('inbound','webhook.path'))) && (
+            {Boolean((getSelectedProviderTrait(ob, 'webhook.path')) || (getSelectedProviderTrait(config.inbound_backend || ob, 'webhook.path'))) && (
               <Box sx={{ mt: 3 }}>
                 <Typography variant="subtitle1" gutterBottom>Connect {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} Inbound</Typography>
                 <Button variant="outlined" onClick={loadCallbacks} sx={{ mr: 1 }}>Show Callback URL</Button>
@@ -755,7 +821,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               >
                 Generate .env
               </Button>
-              {hasTrait('outbound', 'supports_oauth') && (
+              {hasSelectedProviderTrait(ob, 'auth.methods') && (getSelectedProviderTrait(ob, 'auth.methods') || []).includes('oauth2') && (
                 <Button
                   variant="outlined"
                   sx={{ ml: 1 }}
@@ -797,8 +863,8 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                         <Box>
                           <Typography>{key.replace(/_/g,' ')}:</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {(() => { const m = (traitValue('outbound','auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2') && key.includes('auth') ? 'Set provider API key/secret in your console.' : '' })()}
-                            {(() => { const m = (traitValue('outbound','auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('oauth2') && key.includes('auth') ? 'Set project, key and secret in your provider console.' : '' })()}
+                            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2') && key.includes('auth') ? 'Set provider API key/secret in your console.' : '' })()}
+                            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('oauth2') && key.includes('auth') ? 'Set project, key and secret in your provider console.' : '' })()}
                           </Typography>
                         </Box>
                         <Chip size="small" color={value ? 'success' : 'error'} label={value ? 'Pass' : 'Fail'} />

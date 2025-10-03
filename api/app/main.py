@@ -707,17 +707,12 @@ async def on_startup():
 
     # Initialize and start provider health monitoring (Phase 3)
     try:
-        from .config_manager.hierarchical_provider import get_hierarchical_config_provider
-
         # Get or create event emitter
         event_emitter = getattr(app.state, "event_emitter", None)
 
-        # Get hierarchical config provider if available
-        config_provider = None
-        try:
-            config_provider = get_hierarchical_config_provider()
-        except Exception:
-            pass
+        # Use the already-initialized hierarchical config provider if available
+        # (Initialized earlier at import time when CONFIG_MASTER_KEY is valid.)
+        config_provider = getattr(app.state, "hierarchical_config", None)
 
         # Initialize health monitor
         health_monitor = ProviderHealthMonitor(
@@ -926,36 +921,15 @@ class ProviderStatusResponseModel(_BM):
     disabled_count: int
 
 
-@app.get("/admin/health-status", response_model=ProviderStatusResponseModel, dependencies=[Depends(require_admin)])
-async def admin_health_status() -> ProviderStatusResponseModel:
-    """Return provider health summary (alias for /admin/providers/health)."""
-    try:
-        from .routers.admin_providers import get_provider_health_status  # type: ignore
-        from fastapi import Request as _Req
-        # Fabricate a minimal Request-like object with app reference
-        class _R:
-            def __init__(self, app):
-                self.app = app
-        return await get_provider_health_status(_R(app))  # type: ignore
-    except Exception:
-        hm = getattr(app.state, "health_monitor", None)
-        if not hm:
-            raise HTTPException(503, detail="Health monitor not available")
-        statuses = await hm.get_provider_statuses()
-        # Summarize
-        counts = {k: 0 for k in ["healthy", "degraded", "circuit_open", "disabled"]}
-        for s in statuses.values():
-            st = s.get("status", "healthy")
-            if st in counts:
-                counts[st] += 1
-        return ProviderStatusResponseModel(
-            provider_statuses=statuses,
-            total_providers=len(statuses),
-            healthy_count=counts["healthy"],
-            degraded_count=counts["degraded"],
-            circuit_open_count=counts["circuit_open"],
-            disabled_count=counts["disabled"],
-        )
+@app.get("/admin/health-status", dependencies=[Depends(require_admin)])
+async def admin_health_status():
+    """Dashboard health endpoint (stable for Admin UI).
+
+    Note: Provider health summary lives at /admin/providers/health.
+    This endpoint returns the dashboard shape with job counts and backend status.
+    """
+    # Delegate to the canonical dashboard health implementation below
+    return await get_health_status()  # type: ignore[name-defined]
 
 
 def require_api_key(request: Request, x_api_key: Optional[str] = Header(default=None)):
