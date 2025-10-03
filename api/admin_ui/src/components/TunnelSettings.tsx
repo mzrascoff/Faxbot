@@ -22,6 +22,8 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
   const [isSinchActive, setIsSinchActive] = useState<boolean>(false);
   const [inboundEnabled, setInboundEnabled] = useState<boolean>(false);
   const [notice, setNotice] = useState<{ severity: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [sinchDiag, setSinchDiag] = useState<any | null>(null);
+  const [diagLoading, setDiagLoading] = useState<boolean>(false);
 
   const [provider, setProvider] = useState<'none' | 'cloudflare' | 'wireguard' | 'tailscale'>('none');
   const [wg, setWg] = useState<{ endpoint?: string; server_key?: string; client_ip?: string; dns?: string }>({});
@@ -202,6 +204,21 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
       setNotice({ severity: 'error', message: e?.message || 'Registration failed' });
     } finally {
       setRegistering(false);
+    }
+  };
+
+  const runSinchDiagnostics = async () => {
+    setDiagLoading(true);
+    setSinchDiag(null);
+    try {
+      const res = await (client as any).getSinchDiagnostics?.();
+      setSinchDiag(res || {});
+      const ok = Boolean(res?.dns_ok) && Boolean(res?.auth_present) && Boolean(res?.auth_ok) && Boolean(res?.path_ok);
+      setNotice({ severity: ok ? 'success' : 'error', message: ok ? 'Sinch diagnostics: OK' : 'Sinch diagnostics found issues' });
+    } catch (e: any) {
+      setNotice({ severity: 'error', message: e?.message || 'Diagnostics failed' });
+    } finally {
+      setDiagLoading(false);
     }
   };
 
@@ -443,10 +460,14 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
               Save & Apply
               <InlineLoader loading={saving} />
             </Button>
-            <Button variant="outlined" onClick={testConnectivity} disabled={testing} startIcon={<VpnKey fontSize="small" />} sx={{ borderRadius: 2 }}>
-              Test Connectivity
-              <InlineLoader loading={testing} />
-            </Button>
+          <Button variant="outlined" onClick={testConnectivity} disabled={testing} startIcon={<VpnKey fontSize="small" />} sx={{ borderRadius: 2 }}>
+            Test Connectivity
+            <InlineLoader loading={testing} />
+          </Button>
+          <Button variant="outlined" onClick={runSinchDiagnostics} disabled={diagLoading} sx={{ borderRadius: 2 }}>
+            Run Sinch Diagnostics
+            <InlineLoader loading={diagLoading} />
+          </Button>
           <Button variant="outlined" onClick={pairIOS} sx={{ borderRadius: 2 }} disabled={readOnly}>
             Generate iOS Pairing Code
           </Button>
@@ -474,6 +495,15 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
         </Stack>
         <SmoothLoader loading={loading} variant="linear" />
       </ResponsiveFormSection>
+
+      {sinchDiag && (
+        <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Sinch Diagnostics</Typography>
+          <Box component="pre" sx={{ m: 0, p: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.8rem' }}>
+            {JSON.stringify(sinchDiag, null, 2)}
+          </Box>
+        </Paper>
+      )}
 
       {provider === 'cloudflare' && !cloudflareDisabled && logs.length > 0 && (
         <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, mb: 2 }}>

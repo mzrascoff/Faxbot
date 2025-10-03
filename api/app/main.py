@@ -1998,6 +1998,57 @@ async def admin_diagnostics_sinch():
 
     return SinchDiagnosticsOut(dns_ok=dns_ok, host=host, resolved=resolved, auth_present=auth_present, auth_ok=auth_ok, path_ok=path_ok, probes=probes)
 
+
+# ===== Mobile pairing (dev-friendly) =====
+class PairIn(BaseModel):
+    code: str
+    device_name: Optional[str] = None
+
+
+class MobilePairOut(BaseModel):
+    base_urls: Dict[str, Optional[str]]
+    token: str
+
+
+@app.post("/mobile/pair", response_model=MobilePairOut)
+async def mobile_pair(payload: PairIn):
+    """Issue a scoped API key for the mobile app and return base URLs.
+
+    Dev policy: if MOBILE_PAIRING_CODE is set, it must match. Otherwise, when
+    ENABLE_LOCAL_ADMIN=true, accept any code to simplify local testing.
+    """
+    code_req = os.getenv("MOBILE_PAIRING_CODE", "")
+    dev_unlock = os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() in {"1","true","yes"}
+    if code_req:
+        if payload.code.strip() != code_req.strip():
+            raise HTTPException(403, detail="Invalid pairing code")
+    elif not dev_unlock:
+        # No explicit pairing code and not in dev mode → disallow
+        raise HTTPException(403, detail="Pairing disabled")
+
+    # Pick bases
+    try:
+        tunnel = _TUNNEL_STATE.get("public_url") if not _hipaa_posture_enabled() else None
+    except Exception:
+        tunnel = None
+    # Fallback to configured callback base if tunnel not available
+    if not tunnel:
+        try:
+            tunnel = (getattr(settings, 'humblefax_callback_base', '') or '').rstrip("/") or None
+        except Exception:
+            pass
+    public_url = (settings.public_api_url or "").rstrip("/") or None
+    local_base = os.getenv("MOBILE_LOCAL_BASE", "").rstrip("/") or None
+    bases = {"local": local_base, "tunnel": tunnel, "public": public_url}
+
+    # Create a mobile-scoped key with minimal permissions
+    scopes = ["inbound:list", "inbound:read", "fax:send"]
+    owner = f"mobile:{(payload.device_name or 'device').strip()[:40]}"
+    rec = create_api_key(name="mobile", owner=owner, scopes=scopes, expires_at=None, note="auto-issued via /mobile/pair")
+    token = str(rec.get("token"))
+    audit_event("mobile_paired", device=payload.device_name, scopes=scopes)
+    return MobilePairOut(base_urls=bases, token=token)
+
 @app.put("/admin/settings", dependencies=[Depends(require_admin)])
 def update_admin_settings(payload: UpdateSettingsRequest):
     """Apply configuration updates in-process by setting environment variables and reloading settings.
