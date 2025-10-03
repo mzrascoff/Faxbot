@@ -179,7 +179,10 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
       lines.push(`INBOUND_ENABLED=true`);
       if (config.inbound_backend === 'humblefax') {
         lines.push('# HumbleFax inbound (webhook/optional IMAP)');
-        lines.push('HUMBLEFAX_WEBHOOK_SECRET=');
+        lines.push(`HUMBLEFAX_WEBHOOK_SECRET=${(config as any).humblefax_webhook_secret || 'choose-a-strong-random-string'}`);
+        lines.push(`HUMBLEFAX_CALLBACK_BASE=${(config as any).humblefax_callback_base || config.public_api_url || 'https://faxbot.example.com'}`);
+        lines.push('HUMBLEFAX_WEBHOOK_ENABLED=true');
+        lines.push('# Optional IMAP polling (alternative to webhook)');
         lines.push('# HUMBLEFAX_IMAP_ENABLED=false');
         lines.push('# HUMBLEFAX_IMAP_SERVER=');
         lines.push('# HUMBLEFAX_IMAP_USERNAME=');
@@ -268,6 +271,15 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
       if (config.inbound_backend) {
         payload.inbound_backend = config.inbound_backend;
         payload.inbound_enabled = true;
+        // HumbleFax inbound settings
+        if (config.inbound_backend === 'humblefax') {
+          if ((config as any).humblefax_webhook_secret) {
+            (payload as any).humblefax_webhook_secret = (config as any).humblefax_webhook_secret;
+          }
+          if ((config as any).humblefax_callback_base) {
+            (payload as any).humblefax_callback_base = (config as any).humblefax_callback_base;
+          }
+        }
       }
       if (effectiveBackend === 'phaxio') {
         payload.phaxio_api_key = config.phaxio_api_key;
@@ -639,6 +651,46 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                   />
                 </Grid>
               </Grid>
+            )}
+
+            {/* Inbound Provider Configuration */}
+            {config.inbound_backend === 'humblefax' && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="subtitle1" gutterBottom>Configure HumbleFax Inbound</Typography>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <Grid item xs={12}>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      HumbleFax receives faxes via webhook. Set a strong webhook secret and your public Faxbot URL (auto-populated from Cloudflare tunnel if running).
+                    </Alert>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <SecretInput
+                      label="Webhook Secret (HMAC-SHA256)"
+                      value={(config as any).humblefax_webhook_secret || ''}
+                      onChange={(value) => handleConfigChange('humblefax_webhook_secret', value)}
+                      fullWidth
+                      placeholder="choose-a-strong-random-string"
+                      helperText="For HMAC verification of inbound webhooks"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      label="Callback Base URL"
+                      value={(config as any).humblefax_callback_base || config.public_api_url || ''}
+                      onChange={(e) => handleConfigChange('humblefax_callback_base', e.target.value)}
+                      fullWidth
+                      placeholder={config.public_api_url || 'https://your-domain.com'}
+                      helperText={config.public_api_url ? `Auto-populated from tunnel: ${config.public_api_url}` : 'Your public Faxbot URL (will auto-populate when tunnel starts)'}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Alert severity="success">
+                      <strong>Your HumbleFax Webhook URL:</strong><br/>
+                      <code>{((config as any).humblefax_callback_base || config.public_api_url || 'https://your-domain.com').replace(/\/$/, '')}/inbound/humblefax/webhook</code>
+                    </Alert>
+                  </Grid>
+                </Grid>
+              </Box>
             )}
 
             {/* Provider Connect */}
