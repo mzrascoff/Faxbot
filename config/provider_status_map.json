@@ -12,7 +12,12 @@
       "in_progress": ["in_progress", "processing"],
       "success": ["success", "completed", "completed_ok"],
       "failed": ["failed", "failure", "error"]
+    },
+    "humblefax": {
+      "queued": ["queued", "in queue", "in_queue"],
+      "in_progress": ["in progress", "processing", "in_progress"],
+      "success": ["success", "completed", "sent"],
+      "failed": ["failed", "failure", "error"]
     }
   }
 }
-

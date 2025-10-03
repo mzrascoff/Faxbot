@@ -497,6 +497,11 @@ export class AdminAPIClient {
     return res.json();
   }
 
+  async registerHumbleFaxWebhook(): Promise<{ success: boolean; webhook_url?: string; error?: string; provider_response?: any }>{
+    const res = await this.fetch('/admin/inbound/register-humblefax', { method: 'POST' });
+    return res.json();
+  }
+
   // Cloudflared logs (admin-only)
   async getTunnelCloudflaredLogs(lines: number = 50): Promise<{ items: string[]; path?: string }>{
     const res = await this.fetch(`/admin/tunnel/cloudflared/logs?lines=${encodeURIComponent(String(lines))}`);

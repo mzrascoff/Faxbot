@@ -219,11 +219,14 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, readOnly =
             {(!status || status?.status === 'disabled') && (
               <Chip color="default" label="Disabled" size="small" sx={{ mr: 1 }} />
             )}
-            {/* Intentionally do not display the public URL to keep implementation details abstracted. */}
-            {status?.status === 'connected' && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Connected via public URL
-              </Typography>
+            {status?.status === 'connected' && status?.public_url && (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Public URL:
+                </Typography>
+                <Chip size="small" variant="outlined" label={status.public_url as string} />
+                <Button size="small" variant="outlined" onClick={() => { navigator.clipboard.writeText(String(status.public_url || '')); setNotice({ severity: 'success', message: 'Copied public URL' }); }}>Copy</Button>
+              </Box>
             )}
           </Box>
 

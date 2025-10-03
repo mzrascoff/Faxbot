@@ -69,7 +69,10 @@ from .security.user_traits import pack_user_traits
 from .config_manager.hierarchical_provider import HierarchicalConfigProvider, UserContext
 from .services.cache_manager import CacheManager
 from fastapi import APIRouter
+import socket
+import uuid
 from .middleware.hierarchical_rate_limiter import HierarchicalRateLimiter
+from .plugins.manager import PluginManager
 
 
 app = FastAPI(
@@ -91,6 +94,16 @@ from . import phaxio_service as _phaxio_module  # noqa: E402
 app.phaxio_service = _phaxio_module  # type: ignore[attr-defined]
 app.state.hf_imap_worker = None  # type: ignore[attr-defined]
 app.state.hf_imap_task = None    # type: ignore[attr-defined]
+
+# ===== V4 Plugin Manager bootstrap (discovery at import; init on startup) =====
+try:
+    # Create a process-wide plugin manager and eagerly load manifests.
+    # Initialization (async) happens during the startup event below.
+    plugin_manager = PluginManager()  # type: ignore[assignment]
+    plugin_manager.load_all()
+except Exception as _pm_boot_ex:  # pragma: no cover
+    # Keep API running even if no plugins are present; v3 paths remain active.
+    plugin_manager = PluginManager()  # empty registry fallback
 
 # Minimal Prometheus counters (only when library is available)
 if _PROM_AVAILABLE:
@@ -177,8 +190,40 @@ except Exception:
 
 # ===== Phase 3: Admin Config (v4) endpoints (read-only for now) =====
 
+def _get_mac_hex() -> str:
+    try:
+        node = uuid.getnode()
+        mac = ":".join([f"{(node >> ele) & 0xff:02x}" for ele in range(40, -8, -8)])
+        return mac.lower()
+    except Exception:
+        return ""
+
+
+def _developer_bypass_ok() -> bool:
+    try:
+        if os.getenv("DEVELOPER_UNLOCK", "false").lower() in {"1", "true", "yes"}:
+            return True
+        # Hostname allowlist (comma-separated)
+        hosts = [h.strip().lower() for h in (os.getenv("DEVELOPER_HOST_ALLOWLIST", "").lower().split(",")) if h.strip()]
+        if hosts:
+            if socket.gethostname().lower() in hosts:
+                return True
+        # MAC allowlist (comma-separated, lowercase with/without colons)
+        macs = [m.strip().lower().replace("-", ":") for m in (os.getenv("DEVELOPER_MAC_ALLOWLIST", "").lower().split(",")) if m.strip()]
+        if macs:
+            cur = _get_mac_hex().replace("-", ":")
+            if cur in macs or cur.replace(":", "") in {m.replace(":", "") for m in macs}:
+                return True
+    except Exception:
+        pass
+    return False
+
+
 # Define require_admin early to avoid forward reference issues
-def require_admin(x_api_key: Optional[str] = Header(default=None)):
+def require_admin(request: Request, x_api_key: Optional[str] = Header(default=None)):
+    # Developer bypass: unlock admin endpoints on trusted dev machines
+    if _developer_bypass_ok():
+        return {"admin": True, "key_id": "dev-bypass"}
     # Allow env key as admin for bootstrap
     if settings.api_key and x_api_key == settings.api_key:
         return {"admin": True, "key_id": "env"}
@@ -231,7 +276,45 @@ router_cfg_v4 = APIRouter(prefix="/admin/config/v4", tags=["ConfigurationV4"], d
 async def v4_config_effective(request: Request):
     hc = getattr(app.state, "hierarchical_config", None)
     if not hc:
-        raise HTTPException(503, "Hierarchical configuration not initialized")
+        # Fallback: return env/default values so the UI has a baseline
+        def _src(env_key: str) -> str:
+            return "env" if os.getenv(env_key) else "default"
+
+        values: Dict[str, Dict[str, Any]] = {
+            "fax.timeout_seconds": {
+                "value": int(os.getenv("FAX_TIMEOUT_SECONDS", "60")),
+                "source": _src("FAX_TIMEOUT_SECONDS"),
+                "level": "default",
+                "level_id": None,
+                "encrypted": False,
+                "updated_at": None,
+            },
+            "fax.retry_attempts": {
+                "value": int(os.getenv("FAX_RETRY_ATTEMPTS", "2")),
+                "source": _src("FAX_RETRY_ATTEMPTS"),
+                "level": "default",
+                "level_id": None,
+                "encrypted": False,
+                "updated_at": None,
+            },
+            "api.rate_limit_rpm": {
+                "value": settings.max_requests_per_minute,
+                "source": _src("MAX_REQUESTS_PER_MINUTE"),
+                "level": "default",
+                "level_id": None,
+                "encrypted": False,
+                "updated_at": None,
+            },
+            "notifications.enable_sse": {
+                "value": os.getenv("ENABLE_SSE_NOTIFICATIONS", "false").lower() in {"1", "true", "yes"},
+                "source": _src("ENABLE_SSE_NOTIFICATIONS"),
+                "level": "default",
+                "level_id": None,
+                "encrypted": False,
+                "updated_at": None,
+            },
+        }
+        return {"values": values, "cache_stats": {}}
 
     # Use a minimal system context for now; later we can derive from auth
     from .config import settings as _s
@@ -275,7 +358,28 @@ async def v4_config_effective(request: Request):
 async def v4_config_hierarchy(key: str):
     hc = getattr(app.state, "hierarchical_config", None)
     if not hc:
-        raise HTTPException(503, "Hierarchical configuration not initialized")
+        # Fallback: single default layer
+        env_map = {
+            "api.rate_limit_rpm": (os.getenv("MAX_REQUESTS_PER_MINUTE"), settings.max_requests_per_minute),
+            "notifications.enable_sse": (os.getenv("ENABLE_SSE_NOTIFICATIONS"), os.getenv("ENABLE_SSE_NOTIFICATIONS", "false").lower() in {"1","true","yes"}),
+            "fax.timeout_seconds": (os.getenv("FAX_TIMEOUT_SECONDS"), int(os.getenv("FAX_TIMEOUT_SECONDS", "60"))),
+            "fax.retry_attempts": (os.getenv("FAX_RETRY_ATTEMPTS"), int(os.getenv("FAX_RETRY_ATTEMPTS", "2"))),
+        }
+        env_v, eff = env_map.get(key, (None, None))
+        source = "env" if env_v is not None else "default"
+        return {
+            "key": key,
+            "layers": [
+                {
+                    "level": "default",
+                    "level_id": None,
+                    "value": eff,
+                    "encrypted": False,
+                    "updated_at": None,
+                    "source": source,
+                }
+            ],
+        }
     from .config_manager.hierarchical_provider import UserContext  # type: ignore
     layers = await hc.get_hierarchy(key, UserContext(user_id="admin", tenant_id=None, department=None, groups=[]))
     return {
@@ -297,7 +401,15 @@ async def v4_config_hierarchy(key: str):
 async def v4_config_safe_keys():
     hc = getattr(app.state, "hierarchical_config", None)
     if not hc:
-        raise HTTPException(503, "Hierarchical configuration not initialized")
+        # Fallback: expose a conservative set of safe keys
+        return {
+            "safe_keys": [
+                "api.rate_limit_rpm",
+                "notifications.enable_sse",
+                "fax.timeout_seconds",
+                "fax.retry_attempts",
+            ]
+        }
     return await hc.get_safe_edit_keys()
 
 
@@ -313,7 +425,7 @@ async def v4_config_set(
     """Set a configuration value at the specified hierarchy level."""
     hc = getattr(app.state, "hierarchical_config", None)
     if not hc:
-        raise HTTPException(503, "Hierarchical configuration not initialized")
+        raise HTTPException(503, "Hierarchical configuration not initialized — set CONFIG_MASTER_KEY and restart to enable writes")
 
     # Validate level
     valid_levels = ["global", "tenant", "department", "group", "user"]
@@ -493,21 +605,21 @@ def _enforce_rate_limit(info: Optional[dict], path: str, limit: Optional[int] = 
         )
 
 
-# ===== Admin UI static mount (local-only feature) =====
-if os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() == "true":
-    # Prefer container path if present, else project-relative path
-    admin_ui_path_candidates = [
-        "/app/admin_ui/dist",
-        os.path.join(os.path.dirname(__file__), "..", "admin_ui", "dist"),
-    ]
-    for _p in admin_ui_path_candidates:
-        try:
-            ap = os.path.abspath(_p)
-            if os.path.exists(ap):
-                app.mount("/admin/ui", StaticFiles(directory=ap, html=True), name="admin_ui")
-                break
-        except Exception:
-            pass
+# ===== Admin UI static mount =====
+# Mount the Admin UI when the build is present; access is still gated by middleware.
+# This avoids confusing 404/empty responses when ENABLE_LOCAL_ADMIN was not set early.
+admin_ui_path_candidates = [
+    "/app/admin_ui/dist",
+    os.path.join(os.path.dirname(__file__), "..", "admin_ui", "dist"),
+]
+for _p in admin_ui_path_candidates:
+    try:
+        ap = os.path.abspath(_p)
+        if os.path.exists(ap):
+            app.mount("/admin/ui", StaticFiles(directory=ap, html=True), name="admin_ui")
+            break
+    except Exception:
+        pass
 
 # Serve project assets (logo, etc.) under /assets if present (dev convenience)
 _assets_candidates = [
@@ -570,6 +682,13 @@ except Exception as _mcp_http_err:
 async def enforce_local_admin(request: Request, call_next):
     # Restrict only the browser UI under /admin/ui; leave programmatic admin APIs accessible
     if request.url.path.startswith("/admin/ui"):
+        # Developer bypass: always allow UI on trusted dev machines
+        try:
+            if _developer_bypass_ok():
+                response = await call_next(request)
+                return response
+        except Exception:
+            pass
         # Feature flag gate
         if os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() != "true":
             return Response(content="Admin console disabled", status_code=404)
@@ -693,6 +812,13 @@ async def on_startup():
         from .status_map import load_status_map  # type: ignore
         load_status_map()
     except Exception:
+        pass
+
+    # Initialize any discovered plugins without blocking the event loop
+    try:
+        asyncio.create_task(plugin_manager.initialize_all())
+    except Exception:
+        # Non-fatal; continue without plugin initialization if it fails
         pass
 
     # Auto‑tunnel: Cloudflare URL discovery (dev/non‑HIPAA only)
@@ -1260,6 +1386,13 @@ def get_admin_settings():
             "auth_method": settings.sinch_auth_method,
             "configured": bool(settings.sinch_project_id and settings.sinch_api_key and settings.sinch_api_secret),
         },
+        "humblefax": {
+            "access_key": mask_secret(getattr(settings, 'humblefax_access_key', '')),
+            "secret_key": mask_secret(getattr(settings, 'humblefax_secret_key', '')),
+            "from_number": mask_phone(getattr(settings, 'humblefax_from_number', '')),
+            "callback_base": getattr(settings, 'humblefax_callback_base', ''),
+            "configured": bool(getattr(settings, 'humblefax_access_key', '') and getattr(settings, 'humblefax_secret_key', '')),
+        },
         "signalwire": {
             "space_url": settings.signalwire_space_url,
             "project_id": settings.signalwire_project_id,
@@ -1539,7 +1672,11 @@ async def admin_permissions_check():
 @app.get("/admin/user/traits", dependencies=[Depends(require_admin)])
 async def admin_user_traits(info = Depends(require_admin)):
     # info contains key_id and scopes for admin keys
+    # Treat the env bootstrap key as admin-equivalent for UI gating
     scopes = (info or {}).get("scopes") or []
+    if (info or {}).get("admin") and not scopes:
+        # Grant admin-equivalent trait mapping for bootstrap env key
+        scopes = ["keys:manage"]
     user_id = (info or {}).get("key_id") or "unknown"
     return pack_user_traits(user_id, scopes)
 
@@ -1710,6 +1847,13 @@ class UpdateSettingsRequest(BaseModel):
     sinch_auth_method: Optional[str] = None  # 'basic' | 'oauth'
     sinch_auth_base_url: Optional[str] = None  # token endpoint
 
+    # HumbleFax
+    humblefax_access_key: Optional[str] = None
+    humblefax_secret_key: Optional[str] = None
+    humblefax_from_number: Optional[str] = None
+    humblefax_callback_base: Optional[str] = None
+    humblefax_webhook_secret: Optional[str] = None
+
     # SignalWire
     signalwire_space_url: Optional[str] = None
     signalwire_project_id: Optional[str] = None
@@ -1821,6 +1965,13 @@ def update_admin_settings(payload: UpdateSettingsRequest):
     if payload.sinch_auth_method is not None:
         _set_env_opt("SINCH_AUTH_METHOD", str(payload.sinch_auth_method).lower())
     _set_env_opt("SINCH_AUTH_BASE_URL", payload.sinch_auth_base_url)
+
+    # HumbleFax
+    _set_env_opt("HUMBLEFAX_ACCESS_KEY", payload.humblefax_access_key)
+    _set_env_opt("HUMBLEFAX_SECRET_KEY", payload.humblefax_secret_key)
+    _set_env_opt("HUMBLEFAX_FROM_NUMBER", payload.humblefax_from_number)
+    _set_env_opt("HUMBLEFAX_CALLBACK_BASE", payload.humblefax_callback_base)
+    _set_env_opt("HUMBLEFAX_WEBHOOK_SECRET", payload.humblefax_webhook_secret)
 
     # SignalWire
     _set_env_opt("SIGNALWIRE_SPACE_URL", payload.signalwire_space_url)
@@ -2565,6 +2716,64 @@ def admin_tunnel_register_sinch() -> RegisterSinchOut:
         return RegisterSinchOut(success=False, webhook_url=webhook_url, error=str(e)[:200])
 
 
+class RegisterHumbleFaxOut(BaseModel):
+    success: bool
+    webhook_url: Optional[str] = None
+    provider_response: Optional[dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+@app.post("/admin/inbound/register-humblefax", dependencies=[Depends(require_admin)])
+def admin_inbound_register_humblefax() -> RegisterHumbleFaxOut:
+    """Create a HumbleFax webhook pointing to our current public URL.
+
+    Uses Basic auth with HUMBLEFAX_ACCESS_KEY/SECRET and subscribes to both
+    IncomingFax.SendComplete and SentFax.SendComplete events.
+    """
+    # Determine public callback base
+    public_url = (
+        (_TUNNEL_STATE.get("public_url") if not _hipaa_posture_enabled() else None)
+        or getattr(settings, 'humblefax_callback_base', '')
+        or settings.public_api_url
+    ).rstrip("/")
+    if not public_url:
+        return RegisterHumbleFaxOut(success=False, error="No public URL available (tunnel inactive and PUBLIC_API_URL unset)")
+    webhook_url = f"{public_url}/inbound/humblefax/webhook"
+
+    ak = getattr(settings, 'humblefax_access_key', '')
+    sk = getattr(settings, 'humblefax_secret_key', '')
+    if not (ak and sk):
+        return RegisterHumbleFaxOut(success=False, webhook_url=webhook_url, error="Missing HumbleFax credentials")
+
+    payload = {
+        "id": 0,
+        "url": webhook_url,
+        "subscriptions": ["IncomingFax.SendComplete", "SentFax.SendComplete"],
+    }
+    # Try modern path first, then fallback
+    urls = [
+        "https://api.humblefax.com/webhook",
+        "https://api.humblefax.com/createWebhook",
+    ]
+    try:
+        import httpx
+        with httpx.Client(timeout=15.0, headers={"Content-Type": "application/json"}) as client:
+            last_status = None
+            last_text = None
+            for u in urls:
+                r = client.post(u, json=payload, auth=(ak, sk))
+                if r.status_code < 400:
+                    try:
+                        return RegisterHumbleFaxOut(success=True, webhook_url=webhook_url, provider_response=r.json())
+                    except Exception:
+                        return RegisterHumbleFaxOut(success=True, webhook_url=webhook_url, provider_response={"status_code": r.status_code})
+                last_status = r.status_code
+                last_text = r.text[:200]
+        return RegisterHumbleFaxOut(success=False, webhook_url=webhook_url, error=f"API error {last_status}: {last_text}")
+    except Exception as e:
+        return RegisterHumbleFaxOut(success=False, webhook_url=webhook_url, error=str(e)[:200])
+
+
 @app.get("/admin/tunnel/cloudflared/logs", dependencies=[Depends(require_admin)])
 def admin_tunnel_cloudflared_logs(lines: int = Query(default=50, ge=1, le=500)):
     """Read last N lines from the Cloudflared log file on disk.
@@ -2591,7 +2800,12 @@ def admin_inbound_callbacks():
         reload_settings()
     except Exception:
         pass
-    base = settings.public_api_url.rstrip("/")
+    # Prefer active tunnel URL when available (dev) else HUMBLEFAX_CALLBACK_BASE else PUBLIC_API_URL
+    base = (
+        (_TUNNEL_STATE.get("public_url") if not _hipaa_posture_enabled() else None)
+        or (getattr(settings, 'humblefax_callback_base', '') or None)
+        or settings.public_api_url
+    ).rstrip("/")
     backend = active_inbound()
     out: dict[str, Any] = {"backend": backend, "callbacks": []}
     if backend == "phaxio":
@@ -2615,6 +2829,14 @@ def admin_inbound_callbacks():
             "name": "SignalWire Fax Status",
             "url": f"{base}/signalwire-callback",
             "notes": "Configure StatusCallback on send; this endpoint will process updates.",
+        })
+    elif backend == "humblefax":
+        out["callbacks"].append({
+            "name": "HumbleFax Inbound",
+            "url": f"{base}/inbound/humblefax/webhook",
+            "notes": "Set webhook in HumbleFax Developer → Webhooks to receive inbound and send-complete events.",
+            "content_types": ["application/json", "multipart/form-data"],
+            "preferred_content_type": "application/json",
         })
     elif backend == "sip":
         out["callbacks"].append({
@@ -3429,7 +3651,7 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
 
     # Kick off fax sending based on backend
     if not settings.fax_disabled:
-        if ob in {"phaxio", "sinch"}:
+        if ob in {"phaxio", "sinch", "humblefax"}:
             background.add_task(_send_via_outbound_normalized, job_id, to, pdf_path, tiff_path)
         elif ob == "signalwire":
             background.add_task(_send_via_signalwire, job_id, to, pdf_path)
@@ -4915,8 +5137,19 @@ async def humblefax_inbound(request: Request):
     except Exception:
         data = {}
 
+    ev_type = str(data.get("type") or "").strip()
+    # Prefer nested ids when present
+    nested_id = None
+    try:
+        if ev_type.startswith("SentFax"):
+            nested_id = (data.get("data") or {}).get("SentFax", {}).get("id")
+        elif ev_type.startswith("IncomingFax"):
+            nested_id = (data.get("data") or {}).get("IncomingFax", {}).get("id")
+    except Exception:
+        nested_id = None
     ext_id = (
-        data.get("faxId")
+        nested_id
+        or data.get("faxId")
         or data.get("id")
         or data.get("fax_id")
     )
@@ -4943,11 +5176,29 @@ async def humblefax_inbound(request: Request):
     if duplicate_evt:
         return _ack_response()
 
-    # Minimal audit trail without PHI
+    # Update outbound job on send-complete events; store minimal inbound audit on incoming events
     try:
-        audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
-        if INBOUND_FAXES_TOTAL is not None:
-            INBOUND_FAXES_TOTAL.labels(provider='humblefax', status=str(data.get('status') or 'received')).inc()
+        if str(ev_type).startswith("SentFax"):
+            # Map provider status to canonical
+            from .status_map import canonical_status  # type: ignore
+            prov_status = str((data.get("data") or {}).get("SentFax", {}).get("status") or data.get("status") or "").lower()
+            status = canonical_status("humblefax", prov_status)
+            with SessionLocal() as db:
+                job = db.query(FaxJob).filter(FaxJob.provider_sid == str(ext_id)).first()
+                if job:
+                    job.status = status or job.status
+                    job.updated_at = datetime.utcnow()
+                    db.add(job)
+                    db.commit()
+            audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
+        else:
+            # Incoming fax notifications — we acknowledge and count; full download flow can be added later
+            audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
+            try:
+                if INBOUND_FAXES_TOTAL is not None:
+                    INBOUND_FAXES_TOTAL.labels(provider='humblefax', status=str(data.get('status') or 'received')).inc()
+            except Exception:
+                pass
     except Exception:
         pass
     return _ack_response({"status": "ok"})
@@ -5402,7 +5653,7 @@ async def admin_terminal_websocket(
 ):
     """WebSocket terminal for Admin Console - requires admin authentication."""
     # Local-only gate (Terminal is a local admin tool)
-    if os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() not in {"1","true","yes"}:
+    if not _developer_bypass_ok() and os.getenv("ENABLE_LOCAL_ADMIN", "false").lower() not in {"1","true","yes"}:
         await websocket.accept()
         await websocket.send_text(json.dumps({'type': 'error', 'message': 'Terminal disabled (ENABLE_LOCAL_ADMIN=false)'}))
         await websocket.close(code=1008, reason="Admin console disabled")

@@ -23,6 +23,8 @@ export const getProviderIcon = (providerId: string, size: 'small' | 'medium' | '
       return <CloudIcon {...iconProps} />;
     case 'sinch':
       return <ApiIcon {...iconProps} />;
+    case 'humblefax':
+      return <CloudIcon {...iconProps} />;
     case 'documo':
       return <WebhookIcon {...iconProps} />;
     case 'signalwire':
@@ -46,6 +48,8 @@ export const getProviderColor = (providerId: string): string => {
       return '#2196F3'; // Blue
     case 'sinch':
       return '#FF9800'; // Orange
+    case 'humblefax':
+      return '#3F51B5'; // Indigo
     case 'documo':
       return '#9C27B0'; // Purple
     case 'signalwire':
@@ -67,6 +71,7 @@ export const getProviderDisplayName = (providerId: string): string => {
   const names: Record<string, string> = {
     phaxio: 'Phaxio',
     sinch: 'Sinch',
+    humblefax: 'HumbleFax',
     documo: 'Documo',
     signalwire: 'SignalWire',
     sip: 'SIP/Asterisk',
@@ -82,6 +87,7 @@ export const getProviderCategory = (providerId: string): 'cloud' | 'self-hosted'
   switch (providerId?.toLowerCase()) {
     case 'phaxio':
     case 'sinch':
+    case 'humblefax':
     case 'documo':
     case 'signalwire':
       return 'cloud';

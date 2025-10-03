@@ -3,6 +3,10 @@ from typing import Any, Dict, Optional
 from ..config import settings, active_outbound
 from ..phaxio_service import get_phaxio_service
 from ..sinch_service import get_sinch_service
+try:
+    from ..humblefax_service import get_humblefax_service  # type: ignore
+except Exception:  # pragma: no cover
+    get_humblefax_service = None  # type: ignore
 
 
 class OutboundAdapter:
@@ -64,12 +68,40 @@ class SinchAdapter(OutboundAdapter):
         return {"ok": False, "error": "cancel_not_supported"}
 
 
+class HumbleFaxAdapter(OutboundAdapter):
+    async def send(self, to: str, file_path: str, *, job_id: Optional[str] = None, pdf_url: Optional[str] = None) -> Dict[str, Any]:
+        if get_humblefax_service is None:
+            raise RuntimeError("HumbleFax service not available")
+        svc = get_humblefax_service()
+        if not svc or not svc.is_configured():
+            raise RuntimeError("HumbleFax not configured")
+        res = await svc.quick_send(to, file_path)
+        return _canonical_from_hf_send(res)
+
+    async def get_status(self, provider_sid: str) -> Dict[str, Any]:
+        if get_humblefax_service is None:
+            raise RuntimeError("HumbleFax service not available")
+        svc = get_humblefax_service()
+        if not svc or not svc.is_configured():
+            raise RuntimeError("HumbleFax not configured")
+        try:
+            res = await svc.get_fax_status(provider_sid)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        return _canonical_from_hf_status(res)
+
+    async def cancel(self, provider_sid: str) -> Dict[str, Any]:
+        return {"ok": False, "error": "cancel_not_supported"}
+
+
 def get_outbound_adapter() -> OutboundAdapter:
     ob = active_outbound()
     if ob == "phaxio":
         return PhaxioAdapter()
     if ob == "sinch":
         return SinchAdapter()
+    if ob == "humblefax":
+        return HumbleFaxAdapter()
     # For other backends, we can add adapters later
     raise RuntimeError(f"No outbound adapter for backend: {ob}")
 
@@ -102,3 +134,19 @@ def _canonical_from_sinch_status(res: Dict[str, Any]) -> Dict[str, Any]:
     raw = str(res.get("status") or res.get("data", {}).get("status") or "").lower()
     status = canonical_status("sinch", raw)
     return {"ok": True, "status": status, "provider": "sinch", "raw": res}
+
+
+def _canonical_from_hf_send(res: Dict[str, Any]) -> Dict[str, Any]:
+    from ..status_map import canonical_status
+    # HumbleFax JSON: { data: { fax: { id, status, ... } } }
+    jid = str((res.get("data") or {}).get("fax", {}).get("id") or res.get("id") or "")
+    raw = str((res.get("data") or {}).get("fax", {}).get("status") or res.get("status") or "in progress").lower()
+    status = canonical_status("humblefax", raw)
+    return {"ok": True, "job_id": jid, "provider": "humblefax", "status": status, "raw": res}
+
+
+def _canonical_from_hf_status(res: Dict[str, Any]) -> Dict[str, Any]:
+    from ..status_map import canonical_status
+    raw = str((res.get("data") or {}).get("fax", {}).get("status") or res.get("status") or "").lower()
+    status = canonical_status("humblefax", raw)
+    return {"ok": True, "status": status, "provider": "humblefax", "raw": res}

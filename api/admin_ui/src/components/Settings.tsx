@@ -45,6 +45,7 @@ interface SettingsProps {
 function Settings({ client, readOnly = false }: SettingsProps) {
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [envContent, setEnvContent] = useState<string>('');
+  const [envMap, setEnvMap] = useState<Array<{ key: string; value: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
@@ -101,8 +102,50 @@ function Settings({ client, readOnly = false }: SettingsProps) {
         if (cfg?.migration) setMigrationBanner(Boolean(cfg.migration.banner));
         setForm((prev: any) => ({ ...prev, enable_persisted_settings: !!cfg?.persisted_settings_enabled }));
       } catch {}
+      // Background load of current environment so the UI shows all keys
+      try {
+        if (!envContent) {
+          const data = await client.exportSettings();
+          setEnvContent(data.env_content);
+          // Best-effort parse for inline display
+          const rows: Array<{ key: string; value: string }> = [];
+          for (const raw of (data.env_content || '').split(/\r?\n/)) {
+            const line = raw.trim();
+            if (!line || line.startsWith('#') || !line.includes('=')) continue;
+            const idx = line.indexOf('=');
+            const k = line.slice(0, idx).trim();
+            let v = line.slice(idx + 1).trim();
+            if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+            const lower = k.toLowerCase();
+            const isSecret = lower.includes('secret') || lower.includes('key') || lower.includes('token') || lower.includes('password');
+            const masked = isSecret && v ? (v.length <= 4 ? '****' : `${'*'.repeat(Math.max(4, v.length - 4))}${v.slice(-4)}`) : v;
+            rows.push({ key: k, value: masked });
+          }
+          setEnvMap(rows);
+        }
+      } catch {}
     })();
   }, []);
+
+  const parseEnvContentToMap = (text: string): Array<{ key: string; value: string }> => {
+    const rows: Array<{ key: string; value: string }>= [];
+    try {
+      const lines = (text || '').split(/\r?\n/);
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line || line.startsWith('#') || !line.includes('=')) continue;
+        const idx = line.indexOf('=');
+        const k = line.slice(0, idx).trim();
+        let v = line.slice(idx + 1).trim();
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+        const lower = k.toLowerCase();
+        const isSecret = lower.includes('secret') || lower.includes('key') || lower.includes('token') || lower.includes('password');
+        const masked = isSecret && v ? (v.length <= 4 ? '****' : `${'*'.repeat(Math.max(4, v.length - 4))}${v.slice(-4)}`) : v;
+        rows.push({ key: k, value: masked });
+      }
+    } catch {}
+    return rows;
+  };
 
   const exportEnv = async () => {
     try {
@@ -110,6 +153,7 @@ function Settings({ client, readOnly = false }: SettingsProps) {
       setLoading(true);
       const data = await client.exportSettings();
       setEnvContent(data.env_content);
+      setEnvMap(parseEnvContentToMap(data.env_content));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to export settings');
     } finally {
@@ -347,6 +391,7 @@ function Settings({ client, readOnly = false }: SettingsProps) {
               options={[
                 { value: 'phaxio', label: 'Phaxio (Cloud)' },
                 { value: 'sinch', label: 'Sinch (Cloud)' },
+                { value: 'humblefax', label: 'HumbleFax (Cloud)' },
                 { value: 'signalwire', label: 'SignalWire (Cloud)' },
                 { value: 'documo', label: 'Documo (Cloud)' },
                 { value: 'sip', label: 'SIP/Asterisk (Self-hosted)' },
@@ -367,6 +412,7 @@ function Settings({ client, readOnly = false }: SettingsProps) {
               options={[
                 { value: 'phaxio', label: 'Phaxio (Webhook)' },
                 { value: 'sinch', label: 'Sinch (Webhook)' },
+                { value: 'humblefax', label: 'HumbleFax (Webhook)' },
                 { value: 'sip', label: 'SIP/Asterisk (Internal)' }
               ]}
               showCurrentValue={true}
@@ -1364,6 +1410,55 @@ function Settings({ client, readOnly = false }: SettingsProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Dedicated list of all environment variables (masked) */}
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">All Environment Variables</Typography>
+            <Box>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={exportEnv}
+                disabled={loading}
+              >
+                Refresh
+              </Button>
+              <Button
+                sx={{ ml: 1 }}
+                variant="outlined"
+                startIcon={<ContentCopyIcon />}
+                onClick={() => copyToClipboard(envContent)}
+                disabled={!envContent}
+              >
+                Copy .env
+              </Button>
+            </Box>
+          </Box>
+          {envMap.length === 0 ? (
+            <Typography color="text.secondary">No environment keys detected yet. Click Refresh to load current values.</Typography>
+          ) : (
+            <Paper variant="outlined" sx={{ maxHeight: 380, overflow: 'auto', borderRadius: 2 }}>
+              <List dense>
+                {envMap.map(({ key, value }) => (
+                  <ListItem key={key} divider>
+                    <ListItemText
+                      primary={key}
+                      secondary={value}
+                      primaryTypographyProps={{ sx: { fontFamily: 'monospace' } }}
+                      secondaryTypographyProps={{ sx: { fontFamily: 'monospace' } }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Paper>
+          )}
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Secrets are masked in this list. Use Export .env to persist server-side.
+          </Alert>
+        </CardContent>
+      </Card>
       {snack && (
         <Alert severity="success" sx={{ mt: 2 }} onClose={() => setSnack(null)}>
           {snack}

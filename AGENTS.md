@@ -1,5 +1,23 @@
 # AGENTS.md - Critical Instructions for AI Assistants
 
+## Quick Check Runbook (Local Dev)
+
+- Start API with flags:
+  - `ENABLE_LOCAL_ADMIN=true`
+  - `API_KEY=fbk_local_admin_...`
+  - Optional: `ADMIN_UI_ALLOW_TUNNEL=true`
+  - Optional v4 config: `CONFIG_MASTER_KEY=<44b64>`
+- Visit `http://localhost:8080/admin/ui`
+- Login with the API key
+- Verify:
+  - Settings → Configuration loads (no 503 if master key set).
+  - Settings → Settings shows Provider Setup wizard button enabled.
+  - Tools → Plugins, Tools → Marketplace shows info banner unless enabled.
+
+Notes
+- v4 config endpoints now have an env/default fallback for read operations so the Configuration Manager can render even without `CONFIG_MASTER_KEY` (writes still require it).
+- Developer unlock (local only): set `DEVELOPER_UNLOCK=true` (or allowlist via `DEVELOPER_HOST_ALLOWLIST`/`DEVELOPER_MAC_ALLOWLIST`) to bypass Admin API-key prompts on your trusted machine. This is off by default and must never be enabled in shared or production environments.
+
 ## ⚠️ MANDATORY: Read [AGENT_BRANCH_POLICY.md](./AGENT_BRANCH_POLICY.md) - Stop creating unnecessary branches!
 
 # CRITICAL: V4 MIGRATION IN PROGRESS

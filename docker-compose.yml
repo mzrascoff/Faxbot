@@ -11,6 +11,11 @@ services:
       - FAXBOT_SESSION_PEPPER=${FAXBOT_SESSION_PEPPER}
       - FAX_DATA_DIR=/faxdata
       - ENABLE_LOCAL_ADMIN=true
+      # Developer unlock bypass for local machines (optional)
+      - DEVELOPER_UNLOCK=${DEVELOPER_UNLOCK}
+      - DEVELOPER_HOST_ALLOWLIST=${DEVELOPER_HOST_ALLOWLIST}
+      - DEVELOPER_MAC_ALLOWLIST=${DEVELOPER_MAC_ALLOWLIST}
+      - ADMIN_UI_ALLOW_TUNNEL=${ADMIN_UI_ALLOW_TUNNEL}
       - ADMIN_ALLOW_RESTART=true
       # Optional: auto-load persisted .env settings on startup
       - ENABLE_PERSISTED_SETTINGS=false

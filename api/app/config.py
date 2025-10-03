@@ -139,6 +139,14 @@ class Settings(BaseModel):
     sinch_inbound_basic_user: str = Field(default_factory=lambda: os.getenv("SINCH_INBOUND_BASIC_USER", ""))
     sinch_inbound_basic_pass: str = Field(default_factory=lambda: os.getenv("SINCH_INBOUND_BASIC_PASS", ""))
 
+    # HumbleFax (Basic)
+    humblefax_access_key: str = Field(default_factory=lambda: os.getenv("HUMBLEFAX_ACCESS_KEY", ""))
+    humblefax_secret_key: str = Field(default_factory=lambda: os.getenv("HUMBLEFAX_SECRET_KEY", ""))
+    humblefax_from_number: str = Field(default_factory=lambda: os.getenv("HUMBLEFAX_FROM_NUMBER", ""))
+    # Inbound webhook (optional HMAC verification; not required by HumbleFax but supported)
+    humblefax_webhook_secret: str = Field(default_factory=lambda: os.getenv("HUMBLEFAX_WEBHOOK_SECRET", ""))
+    humblefax_callback_base: str = Field(default_factory=lambda: os.getenv("HUMBLEFAX_CALLBACK_BASE", ""))
+
     # Storage backend for inbound artifacts
     storage_backend: str = Field(default_factory=lambda: os.getenv("STORAGE_BACKEND", "local"))  # local | s3
     s3_bucket: str = Field(default_factory=lambda: os.getenv("S3_BUCKET", ""))
@@ -358,7 +366,7 @@ def valid_backends() -> set[str]:
     keys.discard("_schema")
     if not keys:
         # Fallback to known built-ins if traits registry fails to load
-        return {"phaxio", "sinch", "sip", "signalwire", "documo", "freeswitch"}
+        return {"phaxio", "sinch", "sip", "signalwire", "documo", "freeswitch", "humblefax"}
     return keys
 
 

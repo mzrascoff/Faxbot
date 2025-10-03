@@ -79,6 +79,7 @@ interface ProviderConfig {
 const PROVIDER_OPTIONS = [
   { value: 'phaxio', label: 'Phaxio (Cloud)', category: 'cloud' },
   { value: 'sinch', label: 'Sinch Fax API', category: 'cloud' },
+  { value: 'humblefax', label: 'HumbleFax (Cloud)', category: 'cloud' },
   { value: 'documo', label: 'Documo', category: 'cloud' },
   { value: 'signalwire', label: 'SignalWire', category: 'cloud' },
   { value: 'sip', label: 'SIP/Asterisk', category: 'self-hosted' },
@@ -135,10 +136,15 @@ export default function ProviderSetupWizard({
       const hasOAuth = Array.isArray(methods) && methods.includes('oauth2');
 
       if (basicOnly) {
-        settings.phaxio_api_key = config.phaxio_api_key;
-        settings.phaxio_api_secret = config.phaxio_api_secret;
-        settings.phaxio_callback_url = config.phaxio_callback_url;
-        settings.phaxio_verify_signature = config.phaxio_verify_signature;
+        if (config.provider === 'humblefax') {
+          (settings as any).humblefax_access_key = (config as any).humblefax_access_key;
+          (settings as any).humblefax_secret_key = (config as any).humblefax_secret_key;
+        } else {
+          settings.phaxio_api_key = config.phaxio_api_key;
+          settings.phaxio_api_secret = config.phaxio_api_secret;
+          settings.phaxio_callback_url = config.phaxio_callback_url;
+          settings.phaxio_verify_signature = config.phaxio_verify_signature;
+        }
       }
       if (hasOAuth) {
         settings.sinch_project_id = config.sinch_project_id;
@@ -184,9 +190,15 @@ export default function ProviderSetupWizard({
       const hasOAuth = Array.isArray(methods) && methods.includes('oauth2');
 
       if (basicOnly) {
-        settings.phaxio_api_key = config.phaxio_api_key;
-        settings.phaxio_api_secret = config.phaxio_api_secret;
-        if (config.public_api_url) settings.public_api_url = config.public_api_url;
+        if (config.provider === 'humblefax') {
+          (settings as any).humblefax_access_key = (config as any).humblefax_access_key;
+          (settings as any).humblefax_secret_key = (config as any).humblefax_secret_key;
+          if (config.public_api_url) (settings as any).public_api_url = config.public_api_url;
+        } else {
+          settings.phaxio_api_key = config.phaxio_api_key;
+          settings.phaxio_api_secret = config.phaxio_api_secret;
+          if (config.public_api_url) settings.public_api_url = config.public_api_url;
+        }
       }
       if (hasOAuth) {
         settings.sinch_project_id = config.sinch_project_id;
@@ -318,39 +330,61 @@ export default function ProviderSetupWizard({
         <Stack spacing={3}>
           {(() => { const t = registry?.[config.provider]?.traits || {}; const m = (t?.auth?.methods||[]) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2'); })() && (
             <ResponsiveFormSection
-              title="Phaxio API Credentials"
-              subtitle="Get these from your Phaxio console"
+              title={config.provider === 'humblefax' ? 'HumbleFax API Credentials' : 'Phaxio API Credentials'}
+              subtitle={config.provider === 'humblefax' ? 'Get these from HumbleFax → API / Developer' : 'Get these from your Phaxio console'}
               icon={<SecurityIcon />}
             >
               <Stack spacing={2}>
-                <ResponsiveTextField
-                  label="API Key"
-                  value={config.phaxio_api_key || ''}
-                  onChange={(value) => handleConfigChange('phaxio_api_key', value)}
-                  placeholder="your_api_key_from_console"
-                  required
-                />
-                <ResponsiveTextField
-                  label="API Secret"
-                  value={config.phaxio_api_secret || ''}
-                  onChange={(value) => handleConfigChange('phaxio_api_secret', value)}
-                  placeholder="your_api_secret_from_console"
-                  type="password"
-                  required
-                />
-                <ResponsiveTextField
-                  label="Callback URL"
-                  value={config.phaxio_callback_url || ''}
-                  onChange={(value) => handleConfigChange('phaxio_callback_url', value)}
-                  placeholder="https://yourdomain.com/phaxio-callback"
-                  helperText="URL where Phaxio will send status updates"
-                />
-                <ResponsiveCheckbox
-                  label="Verify Webhook Signatures"
-                  checked={config.phaxio_verify_signature || false}
-                  onChange={(checked) => handleConfigChange('phaxio_verify_signature', checked)}
-                  helperText="Recommended for production (HIPAA compliance)"
-                />
+                {config.provider === 'humblefax' ? (
+                  <>
+                    <ResponsiveTextField
+                      label="API Access Key"
+                      value={(config as any).humblefax_access_key || ''}
+                      onChange={(value) => handleConfigChange('humblefax_access_key', value)}
+                      placeholder="from HumbleFax Developer → API Keys"
+                      required
+                    />
+                    <ResponsiveTextField
+                      label="API Secret Key"
+                      value={(config as any).humblefax_secret_key || ''}
+                      onChange={(value) => handleConfigChange('humblefax_secret_key', value)}
+                      placeholder="from HumbleFax Developer → API Keys"
+                      type="password"
+                      required
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ResponsiveTextField
+                      label="API Key"
+                      value={config.phaxio_api_key || ''}
+                      onChange={(value) => handleConfigChange('phaxio_api_key', value)}
+                      placeholder="your_api_key_from_console"
+                      required
+                    />
+                    <ResponsiveTextField
+                      label="API Secret"
+                      value={config.phaxio_api_secret || ''}
+                      onChange={(value) => handleConfigChange('phaxio_api_secret', value)}
+                      placeholder="your_api_secret_from_console"
+                      type="password"
+                      required
+                    />
+                    <ResponsiveTextField
+                      label="Callback URL"
+                      value={config.phaxio_callback_url || ''}
+                      onChange={(value) => handleConfigChange('phaxio_callback_url', value)}
+                      placeholder="https://yourdomain.com/phaxio-callback"
+                      helperText="URL where Phaxio will send status updates"
+                    />
+                    <ResponsiveCheckbox
+                      label="Verify Webhook Signatures"
+                      checked={config.phaxio_verify_signature || false}
+                      onChange={(checked) => handleConfigChange('phaxio_verify_signature', checked)}
+                      helperText="Recommended for production (HIPAA compliance)"
+                    />
+                  </>
+                )}
               </Stack>
             </ResponsiveFormSection>
           )}

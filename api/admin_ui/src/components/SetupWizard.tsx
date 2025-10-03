@@ -130,6 +130,18 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     })();
   }, [client]);
 
+  // Auto-populate PUBLIC_API_URL from active tunnel (if provided by backend status)
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await client.getTunnelStatus();
+        if (res?.public_url) {
+          setConfig(prev => ({ ...prev, public_api_url: prev.public_api_url || res.public_url }));
+        }
+      } catch {}
+    })();
+  }, [client]);
+
   const handleValidate = async () => {
     setValidating(true);
     try {
@@ -737,6 +749,14 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                     <Box component="pre" sx={{ p: 1, bgcolor: 'background.default', borderRadius: 1, overflow: 'auto' }}>{callbacks.callbacks[0].url}</Box>
                 <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
                   <Button variant="outlined" onClick={() => navigator.clipboard.writeText(callbacks.callbacks[0].url)}>Copy</Button>
+                  {config.inbound_backend === 'humblefax' && (
+                    <Button variant="outlined" onClick={async () => {
+                      try {
+                        const res = await (client as any).registerHumbleFaxWebhook?.();
+                        setSnack(res?.success ? 'HumbleFax webhook registered' : (res?.error || 'Registration failed'));
+                      } catch (e: any) { setSnack(e?.message || 'Registration failed'); }
+                    }}>Register HumbleFax Webhook</Button>
+                  )}
                   <Button variant="outlined" onClick={async () => { try { await client.simulateInbound({ backend: config.backend }); setSnack('Simulated inbound received'); } catch(e:any){ setSnack(e?.message||'Simulation failed'); } }}>Simulate Inbound</Button>
                 </Box>
                 {callbacks.callbacks[0].preferred_content_type && (
