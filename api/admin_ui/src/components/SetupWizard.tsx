@@ -179,6 +179,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
       lines.push(`INBOUND_ENABLED=true`);
       if (config.inbound_backend === 'humblefax') {
         lines.push('# HumbleFax inbound (webhook/optional IMAP)');
+        // Only add access keys if not already in outbound section
+        if (ob !== 'humblefax') {
+          lines.push(`HUMBLEFAX_ACCESS_KEY=${(config as any).humblefax_access_key || 'your_access_key_here'}`);
+          lines.push(`HUMBLEFAX_SECRET_KEY=${(config as any).humblefax_secret_key || 'your_secret_key_here'}`);
+        }
         lines.push(`HUMBLEFAX_WEBHOOK_SECRET=${(config as any).humblefax_webhook_secret || 'choose-a-strong-random-string'}`);
         lines.push(`HUMBLEFAX_CALLBACK_BASE=${(config as any).humblefax_callback_base || config.public_api_url || 'https://faxbot.example.com'}`);
         lines.push('HUMBLEFAX_WEBHOOK_ENABLED=true');
@@ -240,10 +245,8 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
       lines.push(`DOCUMO_SANDBOX=${config.documo_use_sandbox ? 'true' : 'false'}`);
     } else if (ob === 'humblefax') {
       lines.push('# HumbleFax Configuration');
-      lines.push(`HUMBLEFAX_API_KEY=${(config as any).humblefax_api_key || 'your_api_key_here'}`);
-      if ((config as any).humblefax_webhook_secret) {
-        lines.push(`HUMBLEFAX_WEBHOOK_SECRET=${(config as any).humblefax_webhook_secret}`);
-      }
+      lines.push(`HUMBLEFAX_ACCESS_KEY=${(config as any).humblefax_access_key || 'your_access_key_here'}`);
+      lines.push(`HUMBLEFAX_SECRET_KEY=${(config as any).humblefax_secret_key || 'your_secret_key_here'}`)
     }
 
     lines.push('');
@@ -273,6 +276,11 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         payload.inbound_enabled = true;
         // HumbleFax inbound settings
         if (config.inbound_backend === 'humblefax') {
+          // Add access keys if HumbleFax is not the outbound provider
+          if (effectiveBackend !== 'humblefax') {
+            (payload as any).humblefax_access_key = (config as any).humblefax_access_key;
+            (payload as any).humblefax_secret_key = (config as any).humblefax_secret_key;
+          }
           if ((config as any).humblefax_webhook_secret) {
             (payload as any).humblefax_webhook_secret = (config as any).humblefax_webhook_secret;
           }
@@ -308,10 +316,8 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         (payload as any).fs_gateway_name = (config as any).fs_gateway_name;
         (payload as any).fs_caller_id_number = (config as any).fs_caller_id_number;
       } else if (ob === 'humblefax') {
-        (payload as any).humblefax_api_key = (config as any).humblefax_api_key;
-        if ((config as any).humblefax_webhook_secret) {
-          (payload as any).humblefax_webhook_secret = (config as any).humblefax_webhook_secret;
-        }
+        (payload as any).humblefax_access_key = (config as any).humblefax_access_key;
+        (payload as any).humblefax_secret_key = (config as any).humblefax_secret_key;
       }
       await client.updateSettings(payload);
       await client.reloadSettings();
@@ -555,24 +561,25 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Alert severity="info" sx={{ mb: 2 }}>
-                    HumbleFax supports both webhook and IMAP inbound delivery. Configure webhook for real-time delivery, or IMAP for polling.
+                    Get your API credentials from HumbleFax Dashboard → API / Developer section
                   </Alert>
                 </Grid>
                 <Grid item xs={12}>
                   <SecretInput
-                    label="API Key"
-                    value={(config as any).humblefax_api_key || ''}
-                    onChange={(value) => handleConfigChange('humblefax_api_key', value)}
+                    label="API Access Key"
+                    value={(config as any).humblefax_access_key || ''}
+                    onChange={(value) => handleConfigChange('humblefax_access_key', value)}
                     fullWidth
+                    helperText="Your HumbleFax API username (from dashboard)"
                   />
                 </Grid>
                 <Grid item xs={12}>
                   <SecretInput
-                    label="Webhook Secret (optional)"
-                    value={(config as any).humblefax_webhook_secret || ''}
-                    onChange={(value) => handleConfigChange('humblefax_webhook_secret', value)}
+                    label="API Secret Key"
+                    value={(config as any).humblefax_secret_key || ''}
+                    onChange={(value) => handleConfigChange('humblefax_secret_key', value)}
                     fullWidth
-                    helperText="For HMAC verification of inbound webhooks"
+                    helperText="Your HumbleFax API password (from dashboard)"
                   />
                 </Grid>
               </Grid>
@@ -660,9 +667,35 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                   <Grid item xs={12}>
                     <Alert severity="info" sx={{ mb: 2 }}>
-                      HumbleFax receives faxes via webhook. Set a strong webhook secret and your public Faxbot URL (auto-populated from Cloudflare tunnel if running).
+                      Get your API credentials from HumbleFax Dashboard → API / Developer section.<br/>
+                      HumbleFax receives faxes via webhook. Set a strong webhook secret for HMAC verification.
                     </Alert>
                   </Grid>
+                  {/* Only show API keys if HumbleFax is not the outbound provider */}
+                  {ob !== 'humblefax' && (
+                    <>
+                      <Grid item xs={12}>
+                        <SecretInput
+                          label="API Access Key"
+                          value={(config as any).humblefax_access_key || ''}
+                          onChange={(value) => handleConfigChange('humblefax_access_key', value)}
+                          fullWidth
+                          placeholder="your-access-key"
+                          helperText="Your HumbleFax API username (from dashboard)"
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <SecretInput
+                          label="API Secret Key"
+                          value={(config as any).humblefax_secret_key || ''}
+                          onChange={(value) => handleConfigChange('humblefax_secret_key', value)}
+                          fullWidth
+                          placeholder="your-secret-key"
+                          helperText="Your HumbleFax API password (from dashboard)"
+                        />
+                      </Grid>
+                    </>
+                  )}
                   <Grid item xs={12}>
                     <SecretInput
                       label="Webhook Secret (HMAC-SHA256)"
@@ -670,7 +703,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                       onChange={(value) => handleConfigChange('humblefax_webhook_secret', value)}
                       fullWidth
                       placeholder="choose-a-strong-random-string"
-                      helperText="For HMAC verification of inbound webhooks"
+                      helperText="For HMAC verification of inbound webhooks (optional but recommended)"
                     />
                   </Grid>
                   <Grid item xs={12}>
