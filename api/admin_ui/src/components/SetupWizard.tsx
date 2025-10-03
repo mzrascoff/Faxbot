@@ -20,7 +20,6 @@ import {
 } from '@mui/material';
 import { Chip } from '@mui/material';
 import AdminAPIClient from '../api/client';
-import { useTraits } from '../hooks/useTraits';
 import SecretInput from './common/SecretInput';
 
 interface SetupWizardProps {
@@ -53,7 +52,6 @@ interface WizardConfig {
 }
 
 function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
-  const { registry } = useTraits();
   const [activeStep, setActiveStep] = useState(0);
   const [config, setConfig] = useState<WizardConfig>({
     backend: 'phaxio',
@@ -72,22 +70,6 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
   const [verifyFound, setVerifyFound] = useState<any | null>(null);
   const [callbacks, setCallbacks] = useState<any | null>(null);
   const ob = config.outbound_backend || config.backend;
-
-  // Helper to get traits for SELECTED provider (not active provider)
-  const getSelectedProviderTrait = (providerId: string, key: string): any => {
-    if (!registry || !providerId) return undefined;
-    const providerInfo = registry[providerId];
-    if (!providerInfo?.traits) return undefined;
-    try {
-      return key.split('.').reduce((acc: any, k: string) => (acc && acc[k] !== undefined ? acc[k] : undefined), providerInfo.traits);
-    } catch {
-      return undefined;
-    }
-  };
-
-  const hasSelectedProviderTrait = (providerId: string, key: string): boolean => {
-    return getSelectedProviderTrait(providerId, key) !== undefined;
-  };
 
   const steps = ['Choose Providers', 'Configure Credentials', 'Security Settings', 'Apply & Export'];
 
@@ -213,23 +195,20 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     lines.push('');
     lines.push('# Backend-specific configuration');
 
-      const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[];
-      const basicOnly = Array.isArray(m) && m.includes('basic') && !m.includes('oauth2');
-      const hasOAuth = Array.isArray(m) && m.includes('oauth2');
-      if (basicOnly) {
-        lines.push('# Phaxio Configuration');
-        lines.push(`PHAXIO_API_KEY=${config.phaxio_api_key || 'your_api_key_here'}`);
-        lines.push(`PHAXIO_API_SECRET=${config.phaxio_api_secret || 'your_api_secret_here'}`);
-        if (config.public_api_url) {
-          lines.push(`PUBLIC_API_URL=${config.public_api_url}`);
-          lines.push(`PHAXIO_STATUS_CALLBACK_URL=${config.public_api_url}/phaxio-callback`);
-        }
-        lines.push('PHAXIO_VERIFY_SIGNATURE=true');
-    } else if (hasOAuth) {
-        lines.push('# Sinch Fax API v3 Configuration');
-        lines.push(`SINCH_PROJECT_ID=${config.sinch_project_id || 'your_project_id_here'}`);
-        lines.push(`SINCH_API_KEY=${config.sinch_api_key || 'your_api_key_here'}`);
-        lines.push(`SINCH_API_SECRET=${config.sinch_api_secret || 'your_api_secret_here'}`);
+    if (ob === 'phaxio') {
+      lines.push('# Phaxio Configuration');
+      lines.push(`PHAXIO_API_KEY=${config.phaxio_api_key || 'your_api_key_here'}`);
+      lines.push(`PHAXIO_API_SECRET=${config.phaxio_api_secret || 'your_api_secret_here'}`);
+      if (config.public_api_url) {
+        lines.push(`PUBLIC_API_URL=${config.public_api_url}`);
+        lines.push(`PHAXIO_STATUS_CALLBACK_URL=${config.public_api_url}/phaxio-callback`);
+      }
+      lines.push('PHAXIO_VERIFY_SIGNATURE=true');
+    } else if (ob === 'sinch') {
+      lines.push('# Sinch Fax API v3 Configuration');
+      lines.push(`SINCH_PROJECT_ID=${config.sinch_project_id || 'your_project_id_here'}`);
+      lines.push(`SINCH_API_KEY=${config.sinch_api_key || 'your_api_key_here'}`);
+      lines.push(`SINCH_API_SECRET=${config.sinch_api_secret || 'your_api_secret_here'}`);
     } else if (ob === 'signalwire') {
         lines.push('# SignalWire Compatibility Fax API');
       lines.push(`SIGNALWIRE_SPACE_URL=${(config as any).signalwire_space_url || 'example.signalwire.com'}`);
@@ -240,7 +219,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         lines.push(`PUBLIC_API_URL=${config.public_api_url}`);
         lines.push(`SIGNALWIRE_STATUS_CALLBACK_URL=${config.public_api_url}/signalwire-callback`);
       }
-    } else if (hasSelectedProviderTrait(ob, 'requires_ami')) {
+    } else if (ob === 'sip') {
         lines.push('# SIP/Asterisk Configuration');
         lines.push(`ASTERISK_AMI_HOST=${config.ami_host || 'asterisk'}`);
         lines.push(`ASTERISK_AMI_PORT=${config.ami_port || 5038}`);
@@ -279,10 +258,6 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
     setValidationResults(null);
     try {
       const effectiveBackend = (config.outbound_backend || config.backend);
-      // Derive auth method hints for payload branching
-      const m = (getSelectedProviderTrait(effectiveBackend, 'auth.methods') || []) as string[];
-      const basicOnly = Array.isArray(m) && m.includes('basic') && !m.includes('oauth2');
-      const hasOAuth = Array.isArray(m) && m.includes('oauth2');
       const payload: any = {
         backend: effectiveBackend,
         outbound_backend: effectiveBackend,
@@ -294,24 +269,24 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
         payload.inbound_backend = config.inbound_backend;
         payload.inbound_enabled = true;
       }
-      if (basicOnly) {
+      if (effectiveBackend === 'phaxio') {
         payload.phaxio_api_key = config.phaxio_api_key;
         payload.phaxio_api_secret = config.phaxio_api_secret;
         if (config.public_api_url) payload.public_api_url = config.public_api_url;
-      } else if (hasOAuth) {
+      } else if (effectiveBackend === 'sinch') {
         payload.sinch_project_id = config.sinch_project_id;
         payload.sinch_api_key = config.sinch_api_key;
         payload.sinch_api_secret = config.sinch_api_secret;
         if ((config as any).sinch_base_url) payload.sinch_base_url = (config as any).sinch_base_url;
-      } else if (ob === 'signalwire') {
+      } else if (effectiveBackend === 'signalwire') {
         (payload as any).signalwire_space_url = (config as any).signalwire_space_url;
         (payload as any).signalwire_project_id = (config as any).signalwire_project_id;
         (payload as any).signalwire_api_token = (config as any).signalwire_api_token;
         (payload as any).signalwire_fax_from_e164 = (config as any).signalwire_fax_from_e164;
-      } else if (ob === 'documo') {
+      } else if (effectiveBackend === 'documo') {
         payload.documo_api_key = config.documo_api_key;
         payload.documo_use_sandbox = config.documo_use_sandbox;
-      } else if (hasSelectedProviderTrait(effectiveBackend, 'requires_ami')) {
+      } else if (effectiveBackend === 'sip') {
         payload.ami_host = config.ami_host;
         payload.ami_port = config.ami_port;
         payload.ami_username = config.ami_username;
@@ -388,13 +363,13 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               </Select>
             </FormControl>
             
-            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2'); })() && (
+            {(ob === 'phaxio' || ob === 'humblefax') && (
               <Alert severity="success" sx={{ mt: 2 }}>
                 Best for healthcare: 5-minute setup, automatic HIPAA compliance with BAA
               </Alert>
             )}
             
-            {hasSelectedProviderTrait(ob, 'requires_ami') && (
+            {ob === 'sip' && (
               <Alert severity="warning" sx={{ mt: 2 }}>
                 Requires technical expertise: T.38 support, port forwarding, NAT configuration
               </Alert>
@@ -404,19 +379,19 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                 Requires FreeSWITCH with mod_spandsp and gateway; configure result hook to post back status
               </Alert>
             )}
-            {getSelectedProviderTrait(config.inbound_backend || ob, 'inbound_verification') === 'hmac' && (
+            {(config.inbound_backend === 'phaxio' || config.inbound_backend === 'humblefax' || (!config.inbound_backend && (ob === 'phaxio' || ob === 'humblefax'))) && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Inbound webhook will use HMAC verification. Enable HMAC verification in provider.
               </Alert>
             )}
-            {getSelectedProviderTrait(config.inbound_backend || ob, 'inbound_verification') === 'basic' && (
+            {(config.inbound_backend === 'sinch' || (!config.inbound_backend && ob === 'sinch')) && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Inbound webhook will use Basic auth. Sinch webhooks use Basic auth; enforce in Faxbot and consider IP allowlisting.
                 <br/>
                 Access keys live in the <a href="https://dashboard.sinch.com/settings/access-keys" target="_blank" rel="noreferrer">Sinch Customer (Build) Dashboard</a>. Other Sinch portals do not expose Fax API access keys.
               </Alert>
             )}
-            {getSelectedProviderTrait(config.inbound_backend || ob, 'inbound_verification') === 'internal_secret' && (
+            {(config.inbound_backend === 'sip' || (!config.inbound_backend && ob === 'sip')) && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Inbound internal endpoint: <code>/_internal/asterisk/inbound</code> (private network only).
               </Alert>
@@ -439,7 +414,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               )}
             </Box>
             
-            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2'); })() && (
+            {ob === 'phaxio' && (
               <Grid container spacing={{ xs: 2, md: 3 }}>
                 <Grid item xs={12}>
                   <SecretInput
@@ -478,7 +453,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               </Grid>
             )}
 
-            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('oauth2'); })() && (
+            {ob === 'sinch' && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Typography variant="body2" color="text.secondary">
@@ -609,7 +584,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
 
             
 
-            {hasSelectedProviderTrait(ob, 'requires_ami') && (
+            {ob === 'sip' && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Alert severity="error" sx={{ mb: 2 }}>
@@ -667,7 +642,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
             )}
 
             {/* Provider Connect */}
-            {Boolean((getSelectedProviderTrait(ob, 'webhook.path')) || (getSelectedProviderTrait(config.inbound_backend || ob, 'webhook.path'))) && (
+            {(ob === 'phaxio' || ob === 'sinch' || ob === 'humblefax' || ob === 'signalwire') && (
               <Box sx={{ mt: 3 }}>
                 <Typography variant="subtitle1" gutterBottom>Connect {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} Inbound</Typography>
                 <Button variant="outlined" onClick={loadCallbacks} sx={{ mr: 1 }}>Show Callback URL</Button>
@@ -821,7 +796,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               >
                 Generate .env
               </Button>
-              {hasSelectedProviderTrait(ob, 'auth.methods') && (getSelectedProviderTrait(ob, 'auth.methods') || []).includes('oauth2') && (
+              {ob === 'sinch' && (
                 <Button
                   variant="outlined"
                   sx={{ ml: 1 }}
@@ -863,8 +838,8 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                         <Box>
                           <Typography>{key.replace(/_/g,' ')}:</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('basic') && !m.includes('oauth2') && key.includes('auth') ? 'Set provider API key/secret in your console.' : '' })()}
-                            {(() => { const m = (getSelectedProviderTrait(ob, 'auth.methods') || []) as string[]; return Array.isArray(m) && m.includes('oauth2') && key.includes('auth') ? 'Set project, key and secret in your provider console.' : '' })()}
+                            {(ob === 'phaxio' || ob === 'humblefax') && key.includes('auth') ? 'Set provider API key/secret in your console.' : ''}
+                            {ob === 'sinch' && key.includes('auth') ? 'Set project, key and secret in your provider console.' : ''}
                           </Typography>
                         </Box>
                         <Chip size="small" color={value ? 'success' : 'error'} label={value ? 'Pass' : 'Fail'} />
