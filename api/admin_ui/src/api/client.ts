@@ -563,7 +563,16 @@ export class AdminAPIClient {
     });
 
     if (!res.ok) {
-      throw new Error(`Send failed: ${res.status}`);
+      // Try to surface server-provided error details
+      let detail = '';
+      try {
+        const j = await res.json();
+        detail = j?.detail || j?.error || '';
+      } catch {
+        try { detail = await res.text(); } catch { /* ignore */ }
+      }
+      const msg = detail && typeof detail === 'string' ? `Send failed: ${res.status} ${detail}` : `Send failed: ${res.status}`;
+      throw new Error(msg);
     }
 
     return res.json();

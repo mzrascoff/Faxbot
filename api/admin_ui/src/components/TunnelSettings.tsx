@@ -9,7 +9,7 @@ import { SmoothLoader, InlineLoader } from './common/SmoothLoader';
 
 type Props = { client: AdminAPIClient; docsBase?: string; hipaaMode?: boolean; inboundBackend?: string; sinchConfigured?: boolean; readOnly?: boolean };
 
-export default function TunnelSettings({ client, docsBase, hipaaMode, readOnly = false }: Props) {
+export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBackend, readOnly = false }: Props) {
   const { traitValue } = useTraits();
   const [status, setStatus] = useState<TunnelStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -116,6 +116,35 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, readOnly =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status?.public_url, isSinchActive, inboundEnabled, hipaaMode]);
 
+  // Auto-register HumbleFax webhook when tunnel URL changes (non-HIPAA only)
+  useEffect(() => {
+    const maybeAutoRegisterHF = async () => {
+      try {
+        if (!status?.public_url) return;
+        if (!inboundEnabled) return;
+        if (hipaaMode) return;
+        if ((inboundBackend || '').toLowerCase() !== 'humblefax') return;
+        const key = 'last_registered_humblefax_url';
+        const last = localStorage.getItem(key) || '';
+        if (last === status.public_url) return;
+        setRegistering(true);
+        const res = await (client as any).registerHumbleFaxWebhook?.();
+        if (res?.success) {
+          localStorage.setItem(key, status.public_url);
+          setNotice({ severity: 'success', message: 'HumbleFax webhook auto-registered to current tunnel URL.' });
+        } else if (res?.error) {
+          setNotice({ severity: 'error', message: `HumbleFax auto-registration failed: ${res.error}` });
+        }
+      } catch (e: any) {
+        setNotice({ severity: 'error', message: e?.message || 'HumbleFax auto-registration failed' });
+      } finally {
+        setRegistering(false);
+      }
+    };
+    maybeAutoRegisterHF();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status?.public_url, inboundEnabled, hipaaMode, inboundBackend]);
+
   const applyConfig = async () => {
     setSaving(true);
     try {
@@ -167,6 +196,19 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, readOnly =
     setRegistering(true);
     try {
       const res = await (client as any).registerSinchWebhook?.();
+      if (!res?.success) setNotice({ severity: 'error', message: `Registration failed: ${res?.error || 'Unknown error'}` });
+      else setNotice({ severity: 'success', message: `Registered webhook: ${res.webhook_url || ''}` });
+    } catch (e: any) {
+      setNotice({ severity: 'error', message: e?.message || 'Registration failed' });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const registerHumbleFax = async () => {
+    setRegistering(true);
+    try {
+      const res = await (client as any).registerHumbleFaxWebhook?.();
       if (!res?.success) setNotice({ severity: 'error', message: `Registration failed: ${res?.error || 'Unknown error'}` });
       else setNotice({ severity: 'success', message: `Registered webhook: ${res.webhook_url || ''}` });
     } catch (e: any) {
@@ -411,6 +453,12 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, readOnly =
           {isSinchActive && inboundEnabled && (
             <Button variant="outlined" onClick={registerSinch} disabled={registering || readOnly} startIcon={<LinkIcon fontSize="small" />} sx={{ borderRadius: 2 }}>
               Register with Sinch
+              <InlineLoader loading={registering} />
+            </Button>
+          )}
+          {(String(inboundBackend || '').toLowerCase() === 'humblefax') && inboundEnabled && (
+            <Button variant="outlined" onClick={registerHumbleFax} disabled={registering || readOnly} startIcon={<LinkIcon fontSize="small" />} sx={{ borderRadius: 2 }}>
+              Register with HumbleFax
               <InlineLoader loading={registering} />
             </Button>
           )}

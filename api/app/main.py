@@ -1750,7 +1750,7 @@ async def validate_settings(payload: ValidateSettingsRequest):
         if present:
             try:
                 import httpx
-                base = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com/v3").rstrip("/")
+                base = os.getenv("SINCH_BASE_URL", "https://fax.api.sinch.com").rstrip("/")
                 # Prefer OAuth if enabled
                 token = None
                 if (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth"):
@@ -1763,16 +1763,19 @@ async def validate_settings(payload: ValidateSettingsRequest):
                             token = (tr.json() or {}).get("access_token")
                     except Exception:
                         token = None
-                url = f"{base}/projects/{payload.sinch_project_id}/services/default"
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    resp = await client.get(url, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (payload.sinch_api_key, payload.sinch_api_secret))
-                ok = (resp.status_code < 400)
-                # Fallback probe for tenants without services endpoint
-                if not ok:
-                    url2 = f"{base}/projects/{payload.sinch_project_id}/faxes?limit=1"
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        r2 = await client.get(url2, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (payload.sinch_api_key, payload.sinch_api_secret))
-                    ok = (r2.status_code < 400)
+                async with httpx.AsyncClient(timeout=6.0) as client:
+                    # Probe unscoped faxes first, then project-scoped
+                    urls = [
+                        f"{base}/faxes?limit=1",
+                        f"{base}/projects/{payload.sinch_project_id}/faxes?limit=1",
+                    ]
+                    ok = False
+                    for u in urls:
+                        r = await client.get(u, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (payload.sinch_api_key, payload.sinch_api_secret))
+                        if r.status_code < 400:
+                            ok = True
+                            break
+                        results.setdefault("checks", {})["sinch_probe_status"] = {"url": u, "status": r.status_code, "text": (r.text[:120] if r.text else "")}
                 results["checks"]["auth"] = ok
             except Exception as e:
                 results["checks"]["auth"] = False
@@ -3541,6 +3544,7 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
         ob = settings.fax_backend
     # Validate destination
     if not PHONE_RE.match(to):
+        audit_event("fax_send_request_rejected", reason="invalid_to_format")
         raise HTTPException(400, detail="'to' must be E.164 or digits only")
     # Stream upload to disk with magic sniff and size enforcement
     max_bytes = settings.max_file_size_mb * 1024 * 1024
@@ -3558,6 +3562,7 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
             first_chunk = await file.read(CHUNK)
             total += len(first_chunk)
             if total > max_bytes:
+                audit_event("fax_send_request_rejected", reason="file_too_large")
                 raise HTTPException(413, detail=f"File exceeds {settings.max_file_size_mb} MB limit")
             out.write(first_chunk)
             # Stream the rest
@@ -3591,6 +3596,7 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
             os.remove(orig_path)
         except Exception:
             pass
+        audit_event("fax_send_request_rejected", reason="unsupported_media_type")
         raise HTTPException(415, detail="Only PDF and TXT are allowed")
 
     # Convert to PDF if needed
@@ -3699,7 +3705,7 @@ async def get_fax(job_id: str, refresh: bool = False):
         job = db.get(FaxJob, job_id)
         if not job:
             raise HTTPException(404, detail="Job not found")
-    if refresh and job.provider_sid and (job.backend in {"phaxio", "sinch"}):
+    if refresh and job.provider_sid and (job.backend in {"phaxio", "sinch", "humblefax"}):
         try:
             from .providers.outbound import get_outbound_adapter
             from .status_map import canonical_status, load_status_map
@@ -4343,9 +4349,24 @@ async def _send_via_outbound_normalized(job_id: str, to: str, pdf_path: str, tif
             status = canonical_status("phaxio", raw)
         else:
             audit_event("job_dispatch", job_id=job_id, method=backend)
-            res = await adapter.send(to, pdf_path)
+            # Pass job_id for idempotency UUID where supported
+            res = await adapter.send(to, pdf_path, job_id=job_id)
+            # Adapter returns ok/err for robust propagation
+            if not res.get("ok", True):
+                error_msg = res.get("error", "Provider adapter reported failure")
+                # Only log job id (no PHI)
+                _logging.getLogger(__name__).error(f"Job {job_id} send failed via {backend}")
+                raise RuntimeError(error_msg)
             prov_sid = str(res.get("job_id") or res.get("provider_sid") or "")
-            raw = str((res.get("raw") or {}).get("status") or res.get("status") or "in_progress").lower()
+            # Prefer adapter-provided status; fallback to raw mapping
+            raw_data = res.get("raw", {})
+            if backend == "humblefax":
+                # HumbleFax may return array status under data.sentFax.status
+                fax_data = (raw_data.get("data") or {}).get("sentFax") or (raw_data.get("data") or {}).get("fax") or {}
+                rsv = fax_data.get("status") or res.get("status") or "in progress"
+                raw = str((rsv[0] if isinstance(rsv, list) and rsv else rsv)).lower()
+            else:
+                raw = str((raw_data.get("status") or res.get("status") or "in_progress")).lower()
             status = canonical_status(backend, raw)
 
         with SessionLocal() as db:
@@ -5191,6 +5212,18 @@ async def humblefax_inbound(request: Request):
                     db.add(job)
                     db.commit()
             audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
+        elif str(ev_type).startswith("IncomingFax"):
+            # Queue background download (non-blocking for 202 response)
+            try:
+                asyncio.create_task(_download_humblefax_pdf(str(ext_id), (data.get("data") or {}).get("IncomingFax", {})))
+            except Exception:
+                pass
+            audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
+            try:
+                if INBOUND_FAXES_TOTAL is not None:
+                    INBOUND_FAXES_TOTAL.labels(provider='humblefax', status=str(data.get('status') or 'received')).inc()
+            except Exception:
+                pass
         else:
             # Incoming fax notifications — we acknowledge and count; full download flow can be added later
             audit_event("inbound_received", job_id=str(ext_id), backend="humblefax")
@@ -5202,6 +5235,91 @@ async def humblefax_inbound(request: Request):
     except Exception:
         pass
     return _ack_response({"status": "ok"})
+
+
+async def _download_humblefax_pdf(fax_id: str, metadata: Dict[str, Any] | None = None) -> None:
+    """Download incoming fax PDF from HumbleFax and persist via storage backend.
+
+    Best effort; avoids logging PHI and records audit events.
+    """
+    try:
+        from .humblefax_service import get_humblefax_service  # lazy import
+        svc = get_humblefax_service()
+        if not svc or not svc.is_configured():
+            audit_event("inbound_download_skipped", job_id=fax_id, reason="service_not_configured")
+            return
+        import httpx as _httpx
+        import anyio as _anyio
+        import hashlib as _hashlib
+        DEBUG = os.getenv("HUMBLEFAX_DEBUG", "false").lower() in {"1","true","yes"}
+        logger = _logging.getLogger(__name__)
+
+        async with _httpx.AsyncClient(timeout=60.0) as client:
+            pdf_url = f"{svc.BASE_URL}/incomingFax/{fax_id}/download"
+            if DEBUG:
+                logger.info(f"[HumbleFax] Downloading inbound fax {fax_id}")
+            r = await client.get(pdf_url, auth=svc._basic_auth(), timeout=120.0)
+            if r.status_code >= 400:
+                # Try to parse error
+                err = None
+                try:
+                    err = (svc._extract_error(r.text, r.status_code) if hasattr(svc, '_extract_error') else r.text[:200])
+                except Exception:
+                    err = r.text[:200]
+                audit_event("inbound_download_failed", job_id=fax_id, reason=str(err)[:100])
+                return
+
+            # Write to persistent file in fax_data_dir
+            job_id = uuid.uuid4().hex
+            from .conversion import ensure_dir as _ensure_dir  # lazy import
+            _ensure_dir(settings.fax_data_dir)
+            local_path = os.path.join(settings.fax_data_dir, f"{job_id}.pdf")
+            async with await _anyio.open_file(local_path, 'wb') as f:
+                await f.write(r.content)
+
+            # Store via storage adapter (S3 uploads; local returns path)
+            storage = get_storage()
+            stored_uri = storage.put_pdf(local_path, f"{job_id}.pdf")
+
+            # Calculate file hash and size
+            with open(local_path, 'rb') as fh:
+                sha256_hex = _hashlib.sha256(fh.read()).hexdigest()
+            file_size = os.path.getsize(local_path)
+
+            # Generate token
+            pdf_token = secrets.token_urlsafe(32)
+            expires_at = datetime.utcnow() + timedelta(minutes=settings.inbound_token_ttl_minutes)
+            retention_until = (datetime.utcnow() + timedelta(days=settings.inbound_retention_days)) if settings.inbound_retention_days > 0 else None
+
+            # Save DB record
+            from .db import InboundFax  # local import
+            with SessionLocal() as db:
+                fx = InboundFax(
+                    id=job_id,
+                    from_number=(metadata or {}).get("fromNumber") if metadata else None,
+                    to_number=(metadata or {}).get("toNumber") if metadata else None,
+                    status="received",
+                    backend="humblefax",
+                    inbound_backend="humblefax",
+                    provider_sid=str(fax_id),
+                    pages=(metadata or {}).get("numPages") if metadata else None,
+                    size_bytes=file_size,
+                    sha256=sha256_hex,
+                    pdf_path=stored_uri,
+                    pdf_token=pdf_token,
+                    pdf_token_expires_at=expires_at,
+                    retention_until=retention_until,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                db.add(fx)
+                db.commit()
+            audit_event("inbound_stored", job_id=job_id)
+            if DEBUG:
+                logger.info(f"[HumbleFax] Stored inbound fax {fax_id} as {job_id}")
+    except Exception as e:  # pragma: no cover
+        _logging.getLogger(__name__).error(f"Failed to download HumbleFax inbound {fax_id}: {type(e).__name__}")
+        audit_event("inbound_download_error", job_id=fax_id)
 
 
 @app.post("/webhooks/inbound")

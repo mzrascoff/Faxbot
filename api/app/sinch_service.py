@@ -21,16 +21,16 @@ class SinchFaxService:
     """
 
     DEFAULT_BASES = (
-        "https://fax.api.sinch.com/v3",
-        "https://us.fax.api.sinch.com/v3",
-        "https://eu.fax.api.sinch.com/v3",
+        "https://fax.api.sinch.com",
+        "https://usel.fax.api.sinch.com",
+        "https://eu1.fax.api.sinch.com",
     )
 
     def __init__(self, project_id: str, api_key: str, api_secret: str, base_url: Optional[str] = None):
         self.project_id = project_id
         self.api_key = api_key
         self.api_secret = api_secret
-        self.base_url = base_url or os.getenv("SINCH_BASE_URL") or self.DEFAULT_BASES[0]
+        self.base_url = (base_url or os.getenv("SINCH_BASE_URL") or self.DEFAULT_BASES[0]).rstrip("/")
         # OAuth2 token cache
         self._token: Optional[str] = None
         self._token_exp: float = 0.0
@@ -78,30 +78,36 @@ class SinchFaxService:
         from typing import Optional, Tuple as _Tuple
         last: Optional[_Tuple[str, object, str]] = None
         for base in urls:
-            url = f"{base}/projects/{self.project_id}/files"
+            # Try unscoped and project-scoped variants
+            candidates = [
+                f"{base}/files",
+                f"{base}/projects/{self.project_id}/files" if self.project_id else None,
+            ]
+            candidates = [c for c in candidates if c]
             try:
                 async with httpx.AsyncClient(timeout=60.0) as client:
                     async with await anyio.open_file(file_path, 'rb') as f:
                         content = await f.read()
                     files = {"file": (os.path.basename(file_path), content, "application/pdf")}
-                    if self._use_oauth():
-                        try:
-                            token = await self.get_access_token()
-                            resp = await client.post(url, files=files, headers={"Authorization": f"Bearer {token}"})
-                        except Exception as e:
-                            logger.warning("Sinch OAuth upload failed; falling back to Basic: %s", e)
+                    for url in candidates:
+                        if self._use_oauth():
+                            try:
+                                token = await self.get_access_token()
+                                resp = await client.post(url, files=files, headers={"Authorization": f"Bearer {token}"})
+                            except Exception as e:
+                                logger.warning("Sinch OAuth upload failed; falling back to Basic: %s", e)
+                                resp = await client.post(url, files=files, auth=self._basic_auth())
+                        else:
                             resp = await client.post(url, files=files, auth=self._basic_auth())
-                    else:
-                        resp = await client.post(url, files=files, auth=self._basic_auth())
-                if resp.status_code < 400:
-                    data = resp.json()
-                    file_id = data.get("id") or data.get("data", {}).get("id")
-                    if file_id is None:
-                        raise RuntimeError(f"Unexpected Sinch upload response: {data}")
-                    return int(file_id)
-                last = (url, resp.status_code, resp.text)
+                        if resp.status_code < 400:
+                            data = resp.json()
+                            file_id = data.get("id") or data.get("data", {}).get("id")
+                            if file_id is None:
+                                raise RuntimeError(f"Unexpected Sinch upload response: {data}")
+                            return int(file_id)
+                        last = (url, resp.status_code, resp.text)
             except Exception as e:  # pragma: no cover
-                last = (url, "exception", str(e))
+                last = (candidates[-1], "exception", str(e))
                 continue
         raise RuntimeError(f"Sinch file upload failed: {last}")
 
@@ -112,36 +118,51 @@ class SinchFaxService:
             digits = ''.join(c for c in to if c.isdigit())
             if len(digits) >= 10:
                 to = f"+{digits}"
-        url = f"{self.base_url}/projects/{self.project_id}/faxes"
         payload = {"to": to, "file": file_id}
+        candidates = [
+            f"{self.base_url}/faxes",
+            f"{self.base_url}/projects/{self.project_id}/faxes" if self.project_id else None,
+        ]
+        candidates = [c for c in candidates if c]
         async with httpx.AsyncClient(timeout=30.0) as client:
-            if self._use_oauth():
-                try:
-                    token = await self.get_access_token()
-                    resp = await client.post(url, json=payload, headers={"Authorization": f"Bearer {token}"})
-                except Exception as e:
-                    logger.warning("Sinch OAuth send failed; falling back to Basic: %s", e)
+            last = None
+            for url in candidates:
+                if self._use_oauth():
+                    try:
+                        token = await self.get_access_token()
+                        resp = await client.post(url, json=payload, headers={"Authorization": f"Bearer {token}"})
+                    except Exception as e:
+                        logger.warning("Sinch OAuth send failed; falling back to Basic: %s", e)
+                        resp = await client.post(url, json=payload, auth=self._basic_auth())
+                else:
                     resp = await client.post(url, json=payload, auth=self._basic_auth())
-            else:
-                resp = await client.post(url, json=payload, auth=self._basic_auth())
-            if resp.status_code >= 400:
-                raise RuntimeError(f"Sinch create fax error {resp.status_code}: {resp.text}")
-            return resp.json()
+                if resp.status_code < 400:
+                    return resp.json()
+                last = (url, resp.status_code, resp.text[:300])
+        raise RuntimeError(f"Sinch create fax error: {last}")
 
     async def get_fax_status(self, fax_id: str) -> Dict[str, Any]:
-        url = f"{self.base_url}/projects/{self.project_id}/faxes/{fax_id}"
+        candidates = [
+            f"{self.base_url}/faxes/{fax_id}",
+            f"{self.base_url}/projects/{self.project_id}/faxes/{fax_id}" if self.project_id else None,
+        ]
+        candidates = [c for c in candidates if c]
         async with httpx.AsyncClient(timeout=15.0) as client:
-            if self._use_oauth():
-                try:
-                    token = await self.get_access_token()
-                    resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
-                except Exception as e:
-                    logger.warning("Sinch OAuth get_status failed; falling back to Basic: %s", e)
+            last = None
+            for url in candidates:
+                if self._use_oauth():
+                    try:
+                        token = await self.get_access_token()
+                        resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+                    except Exception as e:
+                        logger.warning("Sinch OAuth get_status failed; falling back to Basic: %s", e)
+                        resp = await client.get(url, auth=self._basic_auth())
+                else:
                     resp = await client.get(url, auth=self._basic_auth())
-            else:
-                resp = await client.get(url, auth=self._basic_auth())
-            resp.raise_for_status()
-            return resp.json()
+                if resp.status_code < 400:
+                    return resp.json()
+                last = (url, resp.status_code, resp.text[:300])
+        raise RuntimeError(f"Sinch get status error: {last}")
 
     async def send_fax_file(self, to_number: str, file_path: str) -> Dict[str, Any]:
         """Create a fax by posting the file directly as multipart/form-data.
