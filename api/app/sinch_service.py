@@ -36,6 +36,17 @@ class SinchFaxService:
         self._token_exp: float = 0.0
         self._auth_base = os.getenv("SINCH_AUTH_BASE_URL", "https://auth.sinch.com/oauth2/token")
 
+    def _base_variants(self) -> list[str]:
+        """Return base URL candidates, trying unversioned then '/v3' fallback.
+
+        Some Sinch Fax tenants require project-scoped v3 paths. To be resilient
+        during the v3→unversioned transition, try both when applicable.
+        """
+        b = self.base_url.rstrip("/")
+        if b.endswith("/v3"):
+            return [b]
+        return [b, f"{b}/v3"]
+
     def is_configured(self) -> bool:
         return bool(self.project_id and self.api_key and self.api_secret)
 
@@ -74,7 +85,10 @@ class SinchFaxService:
     async def upload_file(self, file_path: str) -> int:
         if not os.path.exists(file_path):
             raise FileNotFoundError(file_path)
-        urls = [self.base_url] + [b for b in self.DEFAULT_BASES if b != self.base_url]
+        # Try configured base and '/v3' fallback, then other defaults
+        urls = self._base_variants() + [
+            b if b.endswith("/v3") else f"{b}/v3" for b in self.DEFAULT_BASES if b != self.base_url
+        ]
         from typing import Optional, Tuple as _Tuple
         last: Optional[_Tuple[str, object, str]] = None
         for base in urls:
@@ -119,10 +133,11 @@ class SinchFaxService:
             if len(digits) >= 10:
                 to = f"+{digits}"
         payload = {"to": to, "file": file_id}
-        candidates = [
-            f"{self.base_url}/faxes",
-            f"{self.base_url}/projects/{self.project_id}/faxes" if self.project_id else None,
-        ]
+        candidates = []
+        for base in self._base_variants():
+            candidates.append(f"{base}/faxes")
+            if self.project_id:
+                candidates.append(f"{base}/projects/{self.project_id}/faxes")
         candidates = [c for c in candidates if c]
         async with httpx.AsyncClient(timeout=30.0) as client:
             last = None
@@ -142,10 +157,11 @@ class SinchFaxService:
         raise RuntimeError(f"Sinch create fax error: {last}")
 
     async def get_fax_status(self, fax_id: str) -> Dict[str, Any]:
-        candidates = [
-            f"{self.base_url}/faxes/{fax_id}",
-            f"{self.base_url}/projects/{self.project_id}/faxes/{fax_id}" if self.project_id else None,
-        ]
+        candidates = []
+        for base in self._base_variants():
+            candidates.append(f"{base}/faxes/{fax_id}")
+            if self.project_id:
+                candidates.append(f"{base}/projects/{self.project_id}/faxes/{fax_id}")
         candidates = [c for c in candidates if c]
         async with httpx.AsyncClient(timeout=15.0) as client:
             last = None
@@ -176,7 +192,14 @@ class SinchFaxService:
             digits = ''.join(c for c in to if c.isdigit())
             if len(digits) >= 10:
                 to = f"+{digits}"
-        url = f"{self.base_url}/projects/{self.project_id}/faxes"
+        # Prefer project-scoped path; include '/v3' fallback for compatibility
+        url = None
+        for base in self._base_variants():
+            if self.project_id:
+                url = f"{base}/projects/{self.project_id}/faxes"
+                break
+        if not url:
+            url = f"{self.base_url}/faxes"
         async with httpx.AsyncClient(timeout=60.0) as client:
             # httpx expects a mapping of field name → (filename, bytes, content_type)
             # For the additional text field, pass as data not files

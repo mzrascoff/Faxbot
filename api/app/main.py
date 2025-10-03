@@ -1914,6 +1914,90 @@ def _set_env_opt(key: str, value):
     os.environ[key] = str(value)
 
 
+# ===== Lightweight diagnostics (Sinch) =====
+class SinchDiagnosticsOut(BaseModel):
+    backend: str = "sinch"
+    dns_ok: bool
+    host: str
+    resolved: list[str] = []
+    auth_present: bool
+    auth_ok: bool
+    path_ok: bool
+    probes: dict[str, Any]
+    error: Optional[str] = None
+
+
+@app.get("/admin/diagnostics/sinch", response_model=SinchDiagnosticsOut, dependencies=[Depends(require_admin)])
+async def admin_diagnostics_sinch():
+    """Check Sinch connectivity from inside the API container.
+
+    Reports separate flags for DNS, auth presence, auth, and path compatibility
+    (unversioned vs v3 project‑scoped endpoints).
+    """
+    import socket as _socket
+    from urllib.parse import urlparse as _urlparse
+    base = (os.getenv("SINCH_BASE_URL") or "https://fax.api.sinch.com").rstrip("/")
+    parsed = _urlparse(base)
+    host = parsed.hostname or "fax.api.sinch.com"
+    dns_ok = False
+    resolved: list[str] = []
+    try:
+        _, _, ips = _socket.gethostbyname_ex(host)
+        resolved = ips or []
+        dns_ok = len(resolved) > 0
+    except Exception:
+        dns_ok = False
+
+    pid = os.getenv("SINCH_PROJECT_ID", "")
+    key = os.getenv("SINCH_API_KEY", os.getenv("PHAXIO_API_KEY", ""))
+    sec = os.getenv("SINCH_API_SECRET", os.getenv("PHAXIO_API_SECRET", ""))
+    auth_present = bool(pid and key and sec)
+
+    probes: dict[str, Any] = {}
+    auth_ok = False
+    path_ok = False
+
+    try:
+        import httpx  # local import
+        token = None
+        use_oauth = (os.getenv("SINCH_AUTH_METHOD", settings.sinch_auth_method or "basic").lower() == "oauth")
+        if use_oauth:
+            try:
+                auth_base = os.getenv("SINCH_AUTH_BASE_URL", "https://auth.sinch.com/oauth2/token")
+                data = {"grant_type": "client_credentials"}
+                async with httpx.AsyncClient(timeout=6.0) as client:
+                    tr = await client.post(auth_base, data=data, auth=(key, sec))
+                probes["oauth_token_status"] = tr.status_code
+                if tr.status_code < 400:
+                    token = (tr.json() or {}).get("access_token")
+            except Exception as e:
+                probes["oauth_error"] = str(e)
+
+        urls = [
+            f"{base}/faxes?limit=1",
+            f"{base}/projects/{pid}/faxes?limit=1" if pid else None,
+        ]
+        if not base.endswith("/v3"):
+            urls.append(f"{base}/v3/faxes?limit=1")
+            if pid:
+                urls.append(f"{base}/v3/projects/{pid}/faxes?limit=1")
+        urls = [u for u in urls if u]
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            for u in urls:
+                try:
+                    r = await client.get(u, headers={"Authorization": f"Bearer {token}"} if token else None, auth=None if token else (key, sec))
+                    probes[u] = {"status": r.status_code, "len": len(r.text or "")}
+                    if r.status_code < 400:
+                        auth_ok = True
+                        path_ok = True
+                        break
+                except Exception as e:
+                    probes[u] = {"error": str(e)}
+    except Exception as e:
+        return SinchDiagnosticsOut(dns_ok=dns_ok, host=host, resolved=resolved, auth_present=auth_present, auth_ok=False, path_ok=False, probes=probes, error=str(e))
+
+    return SinchDiagnosticsOut(dns_ok=dns_ok, host=host, resolved=resolved, auth_present=auth_present, auth_ok=auth_ok, path_ok=path_ok, probes=probes)
+
 @app.put("/admin/settings", dependencies=[Depends(require_admin)])
 def update_admin_settings(payload: UpdateSettingsRequest):
     """Apply configuration updates in-process by setting environment variables and reloading settings.

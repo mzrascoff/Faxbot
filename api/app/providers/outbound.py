@@ -55,8 +55,17 @@ class SinchAdapter(OutboundAdapter):
         if not svc or not svc.is_configured():
             raise RuntimeError("Sinch not configured")
         try:
-            res = await svc.send_fax_file(to, file_path)
-            return _canonical_from_sinch_send(res)
+            # Prefer the two-step upload + send flow for maximum compatibility
+            # with unscoped endpoints. Fallback to direct multipart if needed.
+            try:
+                file_id = await svc.upload_file(file_path)
+                res = await svc.send_fax(to, file_id)
+                return _canonical_from_sinch_send(res)
+            except Exception:
+                # Fallback: attempt direct multipart send for tenants that still
+                # require project-scoped multipart upload routing.
+                res = await svc.send_fax_file(to, file_path)
+                return _canonical_from_sinch_send(res)
         except Exception as e:
             # Surface provider error text to caller
             return {"ok": False, "error": str(e)[:300]}
