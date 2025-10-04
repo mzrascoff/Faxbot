@@ -21,7 +21,7 @@ Options
 
 Admin Console
 - Go to Settings → VPN Tunnel to configure provider and test connectivity.
-- Generate a short‑lived iOS pairing code (no secrets in QR or UI).
+- Generate a short‑lived iOS pairing code (no secrets in QR or UI). The Admin Console now renders the QR locally (no external QR service).
 - Terminal and Admin Actions remain local‑only; do not expose via tunnels.
 
 Environment reference (examples)
@@ -48,4 +48,4 @@ Security notes
 Troubleshooting
 - Use Tools → Scripts & Tests to tail cloudflared logs (dev only) and run reachability checks.
 - Ensure Ghostscript is installed; see readiness and diagnostics pages if tests fail.
-
+ - For HumbleFax, unstable quick tunnels can be rejected during webhook validation. Prefer a stable HTTPS `PUBLIC_API_URL` or a named tunnel.

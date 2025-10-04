@@ -57,6 +57,7 @@ Webhooks
 Admin UI
 - Use Setup Wizard (HumbleFax) to enter keys and webhook secret.
 - “Register HumbleFax Webhook” button registers callbacks to `${public_api_url}/inbound/humblefax/webhook`.
+ - Run diagnostics: Tools → Tunnels → “Run HumbleFax Diagnostics” or `GET /admin/diagnostics/humblefax`.
 
 Security
 - No PHI is logged (only job IDs and meta counters). Recipients and fromNumber are masked in debug logs.
@@ -65,6 +66,17 @@ Security
 One‑shot tunnel + webhook setup
 - scripts/setup-humblefax-tunnel.sh starts the API + Cloudflare sidecar, detects the public URL, sets HUMBLEFAX_CALLBACK_BASE, and registers the webhook.
 - Requirements: Docker running; API_KEY (defaults to fbk_live_local_admin if unset).
+
+Diagnostics
+```
+curl -sS -H "X-API-Key: ${API_KEY:-fbk_live_local_admin}" \
+  http://localhost:8080/admin/diagnostics/humblefax | jq .
+```
+Fields
+- `dns_ok`: provider host resolves from inside the container
+- `auth_present`/`auth_ok`: credentials configured and accepted by the endpoint
+- `webhook_url_ok`: your computed webhook URL is reachable (tolerant of 405)
+  - If false, set `PUBLIC_API_URL` or `HUMBLEFAX_CALLBACK_BASE` to a stable HTTPS URL and retry.
 
 Run
 ```

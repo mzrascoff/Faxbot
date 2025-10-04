@@ -77,3 +77,12 @@ Troubleshooting
 - 413: file too large → raise `MAX_FILE_SIZE_MB`.
 - 415: unsupported file type → only PDF/TXT.
 - Sinch API errors: verify Project ID, API key/secret, and region.
+
+Diagnostics
+- Admin → Tools → Tunnels → Run Sinch Diagnostics
+- API: `GET /admin/diagnostics/sinch`
+  - Checks DNS resolution, OAuth/basic auth reachability, and v3 path compatibility.
+
+Implementation notes
+- The outbound adapter prefers the two‑step upload + send flow with multipart fallback.
+- The client automatically tries unversioned and `/v3` paths, and both unscoped and project‑scoped endpoints.

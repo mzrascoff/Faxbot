@@ -1999,6 +1999,136 @@ async def admin_diagnostics_sinch():
     return SinchDiagnosticsOut(dns_ok=dns_ok, host=host, resolved=resolved, auth_present=auth_present, auth_ok=auth_ok, path_ok=path_ok, probes=probes)
 
 
+# ===== Lightweight diagnostics (HumbleFax) =====
+class HumbleFaxDiagnosticsOut(BaseModel):
+    backend: str = "humblefax"
+    dns_ok: bool
+    host: str
+    resolved: list[str] = []
+    auth_present: bool
+    auth_ok: bool
+    webhook_base: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_url_ok: bool = False
+    probes: dict[str, Any]
+    error: Optional[str] = None
+
+
+@app.get("/admin/diagnostics/humblefax", response_model=HumbleFaxDiagnosticsOut, dependencies=[Depends(require_admin)])
+async def admin_diagnostics_humblefax():
+    """Check HumbleFax connectivity from inside the API container.
+
+    Non-destructive checks:
+    - DNS resolution for api.humblefax.com
+    - Basic auth presence and HTTP reachability
+    - Public webhook URL resolvable and reachable (HEAD/GET tolerance)
+    """
+    import socket as _socket
+    from urllib.parse import urlparse as _urlparse
+
+    base_host = os.getenv("HUMBLEFAX_API_HOST", "api.humblefax.com").strip()
+    scheme = os.getenv("HUMBLEFAX_API_SCHEME", "https").strip()
+    base_url = f"{scheme}://{base_host}"
+    host = _urlparse(base_url).hostname or base_host
+
+    # DNS check
+    dns_ok = False
+    resolved: list[str] = []
+    try:
+        _, _, ips = _socket.gethostbyname_ex(host)
+        resolved = ips or []
+        dns_ok = len(resolved) > 0
+    except Exception:
+        dns_ok = False
+
+    # Auth presence
+    ak = (getattr(settings, 'humblefax_access_key', '') or os.getenv('HUMBLEFAX_ACCESS_KEY', '')).strip()
+    sk = (getattr(settings, 'humblefax_secret_key', '') or os.getenv('HUMBLEFAX_SECRET_KEY', '')).strip()
+    auth_present = bool(ak and sk)
+
+    probes: dict[str, Any] = {}
+    auth_ok = False
+
+    # Compute webhook base and URL similar to registration logic
+    try:
+        public_base = (
+            (_TUNNEL_STATE.get("public_url") if not _hipaa_posture_enabled() else None)
+            or (getattr(settings, 'humblefax_callback_base', '') or None)
+            or (settings.public_api_url or None)
+        )
+        webhook_base = (public_base or "").rstrip("/") or None
+    except Exception:
+        webhook_base = None
+    webhook_url = f"{webhook_base}/inbound/humblefax/webhook" if webhook_base else None
+
+    # Perform HTTP checks
+    try:
+        import httpx
+        # 1) HEAD unauthenticated to /webhook for general reachability
+        try:
+            with httpx.Client(timeout=8.0) as client:
+                r0 = client.head(f"{base_url}/webhook")
+                probes[f"{base_url}/webhook:HEAD"] = {"status": r0.status_code}
+        except Exception as e:
+            probes[f"{base_url}/webhook:HEAD"] = {"error": str(e)}
+
+        # 2) HEAD with basic auth to /webhook to validate credentials (status < 400 → good)
+        if auth_present:
+            try:
+                with httpx.Client(timeout=8.0) as client:
+                    r1 = client.head(f"{base_url}/webhook", auth=(ak, sk))
+                    probes[f"{base_url}/webhook:HEAD:auth"] = {"status": r1.status_code}
+                    if r1.status_code < 400:
+                        auth_ok = True
+            except Exception as e:
+                probes[f"{base_url}/webhook:HEAD:auth"] = {"error": str(e)}
+
+        # 3) Validate webhook target URL exists/reachable (tolerate 405 for method not allowed)
+        webhook_url_ok = False
+        if webhook_url:
+            try:
+                with httpx.Client(timeout=6.0, follow_redirects=True) as client:
+                    r2 = client.head(webhook_url)
+                    probes[f"{webhook_url}:HEAD"] = {"status": r2.status_code}
+                    webhook_url_ok = (r2.status_code in (200, 201, 202, 204, 301, 302, 307, 308, 401, 403, 405))
+                    if not webhook_url_ok:
+                        # Fallback to GET to accommodate servers that do not support HEAD
+                        r3 = client.get(webhook_url, headers={"Accept": "application/json"})
+                        probes[f"{webhook_url}:GET"] = {"status": r3.status_code}
+                        webhook_url_ok = (r3.status_code in (200, 201, 202, 204, 301, 302, 307, 308, 401, 403, 405))
+            except Exception as e:
+                probes[f"{webhook_url}:HEAD"] = {"error": str(e)}
+                webhook_url_ok = False
+        else:
+            webhook_url_ok = False
+
+    except Exception as e:
+        return HumbleFaxDiagnosticsOut(
+            dns_ok=dns_ok,
+            host=host,
+            resolved=resolved,
+            auth_present=auth_present,
+            auth_ok=False,
+            webhook_base=webhook_base,
+            webhook_url=webhook_url,
+            webhook_url_ok=False,
+            probes=probes,
+            error=str(e),
+        )
+
+    return HumbleFaxDiagnosticsOut(
+        dns_ok=dns_ok,
+        host=host,
+        resolved=resolved,
+        auth_present=auth_present,
+        auth_ok=auth_ok,
+        webhook_base=webhook_base,
+        webhook_url=webhook_url,
+        webhook_url_ok=bool(webhook_url) and webhook_url_ok,
+        probes=probes,
+    )
+
+
 # ===== Mobile pairing (dev-friendly) =====
 class PairIn(BaseModel):
     code: str

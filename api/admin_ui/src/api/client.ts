@@ -109,6 +109,11 @@ export class AdminAPIClient {
     return res.json();
   }
 
+  async getHumbleFaxDiagnostics(): Promise<any> {
+    const res = await this.fetch('/admin/diagnostics/humblefax');
+    return res.json();
+  }
+
   // Hierarchical Configuration (v4)
   async getEffectiveConfig(): Promise<{ values: Record<string, any>; cache_stats?: any }> {
     const res = await this.fetch('/admin/config/v4/effective');

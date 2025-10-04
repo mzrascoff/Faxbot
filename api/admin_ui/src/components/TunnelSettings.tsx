@@ -17,6 +17,7 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
   const [testing, setTesting] = useState<boolean>(false);
   const [registering, setRegistering] = useState<boolean>(false);
   const [pairDialog, setPairDialog] = useState<{ open: boolean; code?: string; expires_at?: string }>({ open: false });
+  const [pairQr, setPairQr] = useState<string | null>(null);
   const [logsLoading, setLogsLoading] = useState<boolean>(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [isSinchActive, setIsSinchActive] = useState<boolean>(false);
@@ -24,6 +25,8 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
   const [notice, setNotice] = useState<{ severity: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [sinchDiag, setSinchDiag] = useState<any | null>(null);
   const [diagLoading, setDiagLoading] = useState<boolean>(false);
+  const [hfDiag, setHfDiag] = useState<any | null>(null);
+  const [hfDiagLoading, setHfDiagLoading] = useState<boolean>(false);
 
   const [provider, setProvider] = useState<'none' | 'cloudflare' | 'wireguard' | 'tailscale'>('none');
   const [wg, setWg] = useState<{ endpoint?: string; server_key?: string; client_ip?: string; dns?: string }>({});
@@ -189,6 +192,12 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
     try {
       const res = await client.createTunnelPairing();
       setPairDialog({ open: true, code: res.code, expires_at: res.expires_at });
+      // Generate QR locally (no external network dependency)
+      try {
+        const { default: QRCode } = await import('qrcode');
+        const dataUrl = await QRCode.toDataURL(String(res.code || ''), { width: 256, margin: 1 });
+        setPairQr(dataUrl);
+      } catch { setPairQr(null); }
     } catch (e: any) {
       setNotice({ severity: 'error', message: e?.message || 'Could not create pairing code' });
     }
@@ -232,6 +241,21 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
       setNotice({ severity: 'error', message: e?.message || 'Registration failed' });
     } finally {
       setRegistering(false);
+    }
+  };
+
+  const runHumbleFaxDiagnostics = async () => {
+    setHfDiagLoading(true);
+    setHfDiag(null);
+    try {
+      const res = await (client as any).getHumbleFaxDiagnostics?.();
+      setHfDiag(res || {});
+      const ok = Boolean(res?.dns_ok) && Boolean(res?.auth_present) && Boolean(res?.auth_ok) && Boolean(res?.webhook_url_ok);
+      setNotice({ severity: ok ? 'success' : 'error', message: ok ? 'HumbleFax diagnostics: OK' : 'HumbleFax diagnostics found issues' });
+    } catch (e: any) {
+      setNotice({ severity: 'error', message: e?.message || 'Diagnostics failed' });
+    } finally {
+      setHfDiagLoading(false);
     }
   };
 
@@ -483,6 +507,12 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
               <InlineLoader loading={registering} />
             </Button>
           )}
+          {(String(inboundBackend || '').toLowerCase() === 'humblefax') && (
+            <Button variant="outlined" onClick={runHumbleFaxDiagnostics} disabled={hfDiagLoading} sx={{ borderRadius: 2 }}>
+              Run HumbleFax Diagnostics
+              <InlineLoader loading={hfDiagLoading} />
+            </Button>
+          )}
           {provider === 'cloudflare' && !cloudflareDisabled && (
             <Button variant="text" onClick={fetchLogs} disabled={logsLoading} sx={{ borderRadius: 2 }}>
               View Cloudflared Logs (tail)
@@ -505,6 +535,15 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
         </Paper>
       )}
 
+      {hfDiag && (
+        <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>HumbleFax Diagnostics</Typography>
+          <Box component="pre" sx={{ m: 0, p: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.8rem' }}>
+            {JSON.stringify(hfDiag, null, 2)}
+          </Box>
+        </Paper>
+      )}
+
       {provider === 'cloudflare' && !cloudflareDisabled && logs.length > 0 && (
         <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, mb: 2 }}>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Cloudflared logs (last 50 lines)</Typography>
@@ -515,7 +554,7 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
       )}
 
       {/* Pairing dialog */}
-      <Dialog open={pairDialog.open} onClose={() => setPairDialog({ open: false })}>
+      <Dialog open={pairDialog.open} onClose={() => { setPairDialog({ open: false }); setPairQr(null); }}>
         <DialogTitle>iOS Pairing</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 1 }}>
@@ -524,6 +563,11 @@ export default function TunnelSettings({ client, docsBase, hipaaMode, inboundBac
           <Typography variant="h4" sx={{ textAlign: 'center', letterSpacing: 4, my: 2 }}>
             {pairDialog.code}
           </Typography>
+          {pairQr && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
+              <img src={pairQr} alt="Pairing QR" style={{ maxWidth: 256, width: '100%' }} />
+            </Box>
+          )}
           {pairDialog.expires_at && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
               Expires at {new Date(pairDialog.expires_at).toLocaleTimeString()}
