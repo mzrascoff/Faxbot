@@ -259,6 +259,10 @@ function AppContent() {
         setTabValue(4);
         setSettingsTab(3);
         break;
+      case 'settings/keys':
+        setTabValue(4);
+        setSettingsTab(3);
+        break;
       case 'jobs':
         setTabValue(2);
         break;
@@ -276,6 +280,17 @@ function AppContent() {
     }
     if (isMobile) setMobileOpen(false);
   };
+
+  // Listen for simple navigation events from child components
+  useEffect(() => {
+    const handler = (e: any) => { if (e?.detail) handleNavigate(e.detail); };
+    window.addEventListener('navigate-to', handler as any);
+    window.addEventListener('faxbot:navigate', handler as any);
+    return () => {
+      window.removeEventListener('navigate-to', handler as any);
+      window.removeEventListener('faxbot:navigate', handler as any);
+    };
+  }, []);
 
   // Auto-login if key exists
   useEffect(() => {
@@ -485,7 +500,19 @@ function AppContent() {
                   sx={{ mt: 3 }}
                   autoFocus
                 />
-                
+
+                {/* Local-only helper: prefill known bootstrap key for dev */}
+                {['localhost', '127.0.0.1'].includes(window.location.hostname) && (
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => { const k = 'fbk_live_local_admin'; setApiKey(k); handleLogin(k); }}
+                    sx={{ mt: 2, borderRadius: 2 }}
+                  >
+                    Use Local Admin Key
+                  </Button>
+                )}
+
                 <Button
                   fullWidth
                   variant="contained"

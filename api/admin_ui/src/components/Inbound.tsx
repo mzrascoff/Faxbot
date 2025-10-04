@@ -80,7 +80,8 @@ function Inbound({ client, docsBase }: InboundProps) {
       const data = await client.listInbound();
       setFaxes(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch inbound faxes');
+      const msg = err instanceof Error ? err.message : 'Failed to fetch inbound faxes';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -264,6 +265,16 @@ function Inbound({ client, docsBase }: InboundProps) {
 
   return (
     <Box>
+      {/* Guidance banner when auth/scopes block inbox */}
+      {error && /401|403|insufficient|scope/i.test(error) && (
+        <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+          You are not authorized to view inbound faxes. Use an API key with inbound:list and inbound:read.
+          <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button size="small" variant="outlined" onClick={() => window.dispatchEvent(new CustomEvent('faxbot:navigate', { detail: 'settings/keys' }))}>Open API Keys</Button>
+            <Button size="small" href={(docsBase || 'https://dmontgomery40.github.io/Faxbot') + '/admin-console/api-keys/'} target="_blank" rel="noreferrer">Learn more</Button>
+          </Box>
+        </Alert>
+      )}
       <Box 
         display="flex" 
         justifyContent="space-between" 
