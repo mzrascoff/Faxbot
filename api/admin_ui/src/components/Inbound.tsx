@@ -23,11 +23,16 @@ import {
   IconButton,
   Tooltip,
   Snackbar,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
-import { 
-  Refresh as RefreshIcon, 
-  Download as DownloadIcon, 
-  ContentCopy as ContentCopyIcon, 
+import {
+  Refresh as RefreshIcon,
+  Download as DownloadIcon,
+  ContentCopy as ContentCopyIcon,
   PlayArrow as TestIcon,
   Inbox as InboxIcon,
   Phone as PhoneIcon,
@@ -37,6 +42,8 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
+  Delete as DeleteIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
 import { useTraits } from '../hooks/useTraits';
@@ -56,6 +63,11 @@ function Inbound({ client, docsBase }: InboundProps) {
   const [callbacks, setCallbacks] = useState<any | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [copySnackbar, setCopySnackbar] = useState<string>('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [faxToDelete, setFaxToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   // Precise help anchors (lightweight resolver for inbound failures)
   const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
   const anchors: Record<string,string> = {
@@ -101,6 +113,59 @@ function Inbound({ client, docsBase }: InboundProps) {
     } catch (err) {
       alert(`Download failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
+  };
+
+  const previewPdf = async (id: string) => {
+    try {
+      // Clean up previous URL if exists
+      if (previewPdfUrl) {
+        URL.revokeObjectURL(previewPdfUrl);
+      }
+      const blob = await client.downloadInboundPdf(id);
+      const url = URL.createObjectURL(blob);
+      setPreviewPdfUrl(url);
+      setPreviewDialogOpen(true);
+    } catch (err) {
+      alert(`Preview failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewDialogOpen(false);
+    // Clean up blob URL after a delay
+    setTimeout(() => {
+      if (previewPdfUrl) {
+        URL.revokeObjectURL(previewPdfUrl);
+        setPreviewPdfUrl(null);
+      }
+    }, 100);
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setFaxToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!faxToDelete) return;
+
+    try {
+      setDeleting(true);
+      await client.deleteInbound(faxToDelete);
+      setFaxes(faxes.filter(f => f.id !== faxToDelete));
+      setCopySnackbar('Fax deleted successfully');
+    } catch (err) {
+      setError(`Delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setFaxToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setFaxToDelete(null);
   };
 
   useEffect(() => {
@@ -154,10 +219,49 @@ function Inbound({ client, docsBase }: InboundProps) {
     if (!dateString) return '-';
     try {
       const date = new Date(dateString);
-      if (isSmallMobile) {
-        return date.toLocaleDateString();
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      // Format time
+      const timeStr = date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      // Check if it's today
+      const isToday = date.toDateString() === now.toDateString();
+      if (isToday) {
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        return `Today at ${timeStr}`;
       }
-      return date.toLocaleString();
+
+      // Check if it's yesterday
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (date.toDateString() === yesterday.toDateString()) {
+        return `Yesterday at ${timeStr}`;
+      }
+
+      // Check if it's this week
+      if (diffDays < 7) {
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+        return `${dayName} at ${timeStr}`;
+      }
+
+      // Check if it's this year
+      if (date.getFullYear() === now.getFullYear()) {
+        const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `${monthDay} at ${timeStr}`;
+      }
+
+      // Older dates
+      const fullDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return `${fullDate} at ${timeStr}`;
     } catch {
       return dateString;
     }
@@ -248,15 +352,37 @@ function Inbound({ client, docsBase }: InboundProps) {
             </Stack>
 
             {/* Actions */}
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={() => downloadPdf(fax.id)}
-              fullWidth
-              sx={{ borderRadius: 2 }}
-            >
-              Download PDF
-            </Button>
+            <Stack spacing={1}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  onClick={() => previewPdf(fax.id)}
+                  fullWidth
+                  sx={{ borderRadius: 2 }}
+                >
+                  View
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={() => downloadPdf(fax.id)}
+                  fullWidth
+                  sx={{ borderRadius: 2 }}
+                >
+                  Download
+                </Button>
+              </Box>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => handleDeleteClick(fax.id)}
+                fullWidth
+                sx={{ borderRadius: 2 }}
+              >
+                Delete
+              </Button>
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
@@ -598,15 +724,36 @@ same => n,System(curl -s -X POST -H "Content-Type: application/json" -H "X-Inter
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
-                          <Tooltip title="Download PDF">
-                            <IconButton
-                              size="small"
-                              onClick={() => downloadPdf(fax.id)}
-                              disabled={!fax.id}
-                            >
-                              <DownloadIcon />
-                            </IconButton>
-                          </Tooltip>
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                            <Tooltip title="View PDF">
+                              <IconButton
+                                size="small"
+                                onClick={() => previewPdf(fax.id)}
+                                disabled={!fax.id}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Download PDF">
+                              <IconButton
+                                size="small"
+                                onClick={() => downloadPdf(fax.id)}
+                                disabled={!fax.id}
+                              >
+                                <DownloadIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteClick(fax.id)}
+                                disabled={!fax.id}
+                                color="error"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -649,6 +796,69 @@ same => n,System(curl -s -X POST -H "Content-Type: application/json" -H "X-Inter
         onClose={() => setCopySnackbar('')}
         message={copySnackbar}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Delete Inbound Fax?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this fax? This will permanently remove the record and associated PDF file. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" disabled={deleting}>
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* PDF Preview Dialog */}
+      <Dialog
+        open={previewDialogOpen}
+        onClose={handlePreviewClose}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+          }
+        }}
+      >
+        <DialogTitle>
+          Fax Preview
+          <IconButton
+            onClick={handlePreviewClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+            }}
+          >
+            <Box component="span" sx={{ fontSize: '1.5rem' }}>×</Box>
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
+          {previewPdfUrl && (
+            <Box
+              component="iframe"
+              src={previewPdfUrl}
+              sx={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                flexGrow: 1,
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

@@ -3042,6 +3042,152 @@ def admin_inbound_register_humblefax() -> RegisterHumbleFaxOut:
         return RegisterHumbleFaxOut(success=False, webhook_url=webhook_url, error=str(e)[:200])
 
 
+@app.get("/admin/inbound/backfill-humblefax", dependencies=[Depends(require_admin)])
+def admin_inbound_backfill_humblefax(limit: int = Query(default=20, ge=1, le=100)):
+    """Backfill existing faxes from HumbleFax that aren't in our database.
+
+    Fetches the list of incoming faxes from HumbleFax and downloads any that
+    aren't already stored in our inbound_faxes table.
+    """
+    if not settings.inbound_enabled:
+        raise HTTPException(400, detail="Inbound not enabled")
+
+    ak = getattr(settings, 'humblefax_access_key', '')
+    sk = getattr(settings, 'humblefax_secret_key', '')
+    if not (ak and sk):
+        raise HTTPException(400, detail="Missing HumbleFax credentials")
+
+    import httpx
+    import hashlib as _hashlib
+    from datetime import datetime, timedelta
+    import secrets
+    import uuid
+    from .db import InboundFax
+    from .storage import get_storage
+
+    try:
+        # Get list of incoming faxes from HumbleFax
+        with httpx.Client(timeout=30.0) as client:
+            r = client.post(
+                "https://api.humblefax.com/GetIncomingFaxes",
+                data={"Limit": str(limit)},
+                auth=(ak, sk),
+                headers={"Accept": "application/json"}
+            )
+            if r.status_code >= 400:
+                return {"success": False, "error": f"Failed to fetch fax list: {r.status_code}"}
+
+            data = r.json()
+            if data.get("result") != "success":
+                return {"success": False, "error": "Failed to fetch fax list"}
+
+            fax_list = data.get("data", {}).get("incomingFaxes", [])
+
+        # Check which faxes we already have
+        with SessionLocal() as db:
+            existing_sids = {fx.provider_sid for fx in db.query(InboundFax).filter(
+                InboundFax.provider_sid.in_([str(fx["id"]) for fx in fax_list])
+            ).all()} if fax_list else set()
+
+        # Download and store missing faxes
+        downloaded = 0
+        skipped = 0
+        errors = []
+        storage = get_storage()
+
+        with httpx.Client(timeout=60.0) as client:
+            for fx_meta in fax_list:
+                fax_id = str(fx_meta["id"])
+                if fax_id in existing_sids:
+                    skipped += 1
+                    continue
+
+                try:
+                    # Download PDF from HumbleFax
+                    dl_resp = client.get(
+                        f"https://api.humblefax.com/DownloadIncomingFax?incomingFaxId={fax_id}&type=pdf",
+                        auth=(ak, sk),
+                        timeout=30.0
+                    )
+                    if dl_resp.status_code >= 400:
+                        errors.append(f"Failed to download fax {fax_id}: HTTP {dl_resp.status_code}")
+                        continue
+
+                    pdf_content = dl_resp.content
+                    if not pdf_content:
+                        errors.append(f"Failed to download fax {fax_id}: Empty content")
+                        continue
+
+                    # Generate IDs and paths
+                    job_id = uuid.uuid4().hex
+                    local_path = os.path.join(settings.fax_data_dir, f"{job_id}.pdf")
+                    ensure_dir(settings.fax_data_dir)
+
+                    # Write PDF locally
+                    with open(local_path, 'wb') as f:
+                        f.write(pdf_content)
+
+                    # Store in configured storage backend
+                    stored_uri = storage.put_pdf(local_path, f"{job_id}.pdf")
+
+                    # Calculate hash and size
+                    sha256_hex = _hashlib.sha256(pdf_content).hexdigest()
+                    file_size = len(pdf_content)
+
+                    # Clean up local file if stored in S3
+                    if stored_uri.startswith("s3://") and os.path.exists(local_path):
+                        os.remove(local_path)
+
+                    # Generate token
+                    pdf_token = secrets.token_urlsafe(32)
+                    expires_at = datetime.utcnow() + timedelta(minutes=settings.inbound_token_ttl_minutes)
+                    retention_until = (datetime.utcnow() + timedelta(days=settings.inbound_retention_days)) if settings.inbound_retention_days > 0 else None
+
+                    # Convert timestamp to datetime
+                    received_at = datetime.utcfromtimestamp(int(fx_meta.get("time", 0)))
+
+                    # Save to database
+                    with SessionLocal() as db:
+                        fx = InboundFax(
+                            id=job_id,
+                            from_number=fx_meta.get("fromNumber"),
+                            to_number=fx_meta.get("toNumber"),
+                            status="received",
+                            backend="humblefax",
+                            inbound_backend="humblefax",
+                            provider_sid=fax_id,
+                            pages=int(fx_meta.get("numPages", 1)),
+                            size_bytes=file_size,
+                            sha256=sha256_hex,
+                            pdf_path=stored_uri,
+                            pdf_token=pdf_token,
+                            pdf_token_expires_at=expires_at,
+                            retention_until=retention_until,
+                            created_at=datetime.utcnow(),
+                            received_at=received_at,
+                            updated_at=datetime.utcnow(),
+                        )
+                        db.add(fx)
+                        db.commit()
+
+                    downloaded += 1
+                    audit_event("inbound_backfilled", job_id=job_id, provider_sid=fax_id)
+
+                except Exception as e:
+                    errors.append(f"Failed to download fax {fax_id}: {str(e)[:100]}")
+
+        return {
+            "success": True,
+            "downloaded": downloaded,
+            "skipped": skipped,
+            "total": len(fax_list),
+            "errors": errors[:5] if errors else None
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)[:200]}
+
+
 @app.get("/admin/tunnel/cloudflared/logs", dependencies=[Depends(require_admin)])
 def admin_tunnel_cloudflared_logs(lines: int = Query(default=50, ge=1, le=500)):
     """Read last N lines from the Cloudflared log file on disk.
@@ -4212,11 +4358,14 @@ async def _auto_tunnel_cloudflare_watcher():
                     is_local = current.startswith("http://localhost") or current.startswith("http://127.0.0.1") or current == ""
                     if allow_override and is_local:
                         os.environ["PUBLIC_API_URL"] = url_found
+                        os.environ["HUMBLEFAX_CALLBACK_BASE"] = url_found
                         try:
                             reload_settings()
                         except Exception:
                             pass
                         audit_event("auto_tunnel_public_url_set", provider="cloudflare")
+                        # Auto-register webhook with HumbleFax if configured
+                        asyncio.create_task(_auto_register_humblefax_webhook())
                 await asyncio.sleep(5)
             except Exception:
                 # Never crash the watcher; back off
@@ -4224,6 +4373,66 @@ async def _auto_tunnel_cloudflare_watcher():
     except Exception:
         # Fail closed silently
         return
+
+
+async def _auto_register_humblefax_webhook():
+    """Auto-register HumbleFax webhook when tunnel URL changes.
+
+    Runs asynchronously and non-blocking to avoid slowing down the watcher.
+    """
+    try:
+        # Check if inbound is enabled and backend is humblefax
+        if not settings.inbound_enabled:
+            return
+        if active_inbound() != "humblefax":
+            return
+
+        ak = getattr(settings, 'humblefax_access_key', '')
+        sk = getattr(settings, 'humblefax_secret_key', '')
+        if not (ak and sk):
+            return
+
+        # Get public URL
+        public_url = (
+            (_TUNNEL_STATE.get("public_url") if not _hipaa_posture_enabled() else None)
+            or getattr(settings, 'humblefax_callback_base', '')
+            or settings.public_api_url
+        ).rstrip("/")
+
+        if not public_url or public_url.startswith("http://localhost") or public_url.startswith("http://127.0.0.1"):
+            return
+
+        webhook_url = f"{public_url}/inbound/humblefax/webhook"
+
+        # Register webhook
+        import httpx
+        payload = {
+            "id": 0,
+            "url": webhook_url,
+            "subscriptions": ["IncomingFax.SendComplete", "SentFax.SendComplete"],
+        }
+
+        urls = [
+            "https://api.humblefax.com/webhook",
+            "https://api.humblefax.com/createWebhook",
+        ]
+
+        async with httpx.AsyncClient(timeout=15.0, headers={"Content-Type": "application/json"}) as client:
+            for u in urls:
+                try:
+                    r = await client.post(u, json=payload, auth=(ak, sk))
+                    if r.status_code < 400:
+                        audit_event("auto_register_humblefax_webhook_success", url=webhook_url)
+                        _logging.getLogger(__name__).info(f"[AUTO] Registered HumbleFax webhook: {webhook_url}")
+                        return
+                except Exception:
+                    continue
+
+        audit_event("auto_register_humblefax_webhook_failed", url=webhook_url)
+    except Exception as e:
+        # Log but don't crash
+        _logging.getLogger(__name__).error(f"Auto-register webhook failed: {e}")
+        pass
 
 
 class RotateAPIKeyOut(BaseModel):
@@ -4796,6 +5005,14 @@ async def _send_via_manifest(job_id: str, to: str, pdf_path: str):
         audit_event("job_failed", job_id=job_id, error=str(e))
 
 
+def _format_datetime_with_z_job(dt: Optional[datetime]) -> str:
+    """Format datetime as ISO8601 string with Z suffix for UTC."""
+    if dt is None:
+        return ""
+    # Ensure datetime is treated as UTC and append 'Z'
+    return dt.isoformat() + 'Z' if not dt.isoformat().endswith('Z') else dt.isoformat()
+
+
 def _serialize_job(job: FaxJob) -> FaxJobOut:
     j = cast(Any, job)
     return FaxJobOut(
@@ -4806,8 +5023,8 @@ def _serialize_job(job: FaxJob) -> FaxJobOut:
         pages=j.pages,
         backend=j.backend,
         provider_sid=j.provider_sid,
-        created_at=j.created_at,
-        updated_at=j.updated_at,
+        created_at=_format_datetime_with_z_job(j.created_at),
+        updated_at=_format_datetime_with_z_job(j.updated_at),
     )
 
 
@@ -4824,10 +5041,32 @@ class InboundFaxOut(BaseModel):
     backend: str
     pages: Optional[int] = None
     size_bytes: Optional[int] = None
-    created_at: Optional[datetime] = None
-    received_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    file_type: Optional[str] = None
+    created_at: Optional[str] = None
+    received_at: Optional[str] = None
+    updated_at: Optional[str] = None
     mailbox: Optional[str] = None
+
+
+def _format_datetime_with_z(dt: Optional[datetime]) -> Optional[str]:
+    """Format datetime as ISO8601 string with Z suffix for UTC."""
+    if dt is None:
+        return None
+    # Ensure datetime is treated as UTC and append 'Z'
+    return dt.isoformat() + 'Z' if not dt.isoformat().endswith('Z') else dt.isoformat()
+
+
+def _detect_file_type(pdf_path: Optional[str], tiff_path: Optional[str]) -> str:
+    """Detect file type from paths."""
+    if pdf_path and pdf_path.lower().endswith('.pdf'):
+        return 'pdf'
+    if tiff_path and tiff_path.lower().endswith(('.tiff', '.tif')):
+        return 'tiff'
+    if pdf_path and pdf_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+        return 'image'
+    if pdf_path and pdf_path.lower().endswith('.txt'):
+        return 'text'
+    return 'pdf'  # Default assumption
 
 
 def _serialize_inbound(fx: InboundFax) -> InboundFaxOut:
@@ -4840,9 +5079,10 @@ def _serialize_inbound(fx: InboundFax) -> InboundFaxOut:
         backend=f.backend,
         pages=f.pages,
         size_bytes=f.size_bytes,
-        created_at=f.created_at,
-        received_at=f.received_at,
-        updated_at=f.updated_at,
+        file_type=_detect_file_type(f.pdf_path, f.tiff_path),
+        created_at=_format_datetime_with_z(f.created_at),
+        received_at=_format_datetime_with_z(f.received_at),
+        updated_at=_format_datetime_with_z(f.updated_at),
         mailbox=f.mailbox_label,
     )
 
@@ -4939,6 +5179,65 @@ def get_inbound_pdf(inbound_id: str, token: Optional[str] = Query(default=None),
             filename=f"inbound_{inbound_id}.pdf",
             headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
         )
+
+
+@app.delete("/inbound/{inbound_id}", dependencies=[Depends(require_admin)])
+def delete_inbound(inbound_id: str):
+    """Delete an inbound fax by ID.
+
+    Removes the database record and associated files (local or S3).
+    Admin-only endpoint for inbox management.
+    """
+    if not settings.inbound_enabled:
+        raise HTTPException(404, detail="Inbound not enabled")
+
+    with SessionLocal() as db:
+        fx = db.get(InboundFax, inbound_id)
+        if not fx:
+            raise HTTPException(404, detail="Inbound fax not found")
+
+        # Store info for cleanup
+        pdf_path = fx.pdf_path
+        tiff_path = fx.tiff_path
+        provider_sid = fx.provider_sid
+
+        # Delete from database
+        db.delete(fx)
+
+        # Delete related events if any
+        if provider_sid:
+            from .db import InboundEvent
+            events = db.query(InboundEvent).filter(InboundEvent.provider_sid == provider_sid).all()
+            for event in events:
+                db.delete(event)
+
+        db.commit()
+
+    # Clean up files
+    storage = get_storage()
+    try:
+        if pdf_path:
+            if pdf_path.startswith("s3://"):
+                # Delete from S3
+                try:
+                    storage.delete_pdf(pdf_path)
+                except Exception as e:
+                    audit_event("inbound_delete_s3_error", job_id=inbound_id, error=str(e))
+            else:
+                # Delete local file
+                if os.path.exists(pdf_path):
+                    os.remove(pdf_path)
+
+        if tiff_path and not tiff_path.startswith("s3://"):
+            if os.path.exists(tiff_path):
+                os.remove(tiff_path)
+
+    except Exception as e:
+        # Log error but don't fail the delete since DB record is already gone
+        audit_event("inbound_delete_file_error", job_id=inbound_id, error=str(e))
+
+    audit_event("inbound_deleted", job_id=inbound_id)
+    return {"success": True, "id": inbound_id}
 
 
 from .middleware.traits import requires_traits

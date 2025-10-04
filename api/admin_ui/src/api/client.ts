@@ -434,12 +434,19 @@ export class AdminAPIClient {
         'X-API-Key': this.apiKey,
       },
     });
-    
+
     if (!res.ok) {
       throw new Error(`Download failed: ${res.status}`);
     }
-    
+
     return res.blob();
+  }
+
+  async deleteInbound(id: string): Promise<{ success: boolean; id: string }> {
+    const res = await this.fetch(`/inbound/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    return res.json();
   }
 
   // Inbound helpers

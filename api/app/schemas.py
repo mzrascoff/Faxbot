@@ -15,5 +15,5 @@ class FaxJobOut(BaseModel):
     pages: Optional[int] = None
     backend: str = "sip"  # "sip" or "phaxio"
     provider_sid: Optional[str] = None  # Phaxio fax ID or other cloud provider ID
-    created_at: datetime
-    updated_at: datetime
+    created_at: str
+    updated_at: str
