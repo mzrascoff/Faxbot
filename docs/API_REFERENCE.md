@@ -7,6 +7,8 @@ permalink: /api-reference.html
 
 # API Reference
 
+> Note: Better API docs here:  https://faxbot.net/api/
+
 ## Base URL
 - Default: `http://localhost:8080`
 - Health: `GET /health` → `{ "status": "ok" }`
