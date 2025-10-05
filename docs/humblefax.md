@@ -2,6 +2,72 @@
 
 This guide summarizes the verified request format, environment variables, and end-to-end testing steps for HumbleFax.
 
+## Email-to-Fax Feature (Native HumbleFax)
+
+**⚠️ CRITICAL: HumbleFax has built-in email-to-fax functionality that Faxbot users should leverage!**
+
+This is a native HumbleFax feature that works alongside Faxbot's API integration. You get BOTH methods:
+- **Email → Fax** (HumbleFax native, super convenient)
+- **API → Fax** (Faxbot integration, programmatic control)
+
+### Quick Start: Send Your First Fax via Email
+
+1. **Get your HumbleFax account** (if you don't have one): https://humblefax.com/signup
+2. **Send an email** to: `<fax-number>@humblefax.com`
+   - Replace `<fax-number>` with digits only (no dashes, spaces, or +)
+   - **Example:** To fax +1 (303) 555-1234 → Email to `13035551234@humblefax.com`
+3. **Write your message:**
+   - Subject: Becomes the header of your cover sheet
+   - Body: Becomes the body of your cover sheet
+   - Attachments: PDF, DOC, DOCX, images, etc.
+4. **Send!** You'll receive a confirmation email when delivered
+
+### Send Faxes via Email
+Send an email to `<fax-number>@humblefax.com` where `<fax-number>` is the recipient's fax number (digits only).
+
+**Supported Formats:** PDF, DOC, DOCX, TXT, PNG, JPG, GIF, TIFF
+**Cover Sheet:** Email subject + body automatically creates a professional cover sheet
+**Confirmation:** Delivery confirmation sent to your email
+**Multiple Recipients:** CC other addresses to send to multiple fax numbers simultaneously
+
+**Real-World Example:**
+```
+To: 13035551234@humblefax.com
+Subject: Medical Records Request - Patient #12345
+Body: Please see attached lab results for John Doe (DOB: 01/15/1980)
+Attachments: lab_results.pdf
+
+→ Creates professional fax with cover sheet + attachment
+```
+
+### Receive Faxes via Email
+During HumbleFax signup, choose a local fax number in any area code. Every incoming fax is automatically sent to your email as a PDF attachment.
+
+**Dual Notification:**
+1. **Email:** Immediate PDF delivery to your inbox
+2. **Faxbot Webhook:** Updates Faxbot inbox via API (if configured)
+
+**Benefits:**
+- No busy signals (handles unlimited simultaneous faxes)
+- PDFs can be printed, saved, or forwarded instantly
+- Full history available in HumbleFax dashboard
+- Mobile-friendly: Check faxes on any device
+- Search your email to find old faxes
+
+**Setup Email Forwarding:**
+1. Log into HumbleFax dashboard: https://humblefax.com/dashboard
+2. Go to Settings → Email Notifications
+3. Enter your email address for fax delivery
+4. Save settings
+
+**Pro Tip:** Use email rules/filters to automatically organize incoming faxes by sender or subject
+
+**Learn More:** https://humblefax.com/?jump=how-it-works
+
+---
+
+## API Integration (Faxbot)
+
 Notes
 - Verified against HumbleFax quickSendFax: `multipart/form-data` with `file` field and `jsonData` object.
 - `jsonData` requires `recipients` (array of integers), `includeCoversheet`, `pageSize` (Letter|Legal|A4|B4), and typically `resolution` (Fine).
