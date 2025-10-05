@@ -5165,7 +5165,7 @@ def get_inbound_pdf(inbound_id: str, token: Optional[str] = Query(default=None),
             stream, name = storage.get_pdf_stream(pdf_path)
             audit_event("inbound_pdf_served", job_id=inbound_id, method=("token" if token else "api_key"))
             return StreamingResponse(stream, media_type="application/pdf", headers={
-                "Content-Disposition": f"attachment; filename={name}",
+                "Content-Disposition": f"inline; filename={name}",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0",
@@ -5177,7 +5177,12 @@ def get_inbound_pdf(inbound_id: str, token: Optional[str] = Query(default=None),
             pdf_path,
             media_type="application/pdf",
             filename=f"inbound_{inbound_id}.pdf",
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
+            headers={
+                "Content-Disposition": f"inline; filename=inbound_{inbound_id}.pdf",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            },
         )
 
 

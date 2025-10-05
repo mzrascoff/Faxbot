@@ -66,8 +66,6 @@ function Inbound({ client, docsBase }: InboundProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [faxToDelete, setFaxToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
-  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   // Precise help anchors (lightweight resolver for inbound failures)
   const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
   const anchors: Record<string,string> = {
@@ -117,28 +115,15 @@ function Inbound({ client, docsBase }: InboundProps) {
 
   const previewPdf = async (id: string) => {
     try {
-      // Clean up previous URL if exists
-      if (previewPdfUrl) {
-        URL.revokeObjectURL(previewPdfUrl);
-      }
       const blob = await client.downloadInboundPdf(id);
       const url = URL.createObjectURL(blob);
-      setPreviewPdfUrl(url);
-      setPreviewDialogOpen(true);
+      // Open in new tab instead of dialog - more reliable cross-browser
+      window.open(url, '_blank');
+      // Clean up after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       alert(`Preview failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-  };
-
-  const handlePreviewClose = () => {
-    setPreviewDialogOpen(false);
-    // Clean up blob URL after a delay
-    setTimeout(() => {
-      if (previewPdfUrl) {
-        URL.revokeObjectURL(previewPdfUrl);
-        setPreviewPdfUrl(null);
-      }
-    }, 100);
   };
 
   const handleDeleteClick = (id: string) => {
@@ -222,7 +207,6 @@ function Inbound({ client, docsBase }: InboundProps) {
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
       const diffDays = Math.floor(diffMs / 86400000);
 
       // Format time
@@ -816,48 +800,6 @@ same => n,System(curl -s -X POST -H "Content-Type: application/json" -H "X-Inter
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
-      </Dialog>
-
-      {/* PDF Preview Dialog */}
-      <Dialog
-        open={previewDialogOpen}
-        onClose={handlePreviewClose}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: {
-            height: '90vh',
-            maxHeight: '90vh',
-          }
-        }}
-      >
-        <DialogTitle>
-          Fax Preview
-          <IconButton
-            onClick={handlePreviewClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-            }}
-          >
-            <Box component="span" sx={{ fontSize: '1.5rem' }}>×</Box>
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
-          {previewPdfUrl && (
-            <Box
-              component="iframe"
-              src={previewPdfUrl}
-              sx={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                flexGrow: 1,
-              }}
-            />
-          )}
-        </DialogContent>
       </Dialog>
     </Box>
   );
