@@ -30,10 +30,10 @@ curl -sS -X POST "$PUBLIC_API_URL/fax" \
 
 ## HIPAA checklist
 
-- [ ] Prefer OAuth (`SINCH_AUTH_METHOD=oauth`)
-- [ ] HTTPS enforced; strong TLS
-- [ ] No PHI in logs; keys masked
-- [ ] Keys rotated; least‑privilege access
+- [ ] :material-shield-key: Prefer OAuth (`SINCH_AUTH_METHOD=oauth`)
+- [ ] :material-lock-check: HTTPS enforced; strong TLS
+- [ ] :material-eye-off: No PHI in logs; keys masked
+- [ ] :material-key-change: Keys rotated; least‑privilege access
 
 !!! warning "HIPAA"
     Prefer OAuth, enforce HTTPS, and review [HIPAA Requirements](/HIPAA_REQUIREMENTS/).

@@ -7,7 +7,7 @@ title: Phaxio Setup
 Cloud backend where Phaxio fetches your PDF via a tokenized URL and posts status callbacks.
 
 !!! tip "Quick links"
-    [Webhooks](https://www.phaxio.com/docs/api/v2.1/intro/webhooks){ .md-button } [Verify Callbacks](https://www.phaxio.com/docs/security/callbacks){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button .md-button--primary }
+    [:material-webhook: Webhooks](https://www.phaxio.com/docs/api/v2.1/intro/webhooks){ .md-button } [:material-shield-check: Verify Callbacks](https://www.phaxio.com/docs/security/callbacks){ .md-button } [:material-stethoscope: Diagnostics](/admin-console/diagnostics/){ .md-button .md-button--primary }
 
 ## Steps
 

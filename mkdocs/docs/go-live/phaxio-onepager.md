@@ -32,11 +32,11 @@ curl -sS -X POST "$PUBLIC_API_URL/fax" \
 
 ## HIPAA checklist
 
-- [ ] BAA executed with provider
-- [ ] Provider document retention disabled
-- [ ] HTTPS enforced end‑to‑end; strong TLS
-- [ ] No PHI in logs; keys masked
-- [ ] Keys rotated; least‑privilege access
+- [ ] :material-file-sign: BAA executed with provider
+- [ ] :material-database-off: Provider document retention disabled
+- [ ] :material-lock-check: HTTPS enforced end‑to‑end; strong TLS
+- [ ] :material-eye-off: No PHI in logs; keys masked
+- [ ] :material-key-change: Keys rotated; least‑privilege access
 
 ## Help
 

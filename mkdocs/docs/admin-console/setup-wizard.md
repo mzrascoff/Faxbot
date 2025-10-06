@@ -7,7 +7,7 @@ title: Setup Wizard
 Configure Faxbot end‑to‑end from a guided flow: outbound provider, optional inbound, storage, and security.
 
 !!! tip "Quick links"
-    [Settings](/admin-console/settings/){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button } [Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
+    [:material-cog: Settings](/admin-console/settings/){ .md-button } [:material-stethoscope: Diagnostics](/admin-console/diagnostics/){ .md-button } [:material-puzzle: Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
 
 === "Evaluate (Quick Tunnel)"
 

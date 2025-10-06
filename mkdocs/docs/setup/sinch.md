@@ -7,7 +7,7 @@ title: Sinch Setup (Fax API v3)
 Direct upload backend: Faxbot posts PDFs to Sinch; PUBLIC_API_URL not required for outbound.
 
 !!! tip "Quick links"
-    [Fax API Reference](https://developers.sinch.com/docs/fax/api-reference/){ .md-button } [Access Keys](https://dashboard.sinch.com/settings/access-keys){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button .md-button--primary }
+    [:material-book-open-variant: API Reference](https://developers.sinch.com/docs/fax/api-reference/){ .md-button } [:material-key-variant: Access Keys](https://dashboard.sinch.com/settings/access-keys){ .md-button } [:material-stethoscope: Diagnostics](/admin-console/diagnostics/){ .md-button .md-button--primary }
 
 ## Steps
 

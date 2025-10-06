@@ -7,7 +7,7 @@ title: HumbleFax Go‑Live Checklist
 HumbleFax is a lightweight cloud provider supported for outbound sending and inbound delivery via webhooks. It also offers a native email‑to‑fax flow you can use alongside Faxbot.
 
 !!! tip "Quick links"
-    [How it works](https://humblefax.com/?jump=how-it-works){ .md-button } [Sign up](https://humblefax.com/signup){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+    [:material-help-circle: How it works](https://humblefax.com/?jump=how-it-works){ .md-button } [:material-account-plus: Sign up](https://humblefax.com/signup){ .md-button } [:material-cog: Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
 
 ## Pre‑flight
 

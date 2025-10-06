@@ -13,4 +13,4 @@ Companion apps for using Faxbot beyond the browser.
     The iOS app is part of the commercial offering. These docs cover usage and pairing only.
 
 !!! tip "Quick links"
-    [iOS](/apps/ios/){ .md-button } [Desktop](/apps/electron/){ .md-button .md-button--primary }
+    [:material-apple-ios: iOS](/apps/ios/){ .md-button } [:material-desktop-mac: Desktop](/apps/electron/){ .md-button .md-button--primary }

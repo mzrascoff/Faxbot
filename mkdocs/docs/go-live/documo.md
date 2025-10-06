@@ -7,7 +7,7 @@ title: Documo (mFax) Go‑Live Checklist
 Documo’s mFax API is a cloud backend with direct upload. PUBLIC_API_URL is not required for outbound, but is recommended for Admin links.
 
 !!! tip "Quick links"
-    [Documo API Docs](https://docs.documo.com){ .md-button } [mFax Pricing](https://www.mfax.io/pricing){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+    [:material-book-open-variant: API Docs](https://docs.documo.com){ .md-button } [:material-currency-usd: mFax Pricing](https://www.mfax.io/pricing){ .md-button } [:material-cog: Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
 
 ## Pre‑flight
 

@@ -7,7 +7,7 @@ title: Webhooks
 Configure provider callbacks for outbound status and inbound fax delivery. The Admin Console shows exact URLs for your active providers and verifies reachability.
 
 !!! tip "Quick links"
-    [Networking & Tunnels](/networking/tunnels/){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button } [Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
+    [:material-lan: Networking & Tunnels](/networking/tunnels/){ .md-button } [:material-stethoscope: Diagnostics](/admin-console/diagnostics/){ .md-button } [:material-puzzle: Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
 
 ## Outbound status
 

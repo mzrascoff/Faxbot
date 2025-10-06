@@ -7,7 +7,7 @@ title: Getting Started
 Launch Faxbot locally, send your first fax, and explore the Admin Console.
 
 !!! tip "Quick links"
-    [Setup Wizard](/admin-console/setup-wizard/){ .md-button } [Go‑Live](/go-live/){ .md-button } [Webhooks](/setup/webhooks/){ .md-button .md-button--primary }
+    [:material-cog: Setup Wizard](/admin-console/setup-wizard/){ .md-button } [:material-rocket-launch: Go‑Live](/go-live/){ .md-button } [:material-webhook: Webhooks](/setup/webhooks/){ .md-button .md-button--primary }
 
 ## Quick start
 

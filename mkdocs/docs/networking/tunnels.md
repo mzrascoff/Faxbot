@@ -7,7 +7,7 @@ title: Networking & Tunnels
 Options to reach your Faxbot API from outside your LAN. Use a quick tunnel for demos, and a HIPAA‑capable tunnel for production.
 
 !!! tip "Quick links"
-    [Setup Wizard](/admin-console/setup-wizard/){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button } [Webhooks](/setup/webhooks/){ .md-button .md-button--primary }
+    [:material-cog: Setup Wizard](/admin-console/setup-wizard/){ .md-button } [:material-stethoscope: Diagnostics](/admin-console/diagnostics/){ .md-button } [:material-webhook: Webhooks](/setup/webhooks/){ .md-button .md-button--primary }
 
 ## Options
 
