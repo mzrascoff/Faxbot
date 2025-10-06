@@ -14,6 +14,7 @@ import {
   IconButton,
   Tooltip,
   useTheme,
+  TextField,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -375,7 +376,7 @@ export default function OutboundSmokeTests({ client, canSend = true }: OutboundS
                 label="Test Fax Number"
                 placeholder="+15551234567"
                 value={testNumber}
-                onChange={(e) => setTestNumber(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTestNumber(e.target.value)}
                 size="small"
                 sx={{ minWidth: 200 }}
                 helperText="Your own fax-capable number (E.164 format)"

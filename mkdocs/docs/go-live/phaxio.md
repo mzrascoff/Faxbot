@@ -7,7 +7,7 @@ title: Phaxio Go‑Live Checklist
 Phaxio is a cloud backend where the provider fetches your PDF via a tokenized URL and posts status callbacks. This page covers the essentials to move from eval to production.
 
 !!! tip "Quick links"
-    [Phaxio Webhooks](https://www.phaxio.com/docs/api/v2.1/intro/webhooks){ .md-button } [Verify Callbacks](https://www.phaxio.com/docs/security/callbacks){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+    [:material-webhook: Phaxio Webhooks](https://www.phaxio.com/docs/api/v2.1/intro/webhooks){ .md-button } [:material-shield-check: Verify Callbacks](https://www.phaxio.com/docs/security/callbacks){ .md-button } [:material-cog: Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
 
 ## Pre‑flight
 

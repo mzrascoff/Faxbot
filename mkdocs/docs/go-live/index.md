@@ -7,7 +7,10 @@ title: Go‑Live Checklists
 Final readiness checklists for each backend profile. Each page is backend‑specific and includes provider help links, webhook guidance, and HIPAA notes where applicable.
 
 !!! tip "Quick links"
-    [Networking & Tunnels](/networking/tunnels/){ .md-button } [Webhooks](/setup/webhooks/){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+    [:material-lan: Networking & Tunnels](/networking/tunnels/){ .md-button } [:material-webhook: Webhooks](/setup/webhooks/){ .md-button } [:material-cog: Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+
+!!! note "Tip"
+    Use search [:material-magnify:] with <kbd>Ctrl</kbd>+<kbd>K</kbd> (or <kbd>⌘</kbd>+<kbd>K</kbd>) to jump between providers and guides quickly.
 
 ## Providers
 

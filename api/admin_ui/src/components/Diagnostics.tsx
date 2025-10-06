@@ -26,6 +26,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   LinearProgress,
+  TextField,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -931,7 +932,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                         label="Test Fax Number"
                         placeholder="+15551234567"
                         value={testNumber}
-                        onChange={(e) => setTestNumber(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTestNumber(e.target.value)}
                         size="small"
                         sx={{ minWidth: 200 }}
                         helperText="Your own fax-capable number (E.164 format)"
