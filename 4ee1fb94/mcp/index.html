@@ -2748,8 +2748,140 @@
 <p>See also: <a href="transports/">Transports</a></p>
 <p>Limits and file handling
 - stdio: use <code>filePath</code> to avoid base64 limits
-- HTTP/SSE: JSON limit is ~16 MB for Node; REST API raw file limit is 10 MB
+- HTTP/SSE: JSON limit is ~16&nbsp;MB for Node; REST API raw file limit is 10&nbsp;MB
 - Allowed types: PDF, TXT</p>
+
+<hr/>
+
+<h2 id="quick-start">Quick Start</h2>
+
+<h3 id="node-stdio">Node — stdio (Claude Desktop / Cursor)</h3>
+<div class="admonition info">
+  <p class="admonition-title">When to use</p>
+  <p>Best for local desktop assistants that can spawn a process. No network exposure required.</p>
+  </div>
+<pre><code class="language-json">{
+  "mcpServers": {
+    "faxbot": {
+      "command": "node",
+      "args": ["src/servers/stdio.js"],
+      "cwd": "/PATH/TO/faxbot/node_mcp",
+      "env": { "FAX_API_URL": "http://localhost:8080", "API_KEY": "YOUR_API_KEY" }
+    }
+  }
+}
+</code></pre>
+
+<h3 id="node-http">Node — HTTP (Streamable)</h3>
+<pre><code class="language-bash"># From repo root
+docker compose up -d --build api
+docker compose --profile mcp up -d --build faxbot-mcp
+
+# Requests must include MCP HTTP API key
+curl -s -H "Authorization: Bearer &lt;MCP_HTTP_API_KEY&gt;" http://localhost:3001/mcp
+</code></pre>
+
+<h3 id="node-sse">Node — SSE + OAuth2 (Production)
+</h3>
+<div class="admonition warning">
+  <p class="admonition-title">Security</p>
+  <p>SSE requires OAuth2/JWT. Configure issuer, audience, and JWKS. Terminate TLS in front of the server.</p>
+  </div>
+<pre><code class="language-bash">export OAUTH_ISSUER=https://YOUR_ISSUER
+export OAUTH_AUDIENCE=faxbot-mcp
+export OAUTH_JWKS_URL=https://YOUR_ISSUER/.well-known/jwks.json
+docker compose --profile mcp up -d --build faxbot-mcp-sse
+</code></pre>
+
+<h3 id="python-stdio">Python — stdio</h3>
+<pre><code class="language-bash"># From repo root
+docker compose up -d --build api
+docker compose --profile mcp up -d --build faxbot-mcp
+</code></pre>
+
+<h3 id="python-sse">Python — SSE + OAuth2</h3>
+<pre><code class="language-bash">export OAUTH_ISSUER=https://YOUR_ISSUER
+export OAUTH_AUDIENCE=faxbot-mcp
+export OAUTH_JWKS_URL=https://YOUR_ISSUER/.well-known/jwks.json
+docker compose --profile mcp up -d --build faxbot-mcp-sse
+</code></pre>
+
+<h2 id="tools">Tools</h2>
+<div class="grid cards">
+  <ul>
+    <li>
+      <p><strong>send_fax</strong><br/>
+      Parameters: <code>to</code>, (<code>filePath</code> <em>or</em> <code>fileContent</code>+<code>fileName</code>+<code>fileType</code>)</p>
+    </li>
+    <li>
+      <p><strong>get_fax_status</strong><br/>
+      Parameters: <code>jobId</code></p>
+    </li>
+  </ul>
+</div>
+
+<details open>
+<summary><strong>Node examples</strong></summary>
+<pre><code class="language-js">// send_fax with local file
+const job = await tools.send_fax({ to: "+15551234567", filePath: "/path/to/file.pdf" });
+// get_fax_status
+const status = await tools.get_fax_status({ jobId: job.id });
+</code></pre>
+</details>
+
+<details open>
+<summary><strong>Python examples</strong></summary>
+<pre><code class="language-python"># send_fax with local file
+job = tools.send_fax({ "to": "+15551234567", "filePath": "/path/to/file.pdf" })
+# get_fax_status
+status = tools.get_fax_status({ "jobId": job["id"] })
+</code></pre>
+</details>
+
+<h2 id="transports">Transports</h2>
+<table>
+  <thead>
+    <tr><th>Transport</th><th>Auth</th><th>When to use</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>stdio</code></td><td>Local process</td><td>Desktop assistants; no network exposure</td></tr>
+    <tr><td><code>HTTP</code> (Node)</td><td><code>MCP_HTTP_API_KEY</code></td><td>Web clients or cloud AI that cannot spawn processes</td></tr>
+    <tr><td><code>SSE</code> (Node/Python)</td><td>OAuth2/JWT + TLS</td><td>Streaming responses with enterprise auth controls</td></tr>
+  </tbody>
+</table>
+<p>See <a href="transports/">Transports</a> for capabilities and limits.</p>
+
+<h2 id="security">Security</h2>
+<div class="admonition note">
+  <p class="admonition-title">API Keys</p>
+  <p>Use DB‑backed keys created via <code>POST /admin/api-keys</code> and send as <code>X-API-Key</code> to the Faxbot API. For SSE, validate OAuth2 tokens using your IdP’s JWKS.</p>
+  </div>
+<p>OAuth2 configuration guidance: <a href="../security/oauth-setup/">OAuth / OIDC Setup</a></p>
+
+<h2 id="limits">Limits &amp; File Handling</h2>
+<ul>
+  <li>Allowed types: PDF, TXT</li>
+  <li>Max file size (Faxbot API): 10&nbsp;MB</li>
+  <li>Node JSON payloads (HTTP/SSE): ~16&nbsp;MB effective</li>
+  <li>Prefer <code>filePath</code> with <code>stdio</code> for large files</li>
+  <li>Convert images (PNG/JPG) to PDF before sending</li>
+  </ul>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<ul>
+  <li><strong>401/403</strong>: invalid API key or scopes; for SSE, invalid JWT or audience</li>
+  <li><strong>415</strong>: unsupported media type; only PDF/TXT accepted</li>
+  <li><strong>413</strong>: payload too large; switch to <code>stdio</code> with <code>filePath</code></li>
+  <li><strong>SSE fails</strong>: verify JWKS URL and TLS; check <a href="../security/oauth-setup/">OAuth setup</a></li>
+  </ul>
+
+<h2 id="related">Related</h2>
+<ul>
+  <li><a href="node/">Node Server</a></li>
+  <li><a href="python/">Python Server</a></li>
+  <li><a href="transports/">Transports</a></li>
+  <li><a href="../security/oauth-setup/">OAuth / OIDC Setup</a></li>
+  </ul>
 
 
 
