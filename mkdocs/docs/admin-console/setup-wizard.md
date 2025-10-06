@@ -6,6 +6,9 @@ title: Setup Wizard
 
 Configure Faxbot end‑to‑end from a guided flow: outbound provider, optional inbound, storage, and security.
 
+!!! tip "Quick links"
+    [Settings](/admin-console/settings/){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button } [Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
+
 === "Evaluate (Quick Tunnel)"
 
     1) Choose a cloud provider (Phaxio, Sinch, SignalWire, Documo, HumbleFax)
@@ -28,4 +31,3 @@ Next steps
 - [Settings](/admin-console/settings/)
 - [Diagnostics](/admin-console/diagnostics/)
 - [Plugins](/admin-console/plugin-builder/)
-

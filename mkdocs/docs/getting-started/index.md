@@ -6,6 +6,9 @@ title: Getting Started
 
 Launch Faxbot locally, send your first fax, and explore the Admin Console.
 
+!!! tip "Quick links"
+    [Setup Wizard](/admin-console/setup-wizard/){ .md-button } [Go‑Live](/go-live/){ .md-button } [Webhooks](/setup/webhooks/){ .md-button .md-button--primary }
+
 ## Quick start
 
 1) Start the stack (Docker or local) and open the Admin Console
@@ -29,4 +32,3 @@ Launch Faxbot locally, send your first fax, and explore the Admin Console.
 - [Go‑Live Checklists](/go-live/)
 - [Networking & Tunnels](/networking/tunnels/)
 - [Webhooks](/setup/webhooks/)
-
