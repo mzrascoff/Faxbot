@@ -34,7 +34,6 @@ import {
   Memory as MemoryIcon,
 } from '@mui/icons-material';
 import AdminAPIClient from '../api/client';
-import { format } from 'date-fns';
 
 interface Event {
   id: string;
@@ -368,15 +367,18 @@ const EventStream: React.FC<EventStreamProps> = ({ client }) => {
                     secondary={
                       <Box>
                         <Typography variant="caption" color="text.secondary" display="block">
-                          {new Date(event.occurred_at).toLocaleString('en-US', { 
-                            month: 'short', 
-                            day: '2-digit', 
-                            hour: '2-digit', 
-                            minute: '2-digit', 
-                            second: '2-digit',
-                            fractionalSecondDigits: 3,
-                            hour12: false 
-                          })}
+                          {(() => {
+                            const d = new Date(event.occurred_at);
+                            const ms = d.getMilliseconds().toString().padStart(3, '0');
+                            return d.toLocaleString('en-US', { 
+                              month: 'short', 
+                              day: '2-digit', 
+                              hour: '2-digit', 
+                              minute: '2-digit', 
+                              second: '2-digit',
+                              hour12: false 
+                            }) + '.' + ms;
+                          })()}
                           {event.job_id && ` • Job: ${event.job_id}`}
                           {event.external_id && ` • Ext: ${event.external_id}`}
                           {event.correlation_id && ` • Correlation: ${event.correlation_id}`}
