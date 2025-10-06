@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting</title>
+<noscript><meta http-equiv="refresh" content="0; url=/4ee1fb94/mcp/" /></noscript>
+<script>
+(async function(){
+  try{
+    const r=await fetch('/versions.json',{cache:'no-store'});
+    if(r.ok){
+      const vers=await r.json();
+      const entry=vers.find(v=>Array.isArray(v.aliases)&&v.aliases.includes('latest'));
+      const v=(entry&&entry.version)||'4ee1fb94';
+      location.replace('/'+v+'/mcp/'+location.search+location.hash);
+      return;
+    }
+  }catch(e){}
+  location.replace('/4ee1fb94/mcp/'+location.search+location.hash);
+})();
+</script></head><body>Redirecting…</body></html>
