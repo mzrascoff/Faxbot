@@ -7,7 +7,7 @@
       "categories": ["outbound"],
       "capabilities": ["send", "get_status", "webhook"],
       "description": "Recommended for most users; HIPAA-ready with BAA.",
-      "learn_more": "https://docs.faxbot.net/latest/setup/phaxio/"
+      "learn_more": "https://docs.faxbot.net/4ee1fb94/setup/phaxio/"
     },
     {
       "id": "signalwire",
@@ -16,7 +16,7 @@
       "categories": ["outbound"],
       "capabilities": ["send", "get_status", "webhook"],
       "description": "Cloud fax using Twilio‑style Compatibility API.",
-      "learn_more": "https://docs.faxbot.net/latest/setup/signalwire/"
+      "learn_more": "https://docs.faxbot.net/4ee1fb94/setup/signalwire/"
     },
     {
       "id": "freeswitch",
@@ -25,7 +25,7 @@
       "categories": ["outbound"],
       "capabilities": ["send"],
       "description": "Self‑hosted fax via mod_spandsp (txfax/rxfax).",
-      "learn_more": "https://docs.faxbot.net/latest/setup/freeswitch/"
+      "learn_more": "https://docs.faxbot.net/4ee1fb94/setup/freeswitch/"
     },
     {
       "id": "sinch",
@@ -34,7 +34,7 @@
       "categories": ["outbound"],
       "capabilities": ["send", "get_status"],
       "description": "Direct Sinch upload model for Phaxio by Sinch accounts.",
-      "learn_more": "https://docs.faxbot.net/latest/setup/sinch/"
+      "learn_more": "https://docs.faxbot.net/4ee1fb94/setup/sinch/"
     },
     {
       "id": "sip",
@@ -43,7 +43,7 @@
       "categories": ["outbound"],
       "capabilities": ["send", "get_status"],
       "description": "Advanced users; requires SIP trunk + T.38 and AMI.",
-      "learn_more": "https://docs.faxbot.net/latest/setup/sip-asterisk/"
+      "learn_more": "https://docs.faxbot.net/4ee1fb94/setup/sip-asterisk/"
     },
     {
       "id": "local",
@@ -52,7 +52,7 @@
       "categories": ["storage"],
       "capabilities": ["store", "retrieve", "delete"],
       "description": "Local storage for development only.",
-      "learn_more": "https://docs.faxbot.net/latest/operations/"
+      "learn_more": "https://docs.faxbot.net/4ee1fb94/operations/"
     },
     {
       "id": "s3",
@@ -61,7 +61,7 @@
       "categories": ["storage"],
       "capabilities": ["store", "retrieve", "delete"],
       "description": "Production storage with SSE-KMS recommended for PHI.",
-      "learn_more": "https://docs.faxbot.net/latest/operations/"
+      "learn_more": "https://docs.faxbot.net/4ee1fb94/operations/"
     }
   ]
 }

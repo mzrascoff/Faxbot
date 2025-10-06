@@ -21,8 +21,8 @@ Configuration and guidance for HIPAA‑aligned deployments and OAuth/OIDC setup.
 - WebSocket (Node): protect with `MCP_WS_API_KEY` (or `API_KEY`); run behind TLS or an authenticated proxy.
 
 Recommended reading
-- [Authentication (API Keys)](https://docs.faxbot.net/latest/security/authentication/)
-- [HIPAA Requirements](https://docs.faxbot.net/latest/HIPAA_REQUIREMENTS/)
-- [OAuth/OIDC Setup](https://docs.faxbot.net/latest/security/oauth-setup/)
+- [Authentication (API Keys)](https://docs.faxbot.net/4ee1fb94/security/authentication/)
+- [HIPAA Requirements](https://docs.faxbot.net/4ee1fb94/HIPAA_REQUIREMENTS/)
+- [OAuth/OIDC Setup](https://docs.faxbot.net/4ee1fb94/security/oauth-setup/)
 - [Compliance Overview](https://faxbot.net/compliance/)
 - [Business Associate Agreement (PDF)](https://faxbot.net/compliance/business-associate-agreement.pdf)

@@ -39,4 +39,4 @@ print("Status:", status["status"])
 
 ## MCP Note
 - MCP (Model Context Protocol) is not part of this SDK. It is a separate integration layer for AI assistants.
-- Refer to the docs for setup and usage: https://docs.faxbot.net/latest/mcp/
+- Refer to the docs for setup and usage: https://docs.faxbot.net/4ee1fb94/mcp/
