@@ -145,6 +145,43 @@ const ConsoleBox: React.FC<{ lines: string[]; loading?: boolean; title?: string 
 
 const ScriptsTests: React.FC<Props> = ({ client, docsBase, readOnly = false, canSend = false }) => {
   const { hasTrait, outboundTraits } = useTraits();
+
+  // Phone number utilities - same as Send Fax tab
+  const digitsOnly = (input: string): string => {
+    // Strip ALL non-digit characters including hidden/zero-width chars from paste
+    return input.replace(/\D/g, '');
+  };
+
+  const formatUSPhone = (raw: string): string => {
+    const digits = digitsOnly(raw).slice(0, 10); // Max 10 digits for US
+    if (digits.length === 0) return '';
+    if (digits.length <= 3) return `(${digits})`;
+    if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  };
+
+  const normalizeToE164 = (input: string): string => {
+    // Handle already-formatted E.164 numbers
+    if (input.startsWith('+')) {
+      return '+' + digitsOnly(input);
+    }
+    // US numbers: convert 10 digits to +1XXXXXXXXXX
+    const digits = digitsOnly(input);
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+    // 11 digits starting with 1: already has country code
+    if (digits.length === 11 && digits.startsWith('1')) {
+      return `+${digits}`;
+    }
+    // International: just prepend +
+    if (digits.length >= 10) {
+      return `+${digits}`;
+    }
+    return input; // Return as-is if can't normalize
+  };
   const [error, setError] = useState<string>('');
   const [busyAuth, setBusyAuth] = useState<boolean>(false);
   const [busyInbound, setBusyInbound] = useState<boolean>(false);
@@ -211,7 +248,9 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase, readOnly = false, can
       pushAuth('[i] Sending test TXT');
       const blob = new Blob([`hello from Faxbot Admin Console — ${new Date().toISOString()}`], { type: 'text/plain' });
       const file = new File([blob], 'gui-smoke.txt', { type: 'text/plain' });
-      const send = await client.sendFax(toNumber, file);
+      // Normalize to E.164 format before sending
+      const normalizedNumber = normalizeToE164(toNumber);
+      const send = await client.sendFax(normalizedNumber, file);
       pushAuth(`[✓] Queued: ${send.id} status=${send.status}`);
       pushAuth('[i] Fetching status…');
       try {
@@ -302,7 +341,9 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase, readOnly = false, can
       const ab = new ArrayBuffer(bytes.byteLength); new Uint8Array(ab).set(bytes);
       const blob = new Blob([ab], { type: 'application/pdf' });
       const file = new File([blob], 'faxbot_test_image.pdf', { type: 'application/pdf' });
-      const result = await client.sendFax(toNumber, file);
+      // Normalize to E.164 format before sending
+      const normalizedNumber = normalizeToE164(toNumber);
+      const result = await client.sendFax(normalizedNumber, file);
       pushAuth(`[✓] Image Test queued: ${result.id} status=${result.status}`);
     } catch (e:any) {
       setError(e?.message || 'Test image fax failed to start');
@@ -316,7 +357,9 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase, readOnly = false, can
       const ab = new ArrayBuffer(bytes.byteLength); new Uint8Array(ab).set(bytes);
       const blob = new Blob([ab], { type: 'application/pdf' });
       const file = new File([blob], 'faxbot_test.pdf', { type: 'application/pdf' });
-      const result = await client.sendFax(toNumber, file);
+      // Normalize to E.164 format before sending
+      const normalizedNumber = normalizeToE164(toNumber);
+      const result = await client.sendFax(normalizedNumber, file);
       pushAuth(`[✓] PDF Test queued: ${result.id} status=${result.status}`);
     } catch (e:any) {
       setError(e?.message || 'Test PDF fax failed to start');
@@ -418,8 +461,20 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase, readOnly = false, can
                 <ResponsiveTextField
                   label="Test to number" 
                   value={toNumber} 
-                  onChange={setToNumber}
-                  placeholder="+15551234567"
+                  onChange={(value) => {
+                    // Auto-format US numbers as user types, like Send Fax tab
+                    const digits = digitsOnly(value);
+                    if (digits.length <= 10 && !value.startsWith('+')) {
+                      // Format US numbers
+                      setToNumber(formatUSPhone(value));
+                    } else {
+                      // Keep international numbers as-is
+                      setToNumber(value);
+                    }
+                  }}
+                  placeholder="(555) 123-4567 or +15551234567"
+                  helperText="US numbers auto-format. Paste any format - we'll handle it!"
+                  type="tel"
                   icon={<CodeIcon />}
                 />
                 <Stack direction="row" spacing={1}>
@@ -479,8 +534,20 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase, readOnly = false, can
                   <ResponsiveTextField
                     label="To number (optional)" 
                     value={toNumber} 
-                    onChange={setToNumber}
-                    placeholder="+15551234567"
+                    onChange={(value) => {
+                      // Auto-format US numbers as user types, like Send Fax tab
+                      const digits = digitsOnly(value);
+                      if (digits.length <= 10 && !value.startsWith('+')) {
+                        // Format US numbers
+                        setToNumber(formatUSPhone(value));
+                      } else {
+                        // Keep international numbers as-is
+                        setToNumber(value);
+                      }
+                    }}
+                    placeholder="(555) 123-4567 or +15551234567"
+                    helperText="US numbers auto-format. Paste any format - we'll handle it!"
+                    type="tel"
                   />
                   <Stack direction="row" spacing={1}>
                     <Button 
