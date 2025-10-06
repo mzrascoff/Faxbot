@@ -19,6 +19,27 @@ theme:
       primary: indigo
       accent: teal
 
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+
 plugins:
   - search
   - mike:
@@ -66,4 +87,3 @@ nav:
   - Reference: reference/index.md
   - Operations: operations/index.md
   - Troubleshooting: troubleshooting/index.md
-
