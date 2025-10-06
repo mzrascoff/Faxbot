@@ -482,17 +482,27 @@ try:
     if not hasattr(app.state, "event_emitter") or app.state.event_emitter is None:  # type: ignore[attr-defined]
         app.state.event_emitter = EventEmitter()  # type: ignore[attr-defined]
     app.include_router(_diag.router)
-except Exception:
+    print("✅ Diagnostics router (events/SSE) mounted at /admin/diagnostics")
+except Exception as e:
     # Non-fatal if SSE deps missing
-    pass
+    print(f"⚠️  Diagnostics router not mounted: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Provider health management router
 try:
     from .routers import admin_providers as _providers
+    from .monitoring.health import ProviderHealthMonitor
+    # Attach health monitor if not present
+    if not hasattr(app.state, "health_monitor") or app.state.health_monitor is None:  # type: ignore[attr-defined]
+        app.state.health_monitor = ProviderHealthMonitor()  # type: ignore[attr-defined]
     app.include_router(_providers.router)
-except Exception:
+    print("✅ Provider health router mounted at /admin/providers")
+except Exception as e:
     # Non-fatal if health monitoring deps missing
-    pass
+    print(f"⚠️  Provider health router not mounted: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Admin users router (minimal API)
 try:
@@ -1061,11 +1071,23 @@ async def admin_health_status():
 def require_api_key(request: Request, x_api_key: Optional[str] = Header(default=None)):
     """Authenticate request using either env API_KEY or DB-backed key.
     Behavior:
-      - If header matches env API_KEY → allow
-      - Else, if header is a valid DB key → allow
-      - Else, if REQUIRE_API_KEY=true → 401
-      - Else (dev mode) → allow
+      - If developer bypass is enabled for this host → full access (scopes: ["*"])
+      - Else, if header matches env API_KEY → allow (scopes: ["*"])
+      - Else, if header is a valid DB key → allow (scopes from DB)
+      - Else, if REQUIRE_API_KEY=true or API_KEY is set → 401
+      - Else (dev mode without API key enforced) → allow unauthenticated (None)
     """
+    # Developer bypass: treat local/private requests as fully authorized when unlocked
+    try:
+        if _developer_bypass_ok() and request and request.client and request.client.host:
+            import ipaddress
+            ip = ipaddress.ip_address(str(request.client.host))
+            cgnat = ipaddress.ip_network('100.64.0.0/10')
+            if ip.is_loopback or ip.is_private or (ip.version == 4 and ip in cgnat):
+                return {"key_id": "dev-bypass", "scopes": ["*"], "admin": True}
+    except Exception:
+        # Fall through to normal handling if IP parsing fails
+        pass
     # Env bootstrap key
     if settings.api_key and x_api_key == settings.api_key:
         # Optionally audit usage without logging secrets
@@ -1639,6 +1661,7 @@ async def admin_ui_config(request: Request):
         "features": {
             "sessions_enabled": os.getenv("FAXBOT_SESSIONS_ENABLED", "false").lower() in {"1","true","yes"},
             "csrf_enabled": os.getenv("FAXBOT_CSRF_ENABLED", "false").lower() in {"1","true","yes"},
+            "dev_mode_available": _developer_bypass_ok(),
         },
         "endpoints": {
             "metrics": "/metrics",

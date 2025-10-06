@@ -42,14 +42,47 @@ function SendFax({ client }: SendFaxProps) {
   const [toNumberError, setToNumberError] = useState(false);
   const [fileError, setFileError] = useState(false);
 
-  const validatePhone = (number: string): boolean => {
-    // Basic validation - allow digits, spaces, dashes, parentheses, and +
-    const cleanNumber = number.replace(/[\s\-\(\)]/g, '');
-    if (!cleanNumber) return false;
-    if (cleanNumber.startsWith('+')) {
-      return cleanNumber.length >= 11 && cleanNumber.length <= 15;
+  // Phone number utilities - replicating iOS app logic
+  const digitsOnly = (input: string): string => {
+    // Strip ALL non-digit characters including hidden/zero-width chars from paste
+    return input.replace(/\D/g, '');
+  };
+
+  const formatUSPhone = (raw: string): string => {
+    const digits = digitsOnly(raw).slice(0, 10); // Max 10 digits for US
+    if (digits.length === 0) return '';
+    if (digits.length <= 3) return `(${digits})`;
+    if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
     }
-    return cleanNumber.length >= 10 && cleanNumber.length <= 15;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  };
+
+  const normalizeToE164 = (input: string): string => {
+    // Handle already-formatted E.164 numbers
+    if (input.startsWith('+')) {
+      return '+' + digitsOnly(input);
+    }
+    // US numbers: convert 10 digits to +1XXXXXXXXXX
+    const digits = digitsOnly(input);
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+    // 11 digits starting with 1: already has country code
+    if (digits.length === 11 && digits.startsWith('1')) {
+      return `+${digits}`;
+    }
+    // International: just prepend +
+    if (digits.length >= 10) {
+      return `+${digits}`;
+    }
+    return input; // Return as-is if can't normalize
+  };
+
+  const validatePhone = (number: string): boolean => {
+    const digits = digitsOnly(number);
+    // Accept 10 digits (US) or 10-15 digits (international)
+    return digits.length >= 10 && digits.length <= 15;
   };
 
   const handleSend = async () => {
@@ -82,7 +115,9 @@ function SendFax({ client }: SendFaxProps) {
     setResult(null);
 
     try {
-      const response = await client.sendFax(toNumber, file!);
+      // Normalize to E.164 before sending
+      const normalizedNumber = normalizeToE164(toNumber);
+      const response = await client.sendFax(normalizedNumber, file!);
       setResult({
         type: 'success',
         message: `Fax queued successfully!`,
@@ -128,15 +163,23 @@ function SendFax({ client }: SendFaxProps) {
                   label="Destination Number"
                   value={toNumber}
                   onChange={(value) => {
-                    setToNumber(value);
+                    // Auto-format US numbers as user types, like iOS app
+                    const digits = digitsOnly(value);
+                    if (digits.length <= 10 && !value.startsWith('+')) {
+                      // Format US numbers
+                      setToNumber(formatUSPhone(value));
+                    } else {
+                      // Keep international numbers as-is
+                      setToNumber(value);
+                    }
                     if (toNumberError) setToNumberError(false);
                   }}
-                  placeholder="+15551234567"
-                  helperText="Enter in E.164 format (+1XXXXXXXXXX) or 10-digit US number"
+                  placeholder="(555) 123-4567 or +15551234567"
+                  helperText="US numbers auto-format. Paste any format - we'll handle it!"
                   type="tel"
                   required
                   error={toNumberError}
-                  errorMessage="Please enter a valid phone number"
+                  errorMessage="Please enter a valid 10-digit US or international number"
                   icon={<PhoneIcon />}
                 />
 
@@ -253,12 +296,13 @@ function SendFax({ client }: SendFaxProps) {
               <Stack spacing={2}>
                 <Box>
                   <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
-                    Phone Number Format
+                    📱 Phone Number Format
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    • Use E.164 format for international: +1 555 123 4567<br />
-                    • US numbers can be entered as: (555) 123-4567 or 5551234567<br />
-                    • Avoid extensions or special characters
+                    • <strong>Auto-formats</strong> as you type! Just paste or type any format<br />
+                    • US: 5551234567 → auto-formats to (555) 123-4567<br />
+                    • International: Start with + (e.g., +44 20 1234 5678)<br />
+                    • Copy/paste from anywhere - we strip all formatting automatically
                   </Typography>
                 </Box>
 

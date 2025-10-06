@@ -95,6 +95,22 @@ function AppContent() {
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   const isTablet = useMediaQuery(muiTheme.breakpoints.down('lg'));
+  // Treat common private/local addresses as local for showing dev helpers
+  const isLocalish = (() => {
+    try {
+      const h = (window.location?.hostname || '').toLowerCase();
+      if (['localhost', '127.0.0.1', '0.0.0.0'].includes(h)) return true;
+      const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+      if (m) {
+        const a = m.slice(1).map((x) => parseInt(x, 10));
+        if (a[0] === 10) return true; // 10.0.0.0/8
+        if (a[0] === 192 && a[1] === 168) return true; // 192.168.0.0/16
+        if (a[0] === 172 && a[1] >= 16 && a[1] <= 31) return true; // 172.16.0.0/12
+        if (a[0] === 100 && a[1] >= 64 && a[1] <= 127) return true; // 100.64.0.0/10 (CGNAT/Tailscale)
+      }
+    } catch {}
+    return false;
+  })();
   
   const [apiKey, setApiKey] = useState<string>(() => {
     // Load from localStorage (temporary storage, cleared on logout)
@@ -116,6 +132,19 @@ function AppContent() {
   useEffect(() => {
     const el = document.getElementById('hydration-banner');
     if (el) el.style.display = 'none';
+  }, []);
+
+  // Preload UI config even before login when dev mode is available
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/admin/ui-config');
+        if (res.ok) {
+          const data = await res.json();
+          setUiConfig((prev: any) => prev || data);
+        }
+      } catch {}
+    })();
   }, []);
 
   const handleLogin = async (key: string) => {
@@ -348,6 +377,8 @@ function AppContent() {
     }
   }, [tabValue, toolsTab, terminalDisabled, scriptsDisabled]);
 
+  const showDevHelpers = Boolean((uiConfig as any)?.features?.dev_mode_available) || isLocalish;
+
   if (!authenticated) {
     return (
       <Zoom in={true} timeout={500}>
@@ -502,7 +533,7 @@ function AppContent() {
                 />
 
                 {/* Local-only helper: prefill known bootstrap key for dev */}
-                {['localhost', '127.0.0.1'].includes(window.location.hostname) && (
+                {showDevHelpers && (
                   <Button
                     fullWidth
                     variant="outlined"
@@ -510,6 +541,19 @@ function AppContent() {
                     sx={{ mt: 2, borderRadius: 2 }}
                   >
                     Use Local Admin Key
+                  </Button>
+                )}
+
+                {/* Dev mode: full access without API key (local only) */}
+                {showDevHelpers && (
+                  <Button
+                    fullWidth
+                    color="secondary"
+                    variant="contained"
+                    onClick={() => { handleLogin('dev-bypass'); }}
+                    sx={{ mt: 2, borderRadius: 2 }}
+                  >
+                    Dev Mode: Full Access
                   </Button>
                 )}
 
@@ -532,6 +576,11 @@ function AppContent() {
                 <Typography variant="caption" sx={{ mt: 2, display: 'block', opacity: 0.8 }}>
                   Use an API key with 'keys:manage' scope or the bootstrap API_KEY from your .env
                 </Typography>
+                {showDevHelpers && (
+                  <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.8 }}>
+                    Dev Mode grants full access locally without a key.
+                  </Typography>
+                )}
               </Paper>
             </Fade>
           </Container>

@@ -1,15 +1,20 @@
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from fastapi import Request
 from sse_starlette.sse import EventSourceResponse  # type: ignore
 
-from api.app.main import require_admin  # reuse admin dependency
-from api.app.services.events import EventEmitter
+from app.services.events import EventEmitter
+from app.auth import require_admin  # avoid circular import
 
 
-router = APIRouter(prefix="/admin/diagnostics", tags=["Diagnostics"], dependencies=[Depends(require_admin)])
+def admin_auth_dep(x_api_key: Optional[str] = Header(default=None)):
+    """Admin auth dependency wrapper."""
+    return require_admin(x_api_key)
+
+
+router = APIRouter(prefix="/admin/diagnostics", tags=["Diagnostics"])
 
 
 @router.get("/events/recent")
@@ -18,7 +23,8 @@ async def recent_events(
     limit: int = 50,
     provider_id: Optional[str] = None,
     event_type: Optional[str] = None,
-    from_db: bool = False
+    from_db: bool = False,
+    admin_auth: dict = Depends(admin_auth_dep)
 ):
     """Get recent events with filtering options."""
     emitter: EventEmitter = request.app.state.event_emitter  # type: ignore
@@ -51,7 +57,7 @@ async def recent_events(
 @router.get("/events/sse")
 async def events_sse(
     request: Request,
-    admin_auth = Depends(require_admin)
+    admin_auth: dict = Depends(admin_auth_dep)
 ):
     """Server-Sent Events stream for real-time event monitoring."""
     emitter: EventEmitter = request.app.state.event_emitter  # type: ignore
@@ -78,9 +84,9 @@ async def events_sse(
 
 
 @router.get("/events/types")
-async def get_event_types():
+async def get_event_types(admin_auth: dict = Depends(admin_auth_dep)):
     """Get available event types for filtering."""
-    from api.app.services.events import EventType
+    from app.services.events import EventType
 
     return {
         "event_types": [

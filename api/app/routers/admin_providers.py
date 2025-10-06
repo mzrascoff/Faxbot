@@ -8,14 +8,19 @@ Provides APIs for:
 """
 
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from pydantic import BaseModel
 
-from app.main import require_admin
+from app.auth import require_admin  # avoid circular import
 from app.monitoring.health import ProviderHealthMonitor
 
 
-router = APIRouter(prefix="/admin/providers", tags=["Provider Health"], dependencies=[Depends(require_admin)])
+def admin_auth_dep(x_api_key: Optional[str] = Header(default=None)):
+    """Admin auth dependency wrapper."""
+    return require_admin(x_api_key)
+
+
+router = APIRouter(prefix="/admin/providers", tags=["Provider Health"])
 
 
 class ProviderStatusResponse(BaseModel):
@@ -39,7 +44,7 @@ class ProviderActionResponse(BaseModel):
 
 
 @router.get("/health", response_model=ProviderStatusResponse)
-async def get_provider_health_status(request: Request):
+async def get_provider_health_status(request: Request, admin_auth: dict = Depends(admin_auth_dep)):
     """Get health status of all providers."""
     health_monitor: ProviderHealthMonitor = getattr(request.app.state, "health_monitor", None)
 
@@ -72,7 +77,7 @@ async def get_provider_health_status(request: Request):
 
 
 @router.post("/enable", response_model=ProviderActionResponse)
-async def enable_provider(request: Request, action_request: ProviderActionRequest):
+async def enable_provider(request: Request, action_request: ProviderActionRequest, admin_auth: dict = Depends(admin_auth_dep)):
     """Manually enable a provider (reset circuit breaker)."""
     health_monitor: ProviderHealthMonitor = getattr(request.app.state, "health_monitor", None)
 
@@ -93,7 +98,7 @@ async def enable_provider(request: Request, action_request: ProviderActionReques
 
 
 @router.post("/disable", response_model=ProviderActionResponse)
-async def disable_provider(request: Request, action_request: ProviderActionRequest):
+async def disable_provider(request: Request, action_request: ProviderActionRequest, admin_auth: dict = Depends(admin_auth_dep)):
     """Manually disable a provider."""
     health_monitor: ProviderHealthMonitor = getattr(request.app.state, "health_monitor", None)
 
@@ -114,7 +119,7 @@ async def disable_provider(request: Request, action_request: ProviderActionReque
 
 
 @router.get("/circuit-breaker/{provider_id}/should-allow")
-async def should_allow_requests(request: Request, provider_id: str):
+async def should_allow_requests(request: Request, provider_id: str, admin_auth: dict = Depends(admin_auth_dep)):
     """Check if circuit breaker allows requests for a provider."""
     health_monitor: ProviderHealthMonitor = getattr(request.app.state, "health_monitor", None)
 
@@ -135,7 +140,8 @@ async def record_request_result(
     request: Request,
     provider_id: str,
     success: bool,
-    error: Optional[str] = None
+    error: Optional[str] = None,
+    admin_auth: dict = Depends(admin_auth_dep)
 ):
     """Record the result of a provider request for circuit breaker tracking."""
     health_monitor: ProviderHealthMonitor = getattr(request.app.state, "health_monitor", None)

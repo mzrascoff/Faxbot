@@ -1,0 +1,1 @@
+"""Faxbot admin routers module."""
