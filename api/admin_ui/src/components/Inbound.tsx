@@ -67,16 +67,16 @@ function Inbound({ client, docsBase }: InboundProps) {
   const [faxToDelete, setFaxToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   // Precise help anchors (lightweight resolver for inbound failures)
-  const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
+  const base = docsBase || 'https://docs.faxbot.net/latest';
   const anchors: Record<string,string> = {
     // Our docs pages
     'inbound-overview': `${base}/inbound/`,
-    'phaxio-inbound-setup': `${base}/backends/phaxio-setup.html#phaxio-inbound-setup`,
-    'phaxio-webhook-hmac': `${base}/backends/phaxio-setup.html#phaxio-hmac-signature`,
-    'sinch-inbound-webhook': `${base}/backends/sinch-setup.html#sinch-inbound-webhook`,
-    'sinch-inbound-basic-auth': `${base}/backends/sinch-setup.html#sinch-inbound-basic-auth`,
-    'sip-ami-setup': `${base}/backends/sipsetup.html#sip-ami-setup`,
-    'sip-ami-security': `${base}/backends/sipsetup.html#sip-ami-security`,
+    'phaxio-inbound-setup': `${base}/setup/phaxio/`,
+    'phaxio-webhook-hmac': `${base}/setup/phaxio/`,
+    'sinch-inbound-webhook': `${base}/setup/sinch/`,
+    'sinch-inbound-basic-auth': `${base}/setup/sinch/`,
+    'sip-ami-setup': `${base}/setup/sip-asterisk/`,
+    'sip-ami-security': `${base}/setup/sip-asterisk/`,
   };
   
   const theme = useTheme();
@@ -381,7 +381,7 @@ function Inbound({ client, docsBase }: InboundProps) {
           You are not authorized to view inbound faxes. Use an API key with inbound:list and inbound:read.
           <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Button size="small" variant="outlined" onClick={() => window.dispatchEvent(new CustomEvent('faxbot:navigate', { detail: 'settings/keys' }))}>Open API Keys</Button>
-            <Button size="small" href={(docsBase || 'https://dmontgomery40.github.io/Faxbot') + '/admin-console/api-keys/'} target="_blank" rel="noreferrer">Learn more</Button>
+            <Button size="small" href={(docsBase || 'https://docs.faxbot.net/latest') + '/admin-console/api-keys/'} target="_blank" rel="noreferrer">Learn more</Button>
           </Box>
         </Alert>
       )}
@@ -603,7 +603,7 @@ same => n,System(curl -s -X POST -H "Content-Type: application/json" -H "X-Inter
                   </Button>
                   <Button 
                     size="small" 
-                    href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sip-setup.html#inbound-receiving-quickstart-wip`} 
+                    href={`${docsBase || 'https://docs.faxbot.net/latest'}/setup/sip-asterisk/`} 
                     target="_blank" 
                     rel="noreferrer"
                     fullWidth={isSmallMobile}

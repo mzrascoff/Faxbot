@@ -487,7 +487,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Typography variant="body2" color="text.secondary">
-                    See <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</a> or the <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API docs</a>.
+                    See <a href={`${docsBase || 'https://docs.faxbot.net/latest'}/setup/sinch/`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</a> or the <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API docs</a>.
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
@@ -793,7 +793,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                       Paste this URL into your {(config.inbound_backend || config.outbound_backend || config.backend || 'phaxio').toUpperCase()} console for inbound fax delivery. For Sinch, set the webhook content type to application/json. Learn more:
                     </Typography>
                     <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <Button size="small" variant="outlined" href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</Button>
+                      <Button size="small" variant="outlined" href={`${docsBase || 'https://docs.faxbot.net/latest'}/setup/sinch/`} target="_blank" rel="noreferrer">Faxbot: Sinch Setup</Button>
                       <Button size="small" variant="outlined" href={`https://developers.sinch.com/docs/fax/api-reference/`} target="_blank" rel="noreferrer">Sinch Fax API Docs</Button>
                       <Button size="small" variant="outlined" href={`https://dashboard.sinch.com/settings/access-keys`} target="_blank" rel="noreferrer">Sinch Access Keys</Button>
                     </Box>
@@ -951,7 +951,7 @@ function SetupWizard({ client, onDone, docsBase }: SetupWizardProps) {
                       </Box>
                     ))}
                     <Typography variant="caption" color="text.secondary">
-                      Help: <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/phaxio-setup.html`} target="_blank" rel="noreferrer">Faxbot: Phaxio</a> • <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/signalwire-setup.html`} target="_blank" rel="noreferrer">Faxbot: SignalWire</a> • <a href={`${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/freeswitch-setup.html`} target="_blank" rel="noreferrer">Faxbot: FreeSWITCH</a> • <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API</a>
+                      Help: <a href={`${docsBase || 'https://docs.faxbot.net/latest'}/setup/phaxio/`} target="_blank" rel="noreferrer">Faxbot: Phaxio</a> • <a href={`${docsBase || 'https://docs.faxbot.net/latest'}/setup/signalwire/`} target="_blank" rel="noreferrer">Faxbot: SignalWire</a> • <a href={`${docsBase || 'https://docs.faxbot.net/latest'}/setup/freeswitch/`} target="_blank" rel="noreferrer">Faxbot: FreeSWITCH</a> • <a href="https://developers.sinch.com/docs/fax/api-reference/" target="_blank" rel="noreferrer">Sinch Fax API</a>
                     </Typography>
                   </Box>
                 )}

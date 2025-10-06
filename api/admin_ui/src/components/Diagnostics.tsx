@@ -113,60 +113,60 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   // Internal provided anchors (fallback during docs rollout)
   const providedAnchors: Record<string, string> = {
     // phaxio
-    'phaxio-baa': 'https://dmontgomery40.github.io/Faxbot/backends/phaxiosetup.html#phaxio-baa',
-    'phaxio-disable-storage': 'https://dmontgomery40.github.io/Faxbot/backends/phaxio-setup.html#phaxio-disable-storage',
-    'phaxio-hmac-signature': 'https://dmontgomery40.github.io/Faxbot/backends/phaxio-setup.html#phaxio-hmac-signature',
-    'phaxio-callback': 'https://dmontgomery40.github.io/Faxbot/backends/phaxiosetup.html#phaxio-callback',
-    'phaxio-token-pdf': 'https://dmontgomery40.github.io/Faxbot/backends/phaxiosetup.html#phaxio-token-pdf',
-    'phaxio-inbound-setup': 'https://dmontgomery40.github.io/Faxbot/backends/phaxio-setup.html#phaxio-inbound-setup',
+    'phaxio-baa': 'https://docs.faxbot.net/latest/setup/phaxio/',
+    'phaxio-disable-storage': 'https://docs.faxbot.net/latest/setup/phaxio/',
+    'phaxio-hmac-signature': 'https://docs.faxbot.net/latest/setup/phaxio/',
+    'phaxio-callback': 'https://docs.faxbot.net/latest/setup/phaxio/',
+    'phaxio-token-pdf': 'https://docs.faxbot.net/latest/setup/phaxio/',
+    'phaxio-inbound-setup': 'https://docs.faxbot.net/latest/setup/phaxio/',
     // sinch
-    'sinch-credentials': 'https://dmontgomery40.github.io/Faxbot/backends/sinchsetup.html#sinch-credentials',
-    'sinch-base-url': 'https://dmontgomery40.github.io/Faxbot/backends/sinchsetup.html#sinch-base-url',
-    'sinch-status-updates': 'https://dmontgomery40.github.io/Faxbot/backends/sinch-setup.html#sinch-status-updates',
-    'sinch-inbound-webhook': 'https://dmontgomery40.github.io/Faxbot/backends/sinch-setup.html#sinch-inbound-webhook',
+    'sinch-credentials': 'https://docs.faxbot.net/latest/setup/sinch/',
+    'sinch-base-url': 'https://docs.faxbot.net/latest/setup/sinch/',
+    'sinch-status-updates': 'https://docs.faxbot.net/latest/setup/sinch/',
+    'sinch-inbound-webhook': 'https://docs.faxbot.net/latest/setup/sinch/',
     // sip
-    'sip-ami-setup': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-ami-setup',
-    'sip-ami-security': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-ami-security',
-    'sip-t38-config': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-t38-config',
-    'sip-originate': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-originate',
-    'sip-inbound-secret': 'https://dmontgomery40.github.io/Faxbot/backends/sipsetup.html#sip-inbound-secret',
+    'sip-ami-setup': 'https://docs.faxbot.net/latest/setup/sip-asterisk/',
+    'sip-ami-security': 'https://docs.faxbot.net/latest/setup/sip-asterisk/',
+    'sip-t38-config': 'https://docs.faxbot.net/latest/setup/sip-asterisk/',
+    'sip-originate': 'https://docs.faxbot.net/latest/setup/sip-asterisk/',
+    'sip-inbound-secret': 'https://docs.faxbot.net/latest/setup/sip-asterisk/',
     // signalwire
-    'signalwire-credentials': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-credentials',
-    'signalwire-callback': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-callback',
-    'signalwire-from': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-from',
-    'signalwire-limitations': 'https://dmontgomery40.github.io/Faxbot/backends/signalwire-setup.html#signalwire-limitations',
+    'signalwire-credentials': 'https://docs.faxbot.net/latest/setup/signalwire/',
+    'signalwire-callback': 'https://docs.faxbot.net/latest/setup/signalwire/',
+    'signalwire-from': 'https://docs.faxbot.net/latest/setup/signalwire/',
+    'signalwire-limitations': 'https://docs.faxbot.net/latest/setup/signalwire/',
     // freeswitch
-    'freeswitch-setup': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-setup',
-    'freeswitch-gateway': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-gateway',
-    'freeswitch-t38': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-t38',
-    'freeswitch-limitations': 'https://dmontgomery40.github.io/Faxbot/backends/freeswitch-setup.html#freeswitch-limitations',
+    'freeswitch-setup': 'https://docs.faxbot.net/latest/setup/freeswitch/',
+    'freeswitch-gateway': 'https://docs.faxbot.net/latest/setup/freeswitch/',
+    'freeswitch-t38': 'https://docs.faxbot.net/latest/setup/freeswitch/',
+    'freeswitch-limitations': 'https://docs.faxbot.net/latest/setup/freeswitch/',
     // documo
-    'documo-setup': 'https://dmontgomery40.github.io/Faxbot/backends/documosetup.html#documo-setup',
-    'documo-sandbox': 'https://dmontgomery40.github.io/Faxbot/backends/documosetup.html#documo-sandbox',
-    'documo-limitations': 'https://dmontgomery40.github.io/Faxbot/backends/documosetup.html#documo-limitations',
+    'documo-setup': 'https://docs.faxbot.net/latest/setup/documo/',
+    'documo-sandbox': 'https://docs.faxbot.net/latest/setup/documo/',
+    'documo-limitations': 'https://docs.faxbot.net/latest/setup/documo/',
     // inbound
-    'inbound-enable': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-enable',
-    'inbound-retention': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-retention',
-    'inbound-token-ttl': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-token-ttl',
-    'inbound-rate-limits': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-rate-limits',
-    'inbound-access': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-access',
-    'inbound-webhook-test': 'https://dmontgomery40.github.io/Faxbot/inbound.html#inbound-webhook-test',
+    'inbound-enable': 'https://docs.faxbot.net/latest/inbound/',
+    'inbound-retention': 'https://docs.faxbot.net/latest/inbound/',
+    'inbound-token-ttl': 'https://docs.faxbot.net/latest/inbound/',
+    'inbound-rate-limits': 'https://docs.faxbot.net/latest/inbound/',
+    'inbound-access': 'https://docs.faxbot.net/latest/inbound/',
+    'inbound-webhook-test': 'https://docs.faxbot.net/latest/inbound/',
     // security
-    'security-require-api-key': 'https://dmontgomery40.github.io/Faxbot/security.html#security-require-api-key',
-    'security-enforce-https': 'https://dmontgomery40.github.io/Faxbot/security.html#security-enforce-https',
-    'security-audit-logging': 'https://dmontgomery40.github.io/Faxbot/security.html#security-audit-logging',
-    'security-hipaa': 'https://dmontgomery40.github.io/Faxbot/security.html#security-hipaa',
-    'security-persisted-env': 'https://dmontgomery40.github.io/Faxbot/security.html#security-persisted-env',
+    'security-require-api-key': 'https://docs.faxbot.net/latest/security/',
+    'security-enforce-https': 'https://docs.faxbot.net/latest/security/',
+    'security-audit-logging': 'https://docs.faxbot.net/latest/security/',
+    'security-hipaa': 'https://docs.faxbot.net/latest/HIPAA_REQUIREMENTS/',
+    'security-persisted-env': 'https://docs.faxbot.net/latest/security/',
     // storage
-    'storage-local-vs-s3': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-local-vs-s3',
-    'storage-s3-kms': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-s3-kms',
-    'storage-s3-endpoint': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-s3-endpoint',
-    'storage-phi': 'https://dmontgomery40.github.io/Faxbot/storage.html#storagephi',
-    'storage-file-retention': 'https://dmontgomery40.github.io/Faxbot/storage.html#storage-file-retention',
+    'storage-local-vs-s3': 'https://docs.faxbot.net/latest/operations/',
+    'storage-s3-kms': 'https://docs.faxbot.net/latest/operations/',
+    'storage-s3-endpoint': 'https://docs.faxbot.net/latest/operations/',
+    'storage-phi': 'https://docs.faxbot.net/latest/operations/',
+    'storage-file-retention': 'https://docs.faxbot.net/latest/operations/',
     // mcp
-    'mcp-overview': 'https://dmontgomery40.github.io/Faxbot/ai-integration/mcpintegration.html#mcp-overview',
-    'mcp-http': 'https://dmontgomery40.github.io/Faxbot/ai-integration/mcpintegration.html#mcp-http',
-    'mcp-sse-auth': 'https://dmontgomery40.github.io/Faxbot/ai-integration/mcpintegration.html#mcp-sse-auth',
+    'mcp-overview': 'https://docs.faxbot.net/latest/mcp/',
+    'mcp-http': 'https://docs.faxbot.net/latest/mcp/',
+    'mcp-sse-auth': 'https://docs.faxbot.net/latest/security/oauth-setup/',
     'mcp-rate-limits': 'https://developers.sinch.com/docs/voice/api-reference/#error-codes',
     'mcp-error-handling': 'https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_errors',
   };
@@ -182,7 +182,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   useEffect(() => {
     const loadAnchors = async () => {
       try {
-        const base = docsBase || 'https://dmontgomery40.github.io/Faxbot';
+        const base = docsBase || 'https://docs.faxbot.net/latest';
         const topics: string[] = [ 'security', 'diagnostics', 'inbound', 'storage', 'plugins', 'mcp', 'scripts', 'setup', 'send', 'jobs', 'tunnels', 'keys', 'logs', 'sip', 'signalwire', 'freeswitch', 'documo' ];
         const provs = [active?.outbound, active?.inbound].filter(Boolean) as string[];
         for (const p of provs) { if (!topics.includes(p)) topics.push(p); }
@@ -335,18 +335,18 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
         docs.push({ text: 'FAX_DATA_DIR stores temporary files and fax artifacts.' });
         docs.push({ text: 'Default: /faxdata in container, ./faxdata locally' });
         docs.push({ text: 'Must be writable by the application process.' });
-        docs.push({ text: 'Deployment Guide', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/deployment/` });
+        docs.push({ text: 'Deployment Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/deployment/` });
       }
       else if (key === 'database_connected') {
         docs.push({ text: 'Database stores job records and API keys.' });
         docs.push({ text: 'Default: SQLite at ./faxbot.db' });
         docs.push({ text: 'Production: Use PostgreSQL with DATABASE_URL' });
-        docs.push({ text: 'Database Setup', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/deployment/#database-configuration` });
+        docs.push({ text: 'Database Setup', href: `${docsBase || 'https://docs.faxbot.net/latest'}/deployment/` });
       }
     }
     
     if (t.includes('phaxio')) {
-      docs.push({ text: 'Phaxio Setup Guide', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/phaxio-setup.html` });
+      docs.push({ text: 'Phaxio Setup Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/setup/phaxio/` });
       docs.push({ text: 'Phaxio Console', href: 'https://console.phaxio.com' });
       const add = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       add('phaxio-webhook-hmac', 'Verify Phaxio inbound HMAC signatures');
@@ -354,14 +354,14 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
     
     if (t.includes('sip')) {
-      docs.push({ text: 'SIP/Asterisk Setup', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sip-setup.html` });
+      docs.push({ text: 'SIP/Asterisk Setup', href: `${docsBase || 'https://docs.faxbot.net/latest'}/setup/sip-asterisk/` });
       if (key === 'ami_password_not_default') {
         docs.push({ text: 'Change AMI password in both Asterisk manager.conf and ASTERISK_AMI_PASSWORD env var.' });
       }
     }
     
     if (t.includes('security')) {
-      docs.push({ text: 'Security Guide', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/security/` });
+      docs.push({ text: 'Security Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/security/` });
       const addSec = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       addSec('enforce-https-phi', 'Enforce HTTPS for PHI (ENFORCE_PUBLIC_HTTPS)');
       addSec('require-api-key-production', 'Require API keys (REQUIRE_API_KEY)');
@@ -369,7 +369,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
 
     if (t.includes('sinch')) {
-      docs.push({ text: 'Faxbot: Sinch Setup', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/backends/sinch-setup.html` });
+      docs.push({ text: 'Faxbot: Sinch Setup', href: `${docsBase || 'https://docs.faxbot.net/latest'}/setup/sinch/` });
       docs.push({ text: 'Sinch Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/' });
       docs.push({ text: 'OAuth 2.0 for Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/' });
       docs.push({ text: 'Sinch Customer Dashboard (Access Keys – Build)', href: 'https://dashboard.sinch.com/settings/access-keys' });
@@ -385,7 +385,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
 
     if (t.includes('inbound')) {
-      docs.push({ text: 'Inbound Overview', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/inbound/` });
+      docs.push({ text: 'Inbound Overview', href: `${docsBase || 'https://docs.faxbot.net/latest'}/inbound/` });
       const addI = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       addI('inbound-enable', 'Enable inbound receiving');
       addI('inbound-retention', 'Retention days');
@@ -395,7 +395,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
 
     if (t.includes('storage')) {
-      docs.push({ text: 'Storage Guide', href: `${docsBase || 'https://dmontgomery40.github.io/Faxbot'}/storage/` });
+      docs.push({ text: 'Storage Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/operations/` });
       const addSt = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       addSt('storage-local-vs-s3', 'Local vs S3');
       addSt('storage-s3-kms', 'S3 KMS encryption');

@@ -53,7 +53,7 @@ function Settings({ client, readOnly = false }: SettingsProps) {
   const [restartHint, setRestartHint] = useState<boolean>(false);
   const [allowRestart, setAllowRestart] = useState<boolean>(false);
   const [persistedEnabled, setPersistedEnabled] = useState<boolean>(false);
-  const [docsBase, setDocsBase] = useState<string>('https://dmontgomery40.github.io/Faxbot');
+  const [docsBase, setDocsBase] = useState<string>('https://docs.faxbot.net/latest');
   const [migrationBanner, setMigrationBanner] = useState<boolean>(false);
   const [importingEnv, setImportingEnv] = useState<boolean>(false);
   const [importResult, setImportResult] = useState<{discovered:number; prefixes:string[]} | null>(null);
@@ -547,7 +547,7 @@ function Settings({ client, readOnly = false }: SettingsProps) {
                       <Chip
                         label="Faxbot: Phaxio Setup"
                         component="a"
-                        href={`${docsBase}/backends/phaxio-setup.html`}
+                        href={`${docsBase}/setup/phaxio/`}
                         target="_blank"
                         rel="noreferrer"
                         clickable
@@ -602,7 +602,7 @@ function Settings({ client, readOnly = false }: SettingsProps) {
                       <Chip
                         label="Faxbot: Sinch Setup"
                         component="a"
-                        href={`${docsBase}/backends/sinch-setup.html`}
+                        href={`${docsBase}/setup/sinch/`}
                         target="_blank"
                         rel="noreferrer"
                         clickable
