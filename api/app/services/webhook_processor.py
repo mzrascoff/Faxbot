@@ -56,6 +56,17 @@ class WebhookProcessor:
             Dict with processing result and status
         """
         try:
+            # Emit webhook received event
+            await self.event_emitter.emit_event(
+                EventType.WEBHOOK_RECEIVED,
+                provider_id=provider_id,
+                payload_meta={
+                    'size': len(body),
+                    'headers': {k: v for k, v in headers.items() if k not in ['authorization', 'x-api-key']},
+                    'idempotency_key': idempotency_key
+                }
+            )
+
             # Check idempotency
             if idempotency_key and idempotency_key in self._idempotency_cache:
                 return self._idempotency_cache[idempotency_key]
@@ -72,10 +83,29 @@ class WebhookProcessor:
                 if hasattr(plugin, 'verify_webhook'):
                     is_valid = await plugin.verify_webhook(headers, body)
                     if not is_valid:
+                        # Emit verification failed event
+                        await self.event_emitter.emit_event(
+                            EventType.WEBHOOK_FAILED,
+                            provider_id=provider_id,
+                            payload_meta={'reason': 'signature_verification_failed'}
+                        )
                         error = f"Webhook signature verification failed for provider: {provider_id}"
                         logger.warning(error)
                         return {"success": False, "error": error, "status": 401}
+                    else:
+                        # Emit verification success event
+                        await self.event_emitter.emit_event(
+                            EventType.WEBHOOK_VERIFIED,
+                            provider_id=provider_id,
+                            payload_meta={'verification_method': 'plugin_signature'}
+                        )
             except Exception as e:
+                # Emit verification error event
+                await self.event_emitter.emit_event(
+                    EventType.WEBHOOK_FAILED,
+                    provider_id=provider_id,
+                    payload_meta={'reason': 'verification_exception', 'error': str(e)}
+                )
                 logger.error(f"Webhook verification error for {provider_id}: {str(e)}")
                 return {"success": False, "error": f"Verification failed: {str(e)}", "status": 500}
 
@@ -172,7 +202,7 @@ class WebhookProcessor:
             # Emit status change event
             if job.status != old_status:
                 await self.event_emitter.emit_event(
-                    EventType.FAX_STATUS_CHANGED,
+                    EventType.JOB_STATUS_CHANGED,
                     job_id=job.id,
                     provider_id=job.provider_id,
                     payload_meta={

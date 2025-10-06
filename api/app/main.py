@@ -2211,7 +2211,7 @@ async def mobile_pair(payload: PairIn):
     return MobilePairOut(base_urls=bases, token=token)
 
 @app.put("/admin/settings", dependencies=[Depends(require_admin)])
-def update_admin_settings(payload: UpdateSettingsRequest):
+async def update_admin_settings(payload: UpdateSettingsRequest):
     """Apply configuration updates in-process by setting environment variables and reloading settings.
     Note: For persistence across restarts, write these to your .env and restart the API.
     """
@@ -2353,6 +2353,31 @@ def update_admin_settings(payload: UpdateSettingsRequest):
             reset_storage()
         except Exception:
             pass
+    # Emit config change event if any settings changed
+    if any([backend_changed, outbound_changed, inbound_changed, storage_changed, mcp_changed]):
+        try:
+            from .services.events import EventType
+            emitter = get_event_emitter()
+            if emitter:
+                await emitter.emit_event(
+                    EventType.CONFIG_CHANGED,
+                    payload_meta={
+                        'changes': {
+                            'backend': backend_changed,
+                            'outbound': outbound_changed,
+                            'inbound': inbound_changed,
+                            'storage': storage_changed,
+                            'mcp': mcp_changed
+                        },
+                        'new_backend': new_backend,
+                        'new_outbound': new_ob,
+                        'new_inbound': new_ib,
+                        'new_storage': new_storage
+                    }
+                )
+        except Exception:
+            pass
+
     # Return current effective masked view + hints
     out = get_admin_settings()
     out["_meta"] = {

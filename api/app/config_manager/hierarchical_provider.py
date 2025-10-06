@@ -582,6 +582,27 @@ class HierarchicalConfigProvider:
                 if self.cache_manager:
                     await self.cache_manager.flush_pattern(f"cfg:*:{key}")
 
+                # Emit config change event
+                try:
+                    from api.app.services.events import EventType
+                    from api.app.main import get_event_emitter
+                    emitter = get_event_emitter()
+                    if emitter:
+                        await emitter.emit_event(
+                            EventType.CONFIG_CHANGED,
+                            payload_meta={
+                                'key': key,
+                                'level': level,
+                                'level_id': level_id,
+                                'reason': reason,
+                                'changed_by': changed_by,
+                                'encrypted': should_encrypt
+                            }
+                        )
+                except Exception:
+                    # Silently fail to avoid disrupting config updates
+                    pass
+
                 return {
                     "success": True,
                     "key": key,

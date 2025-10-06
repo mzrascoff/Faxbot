@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -98,7 +99,7 @@ class EventEmitter:
         async with self._lock:
             for q in list(self._subscribers):
                 try:
-                    q.put_nowait(json_dumps(msg))
+                    q.put_nowait(json.dumps(msg))
                 except Exception:
                     # Remove failed subscribers
                     try:
