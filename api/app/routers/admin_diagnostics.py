@@ -14,6 +14,14 @@ def admin_auth_dep(x_api_key: Optional[str] = Header(default=None)):
     return require_admin(x_api_key)
 
 
+def admin_auth_query(request: Request, x_api_key: Optional[str] = Query(default=None, alias="X-API-Key")):
+    """Admin auth for SSE/EventSource (accepts query param since EventSource can't send headers)."""
+    # Also check header as fallback
+    header_key = request.headers.get("X-API-Key")
+    api_key = x_api_key or header_key
+    return require_admin(api_key)
+
+
 router = APIRouter(prefix="/admin/diagnostics", tags=["Diagnostics"])
 
 
@@ -57,7 +65,7 @@ async def recent_events(
 @router.get("/events/sse")
 async def events_sse(
     request: Request,
-    admin_auth: dict = Depends(admin_auth_dep)
+    admin_auth: dict = Depends(admin_auth_query)
 ):
     """Server-Sent Events stream for real-time event monitoring."""
     emitter: EventEmitter = request.app.state.event_emitter  # type: ignore
