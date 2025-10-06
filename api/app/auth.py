@@ -2,6 +2,8 @@ import base64
 import hashlib
 import hmac
 import secrets
+import socket
+import uuid as _uuid
 from datetime import datetime
 from typing import Optional, Tuple, Dict, Any, List
 
@@ -188,6 +190,38 @@ def rotate_api_key(key_id: str) -> Optional[Dict[str, Any]]:
     return {"token": f"fbk_live_{key_id}_{secret}", "key_id": key_id}
 
 
+def _get_mac_hex() -> str:
+    """Get MAC address as lowercase hex string with colons."""
+    try:
+        node = _uuid.getnode()
+        mac = ":".join([f"{(node >> ele) & 0xff:02x}" for ele in range(40, -8, -8)])
+        return mac.lower()
+    except Exception:
+        return ""
+
+
+def _developer_bypass_ok() -> bool:
+    """Check if developer bypass is enabled (matches main.py logic)."""
+    import os
+    try:
+        if os.getenv("DEVELOPER_UNLOCK", "false").lower() in {"1", "true", "yes"}:
+            return True
+        # Hostname allowlist (comma-separated)
+        hosts = [h.strip().lower() for h in (os.getenv("DEVELOPER_HOST_ALLOWLIST", "").lower().split(",")) if h.strip()]
+        if hosts:
+            if socket.gethostname().lower() in hosts:
+                return True
+        # MAC allowlist (comma-separated, lowercase with/without colons)
+        macs = [m.strip().lower().replace("-", ":") for m in (os.getenv("DEVELOPER_MAC_ALLOWLIST", "").lower().split(",")) if m.strip()]
+        if macs:
+            cur = _get_mac_hex().replace("-", ":")
+            if cur in macs or cur.replace(":", "") in {m.replace(":", "") for m in macs}:
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def require_admin(x_api_key: Optional[str]) -> Dict[str, Any]:
     """
     Admin authentication dependency for FastAPI routes.
@@ -196,18 +230,12 @@ def require_admin(x_api_key: Optional[str]) -> Dict[str, Any]:
     Raises HTTPException(401) if authentication fails.
     Returns dict with admin info if successful.
     """
-    from fastapi import HTTPException, Request
+    from fastapi import HTTPException
     import os
     
-    # Developer bypass: allow localhost admin access in dev mode
-    # This matches the logic in main.py _developer_bypass_ok()
-    if os.getenv("ENABLE_LOCAL_ADMIN", "").lower() in ("true", "1", "yes"):
-        try:
-            # Check if we're on localhost - this would need Request context
-            # For now, just allow if the env var is set
-            pass
-        except:
-            pass
+    # Developer bypass: unlock admin endpoints on trusted dev machines
+    if _developer_bypass_ok():
+        return {"admin": True, "key_id": "dev-bypass"}
     
     # Allow env key as admin for bootstrap
     api_key_env = os.getenv("API_KEY", "")
