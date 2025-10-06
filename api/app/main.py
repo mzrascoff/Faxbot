@@ -477,7 +477,7 @@ app.include_router(router_cfg_v4)
 # Diagnostics router (SSE/recent events)
 try:
     from .routers import admin_diagnostics as _diag
-    from .services.events import EventEmitter
+    from .services.events import EventEmitter, EventType
     # Attach emitter if not present
     if not hasattr(app.state, "event_emitter") or app.state.event_emitter is None:  # type: ignore[attr-defined]
         app.state.event_emitter = EventEmitter()  # type: ignore[attr-defined]
@@ -495,7 +495,14 @@ try:
     from .monitoring.health import ProviderHealthMonitor
     # Attach health monitor if not present
     if not hasattr(app.state, "health_monitor") or app.state.health_monitor is None:  # type: ignore[attr-defined]
-        app.state.health_monitor = ProviderHealthMonitor()  # type: ignore[attr-defined]
+        # Pass plugin_manager, event_emitter, and config_provider
+        _emitter = getattr(app.state, "event_emitter", None)
+        _config_prov = getattr(app.state, "hierarchical_config", None)
+        app.state.health_monitor = ProviderHealthMonitor(  # type: ignore[attr-defined]
+            plugin_manager=plugin_manager,
+            event_emitter=_emitter,
+            config_provider=_config_prov
+        )
     app.include_router(_providers.router)
     print("✅ Provider health router mounted at /admin/providers")
 except Exception as e:
@@ -4088,6 +4095,20 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
     if idempotency_key:
         _idempotency_put(idempotency_key, job_id)
     audit_event("FAX_QUEUED", job_id=job_id, backend=ob)
+    
+    # Emit real-time event for SSE stream
+    try:
+        from .services.events import EventType as _EventType
+        emitter = get_event_emitter()
+        if emitter:
+            await emitter.emit_event(
+                _EventType.FAX_QUEUED,
+                job_id=job_id,
+                provider_id=ob,
+                payload_meta={"backend": ob, "to": to[:8] + "***"}  # Mask phone for PHI
+            )
+    except Exception:
+        pass  # Non-fatal
 
     # Kick off fax sending based on backend
     if not settings.fax_disabled:
@@ -4874,6 +4895,20 @@ async def _send_via_outbound_normalized(job_id: str, to: str, pdf_path: str, tif
                 job.updated_at = datetime.utcnow()
                 db.add(job)
                 db.commit()
+                
+        # Emit status event
+        try:
+            from .services.events import EventType as _ET
+            emitter = get_event_emitter()
+            if emitter and status:
+                if status.upper() in {"SUCCESS", "COMPLETED"}:
+                    await emitter.emit_event(_ET.FAX_DELIVERED, job_id=job_id, provider_id=backend)
+                elif status.upper() == "FAILED":
+                    await emitter.emit_event(_ET.FAX_FAILED, job_id=job_id, provider_id=backend)
+                else:
+                    await emitter.emit_event(_ET.FAX_SENT, job_id=job_id, provider_id=backend)
+        except Exception:
+            pass
     except Exception as e:
         with SessionLocal() as db:
             job = db.get(FaxJob, job_id)
@@ -4884,6 +4919,15 @@ async def _send_via_outbound_normalized(job_id: str, to: str, pdf_path: str, tif
                 db.add(job)
                 db.commit()
         audit_event("job_failed", job_id=job_id, error=str(e))
+        
+        # Emit failure event
+        try:
+            from .services.events import EventType as _ET
+            emitter = get_event_emitter()
+            if emitter:
+                await emitter.emit_event(_ET.FAX_FAILED, job_id=job_id, provider_id=backend or ob)
+        except Exception:
+            pass
 
 
 async def _send_via_signalwire(job_id: str, to: str, pdf_path: str):
