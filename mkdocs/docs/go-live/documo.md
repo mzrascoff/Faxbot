@@ -6,6 +6,9 @@ title: Documo (mFax) Go‑Live Checklist
 
 Documo’s mFax API is a cloud backend with direct upload. PUBLIC_API_URL is not required for outbound, but is recommended for Admin links.
 
+!!! tip "Quick links"
+    [Documo API Docs](https://docs.documo.com){ .md-button } [mFax Pricing](https://www.mfax.io/pricing){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+
 ## Pre‑flight
 
 - [ ] Documo API Key
@@ -42,4 +45,3 @@ curl -sS -X POST "$PUBLIC_API_URL/fax" \
 
 !!! warning "HIPAA posture"
     Confirm provider retention policies and execute a BAA before handling PHI. Review [HIPAA Requirements](/HIPAA_REQUIREMENTS/).
-

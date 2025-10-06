@@ -6,6 +6,9 @@ title: Sinch Setup (Fax API v3)
 
 Direct upload backend: Faxbot posts PDFs to Sinch; PUBLIC_API_URL not required for outbound.
 
+!!! tip "Quick links"
+    [Fax API Reference](https://developers.sinch.com/docs/fax/api-reference/){ .md-button } [Access Keys](https://dashboard.sinch.com/settings/access-keys){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button .md-button--primary }
+
 ## Steps
 
 1) Get Sinch keys: [dashboard.sinch.com/settings/access-keys](https://dashboard.sinch.com/settings/access-keys)
@@ -33,4 +36,3 @@ curl -sS -X POST "$PUBLIC_API_URL/fax" \
 
 !!! warning "HIPAA posture"
     Prefer OAuth for outbound auth, enforce HTTPS, and avoid quick tunnels for PHI. See [HIPAA Requirements](/HIPAA_REQUIREMENTS/).
-

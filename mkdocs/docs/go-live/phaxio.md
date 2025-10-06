@@ -6,6 +6,9 @@ title: Phaxio Go‑Live Checklist
 
 Phaxio is a cloud backend where the provider fetches your PDF via a tokenized URL and posts status callbacks. This page covers the essentials to move from eval to production.
 
+!!! tip "Quick links"
+    [Phaxio Webhooks](https://www.phaxio.com/docs/api/v2.1/intro/webhooks){ .md-button } [Verify Callbacks](https://www.phaxio.com/docs/security/callbacks){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+
 ## Pre‑flight
 
 - [ ] Phaxio account and API credentials (`PHAXIO_API_KEY`, `PHAXIO_API_SECRET`)
@@ -58,4 +61,3 @@ curl -sS "$PUBLIC_API_URL/fax/{job_id}" -H "X-API-Key: ${API_KEY}" | jq .
 
 !!! warning "HIPAA posture"
     Do not use quick tunnels for PHI. Use a permanent HTTPS domain, disable provider document retention, execute a BAA, and review [HIPAA Requirements](/HIPAA_REQUIREMENTS/).
-

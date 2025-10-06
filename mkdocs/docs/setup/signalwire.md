@@ -6,6 +6,9 @@ title: SignalWire Setup (Compatibility API)
 
 Outbound fax via SignalWire’s Compatibility (Twilio‑style) API. Inbound delivery is supported via the Plugin Manager (manifest providers), so you can enable full inbound flows when you install or upload a SignalWire inbound plugin.
 
+!!! tip "Quick links"
+    [SignalWire Fax](https://developer.signalwire.com/fax){ .md-button } [Compatibility API](https://developer.signalwire.com/compatibility-api){ .md-button } [Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
+
 ## Steps
 
 1) Collect credentials: Space URL (e.g., `example.signalwire.com`), Project ID, API Token

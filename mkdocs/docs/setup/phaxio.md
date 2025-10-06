@@ -6,6 +6,9 @@ title: Phaxio Setup
 
 Cloud backend where Phaxio fetches your PDF via a tokenized URL and posts status callbacks.
 
+!!! tip "Quick links"
+    [Webhooks](https://www.phaxio.com/docs/api/v2.1/intro/webhooks){ .md-button } [Verify Callbacks](https://www.phaxio.com/docs/security/callbacks){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button .md-button--primary }
+
 ## Steps
 
 1) Admin Console → Setup Wizard → choose Phaxio
@@ -39,4 +42,3 @@ curl -sS -X POST "$PUBLIC_API_URL/fax" \
 
 !!! warning "HIPAA posture"
     Execute a BAA, disable provider document retention, and use a permanent HTTPS domain. Avoid quick tunnels for PHI. See [HIPAA Requirements](/HIPAA_REQUIREMENTS/).
-

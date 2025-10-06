@@ -217,7 +217,7 @@ export default function OutboundSmokeTests({ client, canSend = true }: OutboundS
         id: `error-${Date.now()}`,
         type: testType,
         status: 'failed',
-        error: 'TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.',
+        error: 'Please configure a test fax number in the Diagnostics panel before running tests.',
         created_at: new Date().toISOString(),
       };
       setTestJobs(prev => [errorJob, ...prev.slice(0, 9)]);
@@ -363,11 +363,39 @@ export default function OutboundSmokeTests({ client, canSend = true }: OutboundS
               Active Provider: {providerName}
             </Typography>
           </Box>
-          <Typography variant="body2">
+          <Typography variant="body2" sx={{ mb: 1 }}>
             {testNumber 
-              ? `Test destination: ${testNumber} (configured via TEST_FAX_NUMBER)`
-              : 'Configure TEST_FAX_NUMBER in .env to enable tests'}
+              ? `Test destination: ${testNumber}`
+              : 'Configure a test fax number below to enable tests. This should be your own fax-capable number.'}
           </Typography>
+          
+          {!testNumber && (
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+              <TextField
+                label="Test Fax Number"
+                placeholder="+15551234567"
+                value={testNumber}
+                onChange={(e) => setTestNumber(e.target.value)}
+                size="small"
+                sx={{ minWidth: 200 }}
+                helperText="Your own fax-capable number (E.164 format)"
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={async () => {
+                  try {
+                    await client.setConfigValue('test_fax_number', testNumber, 'env', undefined, 'Set test fax number from UI');
+                  } catch (e: any) {
+                    console.error('Failed to save test number:', e);
+                  }
+                }}
+                disabled={!testNumber}
+              >
+                Save
+              </Button>
+            </Box>
+          )}
         </Alert>
 
         {/* Test Controls */}

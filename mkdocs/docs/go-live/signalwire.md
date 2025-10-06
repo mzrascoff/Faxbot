@@ -6,6 +6,9 @@ title: SignalWire Go‑Live Checklist
 
 SignalWire’s Compatibility (Twilio‑style) Fax API is supported for outbound sending. Faxbot hosts tokenized media for provider fetch and receives status callbacks. Inbound delivery is supported via the Plugin Manager (manifest providers) — install a SignalWire inbound plugin to enable full inbound flows.
 
+!!! tip "Quick links"
+    [SignalWire Fax](https://developer.signalwire.com/fax){ .md-button } [Compatibility API](https://developer.signalwire.com/compatibility-api){ .md-button } [Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
+
 ## Pre‑flight
 
 - [ ] SignalWire Space URL (e.g., `example.signalwire.com`)

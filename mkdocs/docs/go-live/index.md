@@ -6,6 +6,9 @@ title: Go‑Live Checklists
 
 Final readiness checklists for each backend profile. Each page is backend‑specific and includes provider help links, webhook guidance, and HIPAA notes where applicable.
 
+!!! tip "Quick links"
+    [Networking & Tunnels](/networking/tunnels/){ .md-button } [Webhooks](/setup/webhooks/){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+
 ## Providers
 
 - [Phaxio](phaxio/)
@@ -31,4 +34,3 @@ Final readiness checklists for each backend profile. Each page is backend‑spec
 - [Documo — One‑Pager](documo-onepager/)
 
 See also: [Networking & Tunnels](/networking/tunnels/) · [Webhooks](/setup/webhooks/) · [Admin Console Setup Wizard](/admin-console/setup-wizard/)
-

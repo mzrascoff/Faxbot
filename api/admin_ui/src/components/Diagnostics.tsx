@@ -619,7 +619,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
 
   const runSendTestFax = async () => {
     if (!testNumber) {
-      setError('TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.');
+      setError('Please configure a test fax number above before running tests.');
       return;
     }
     try {
@@ -660,7 +660,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   // Send Test TXT (simple text → backend converts to PDF)
   const runSendTestTxtFax = async () => {
     if (!testNumber) {
-      setError('TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.');
+      setError('Please configure a test fax number above before running tests.');
       return;
     }
     try {
@@ -738,7 +738,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   // Send Test Image (PDF) — generates a simple PDF with text to exercise raster path
   const runSendTestImageFax = async () => {
     if (!testNumber) {
-      setError('TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.');
+      setError('Please configure a test fax number above before running tests.');
       return;
     }
     try {
@@ -919,11 +919,39 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                       />
                     )}
                   </Box>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
                     {testNumber 
-                      ? `Test destination: ${testNumber} (configured via TEST_FAX_NUMBER). Uses your current backend settings.`
-                      : 'Set TEST_FAX_NUMBER in .env to your own fax-capable number to enable tests. Fake numbers do not work with real providers.'}
+                      ? `Test destination: ${testNumber}. Uses your current backend settings.`
+                      : 'Configure a test fax number below to enable tests. This should be your own fax-capable number.'}
                   </Typography>
+                  
+                  {!testNumber && (
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
+                      <TextField
+                        label="Test Fax Number"
+                        placeholder="+15551234567"
+                        value={testNumber}
+                        onChange={(e) => setTestNumber(e.target.value)}
+                        size="small"
+                        sx={{ minWidth: 200 }}
+                        helperText="Your own fax-capable number (E.164 format)"
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={async () => {
+                          try {
+                            await client.setConfigValue('test_fax_number', testNumber, 'env', undefined, 'Set test fax number from UI');
+                          } catch (e: any) {
+                            console.error('Failed to save test number:', e);
+                          }
+                        }}
+                        disabled={!testNumber}
+                      >
+                        Save
+                      </Button>
+                    </Box>
+                  )}
                 </Stack>
               </ResponsiveFormSection>
 

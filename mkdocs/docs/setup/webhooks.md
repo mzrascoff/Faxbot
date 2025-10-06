@@ -6,6 +6,9 @@ title: Webhooks
 
 Configure provider callbacks for outbound status and inbound fax delivery. The Admin Console shows exact URLs for your active providers and verifies reachability.
 
+!!! tip "Quick links"
+    [Networking & Tunnels](/networking/tunnels/){ .md-button } [Diagnostics](/admin-console/diagnostics/){ .md-button } [Plugin Builder](/admin-console/plugin-builder/){ .md-button .md-button--primary }
+
 ## Outbound status
 
 - Phaxio: `POST /phaxio-callback` (HMAC verification)
@@ -41,4 +44,3 @@ Use Admin → Diagnostics to run provider‑specific checks.
 See also
 - [Networking & Tunnels](/networking/tunnels/)
 - [Go‑Live Checklists](/go-live/)
-

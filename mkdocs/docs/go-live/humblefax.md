@@ -6,6 +6,9 @@ title: HumbleFax Go‑Live Checklist
 
 HumbleFax is a lightweight cloud provider supported for outbound sending and inbound delivery via webhooks. It also offers a native email‑to‑fax flow you can use alongside Faxbot.
 
+!!! tip "Quick links"
+    [How it works](https://humblefax.com/?jump=how-it-works){ .md-button } [Sign up](https://humblefax.com/signup){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+
 ## Pre‑flight
 
 - [ ] HumbleFax Access Key and Secret Key
@@ -60,4 +63,3 @@ curl -sS -H "X-API-Key: ${API_KEY:?}" \
 
 !!! note "HIPAA posture"
     HumbleFax may not be HIPAA‑compliant. If you handle PHI, choose a HIPAA‑capable provider and follow [HIPAA Requirements](/HIPAA_REQUIREMENTS/).
-

@@ -6,6 +6,9 @@ title: Sinch Go‑Live Checklist (Fax API v3)
 
 Sinch Fax API v3 uses direct upload: Faxbot posts your file to Sinch and maps the immediate response. PUBLIC_API_URL is not required for outbound, but is recommended for Admin/Diagnostics and inbound.
 
+!!! tip "Quick links"
+    [Sinch Fax API Reference](https://developers.sinch.com/docs/fax/api-reference/){ .md-button } [Access Keys Dashboard](https://dashboard.sinch.com/settings/access-keys){ .md-button } [Setup Wizard](/admin-console/setup-wizard/){ .md-button .md-button--primary }
+
 ## Pre‑flight
 
 - [ ] Sinch project and access keys (Dashboard → Settings → Access Keys)
@@ -53,4 +56,3 @@ curl -sS "$PUBLIC_API_URL/fax/{job_id}" -H "X-API-Key: ${API_KEY}" | jq .
 
 !!! warning "HIPAA posture"
     Prefer OAuth (`SINCH_AUTH_METHOD=oauth`) and ensure your ingress is HTTPS with strict TLS. Review [HIPAA Requirements](/HIPAA_REQUIREMENTS/).
-
