@@ -218,6 +218,43 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     })();
   }, [client]);
 
+  // Phone number utilities - same as Send Fax tab
+  const digitsOnly = (input: string): string => {
+    // Strip ALL non-digit characters including hidden/zero-width chars from paste
+    return input.replace(/\D/g, '');
+  };
+
+  const formatUSPhone = (raw: string): string => {
+    const digits = digitsOnly(raw).slice(0, 10); // Max 10 digits for US
+    if (digits.length === 0) return '';
+    if (digits.length <= 3) return `(${digits})`;
+    if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  };
+
+  const normalizeToE164 = (input: string): string => {
+    // Handle already-formatted E.164 numbers
+    if (input.startsWith('+')) {
+      return '+' + digitsOnly(input);
+    }
+    // US numbers: convert 10 digits to +1XXXXXXXXXX
+    const digits = digitsOnly(input);
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+    // 11 digits starting with 1: already has country code
+    if (digits.length === 11 && digits.startsWith('1')) {
+      return `+${digits}`;
+    }
+    // International: just prepend +
+    if (digits.length >= 10) {
+      return `+${digits}`;
+    }
+    return input; // Return as-is if can't normalize
+  };
+
   const runDiagnostics = async () => {
     try {
       setError(null);
@@ -630,7 +667,9 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       setTestStatus(null);
       const blob = new Blob(["Faxbot test"], { type: 'text/plain' });
       const file = new File([blob], 'test.txt', { type: 'text/plain' });
-      const result = await client.sendFax(testNumber, file);
+      // Normalize to E.164 format before sending
+      const normalizedNumber = normalizeToE164(testNumber);
+      const result = await client.sendFax(normalizedNumber, file);
       setTestJobId(result.id);
       setTestStatus(result.status);
       
@@ -671,7 +710,9 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       setTestStatus(null);
       const blob = new Blob(["Faxbot test TXT\nHello from Admin Console"], { type: 'text/plain' });
       const file = new File([blob], 'faxbot_test.txt', { type: 'text/plain' });
-      const result = await client.sendFax(testNumber, file);
+      // Normalize to E.164 format before sending
+      const normalizedNumber = normalizeToE164(testNumber);
+      const result = await client.sendFax(normalizedNumber, file);
       setTestJobId(result.id);
       setTestStatus(result.status);
       let attempts = 0;
@@ -753,7 +794,9 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       new Uint8Array(ab).set(bytes);
       const blob = new Blob([ab], { type: 'application/pdf' });
       const file = new File([blob], 'faxbot_test_image.pdf', { type: 'application/pdf' });
-      const result = await client.sendFax(testNumber, file);
+      // Normalize to E.164 format before sending
+      const normalizedNumber = normalizeToE164(testNumber);
+      const result = await client.sendFax(normalizedNumber, file);
       setTestJobId(result.id);
       setTestStatus(result.status);
       let attempts = 0;
@@ -930,19 +973,34 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
                       <TextField
                         label="Test Fax Number"
-                        placeholder="+15551234567"
+                        placeholder="(555) 123-4567 or +15551234567"
                         value={testNumber}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTestNumber(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = e.target.value;
+                          // Auto-format US numbers as user types, like Send Fax tab
+                          const digits = digitsOnly(value);
+                          if (digits.length <= 10 && !value.startsWith('+')) {
+                            // Format US numbers
+                            setTestNumber(formatUSPhone(value));
+                          } else {
+                            // Keep international numbers as-is
+                            setTestNumber(value);
+                          }
+                        }}
                         size="small"
                         sx={{ minWidth: 200 }}
-                        helperText="Your own fax-capable number (E.164 format)"
+                        helperText="US numbers auto-format. Paste any format - we'll handle it!"
+                        type="tel"
                       />
                       <Button
                         variant="outlined"
                         size="small"
                         onClick={async () => {
                           try {
-                            await client.setConfigValue('test_fax_number', testNumber, 'env', undefined, 'Set test fax number from UI');
+                            // Normalize to E.164 format before saving
+                            const normalizedNumber = normalizeToE164(testNumber);
+                            await client.setConfigValue('test_fax_number', normalizedNumber, 'env', undefined, 'Set test fax number from UI');
+                            setTestNumber(normalizedNumber);
                           } catch (e: any) {
                             console.error('Failed to save test number:', e);
                           }
