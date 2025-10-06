@@ -4101,11 +4101,13 @@ async def send_fax(background: BackgroundTasks, to: str = Form(...), file: Uploa
         from .services.events import EventType as _EventType
         emitter = get_event_emitter()
         if emitter:
+            # HIPAA-compliant masking: show only last 4 digits
+            masked_to = ("*" * max(0, len(to) - 4)) + to[-4:] if len(to) >= 4 else "***"
             await emitter.emit_event(
                 _EventType.FAX_QUEUED,
                 job_id=job_id,
                 provider_id=ob,
-                payload_meta={"backend": ob, "to": to[:8] + "***"}  # Mask phone for PHI
+                payload_meta={"backend": ob, "to": masked_to}
             )
     except Exception:
         pass  # Non-fatal

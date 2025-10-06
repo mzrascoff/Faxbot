@@ -51,6 +51,19 @@ async def get_provider_health_status(request: Request, admin_auth: dict = Depend
     if not health_monitor:
         raise HTTPException(status_code=503, detail="Health monitor not available")
 
+    # Discover providers from config if circuit_states is empty
+    if not health_monitor.circuit_states:
+        from app.config import active_outbound, active_inbound
+        ob = active_outbound()
+        ib = active_inbound()
+        
+        # Initialize circuit breakers for configured providers
+        from app.monitoring.health import CircuitBreakerState
+        if ob:
+            health_monitor.circuit_states[ob] = CircuitBreakerState(provider_id=ob)
+        if ib and ib != ob:
+            health_monitor.circuit_states[ib] = CircuitBreakerState(provider_id=ib)
+
     provider_statuses = await health_monitor.get_provider_statuses()
 
     # Calculate summary stats
