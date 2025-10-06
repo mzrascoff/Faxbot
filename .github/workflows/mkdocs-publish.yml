@@ -1,0 +1,45 @@
+name: Publish MkDocs (mike)
+
+on:
+  push:
+    branches: [ auto-tunnel ]
+    paths:
+      - 'mkdocs.yml'
+      - 'mkdocs/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install mkdocs + material + mike
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material mike
+
+      - name: Build (sanity)
+        run: |
+          mkdocs build --strict
+
+      - name: Configure git author
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy latest to gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mike deploy --push --remote origin --branch gh-pages latest -m "docs: publish latest from auto-tunnel"
+          mike set-default --push --remote origin --branch gh-pages latest
+
