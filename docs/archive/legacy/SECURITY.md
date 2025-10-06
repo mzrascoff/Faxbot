@@ -22,10 +22,9 @@ Configuration and guidance for HIPAA‑aligned deployments and OAuth/OIDC setup.
 
 Recommended reading
 - [Authentication (API Keys)](/security/authentication)
-- [HIPAA Requirements](../HIPAA_REQUIREMENTS.md)
-- [OAuth/OIDC Setup](OAUTH_SETUP.md)
+- [HIPAA Requirements](https://github.com/dmontgomery40/faxbot/blob/auto-tunnel/HIPAA_REQUIREMENTS.md)
+- [OAuth/OIDC Setup](https://github.com/dmontgomery40/faxbot/blob/auto-tunnel/docs/OAUTH_SETUP.md)
 - [Authentication (API Keys)](/Faxbot/security/authentication.html)
 - [OAuth/OIDC Setup](/Faxbot/security/oauth-setup.html)
 - [Compliance Overview (faxbot.net)](https://faxbot.net/compliance/)
 - [Business Associate Agreement (PDF)](https://faxbot.net/compliance/business-associate-agreement.pdf)
-

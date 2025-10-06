@@ -147,6 +147,9 @@ class Settings(BaseModel):
     humblefax_webhook_secret: str = Field(default_factory=lambda: os.getenv("HUMBLEFAX_WEBHOOK_SECRET", ""))
     humblefax_callback_base: str = Field(default_factory=lambda: os.getenv("HUMBLEFAX_CALLBACK_BASE", ""))
 
+    # Testing - use your own fax-capable number for smoke tests (must be valid E.164)
+    test_fax_number: str = Field(default_factory=lambda: os.getenv("TEST_FAX_NUMBER", ""))
+
     # Storage backend for inbound artifacts
     storage_backend: str = Field(default_factory=lambda: os.getenv("STORAGE_BACKEND", "local"))  # local | s3
     s3_bucket: str = Field(default_factory=lambda: os.getenv("S3_BUCKET", ""))

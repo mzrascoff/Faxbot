@@ -368,7 +368,15 @@ const EventStream: React.FC<EventStreamProps> = ({ client }) => {
                     secondary={
                       <Box>
                         <Typography variant="caption" color="text.secondary" display="block">
-                          {format(new Date(event.occurred_at), 'MMM dd, HH:mm:ss.SSS')}
+                          {new Date(event.occurred_at).toLocaleString('en-US', { 
+                            month: 'short', 
+                            day: '2-digit', 
+                            hour: '2-digit', 
+                            minute: '2-digit', 
+                            second: '2-digit',
+                            fractionalSecondDigits: 3,
+                            hour12: false 
+                          })}
                           {event.job_id && ` • Job: ${event.job_id}`}
                           {event.external_id && ` • Ext: ${event.external_id}`}
                           {event.correlation_id && ` • Correlation: ${event.correlation_id}`}

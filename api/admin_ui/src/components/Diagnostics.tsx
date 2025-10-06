@@ -69,6 +69,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<string[]>(['summary']);
   const [anchors, setAnchors] = useState<Record<string, string>>({});
+  const [testNumber, setTestNumber] = useState<string>('');
   // Third‑party precise links (fallback)
   const thirdParty: Record<string, string> = {
     // Sinch
@@ -203,6 +204,18 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     };
     loadAnchors();
   }, [docsBase, active?.outbound, active?.inbound]);
+
+  // Load test fax number from config
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await client.getConfig();
+        setTestNumber(cfg?.test_fax_number || '');
+      } catch {
+        // ignore
+      }
+    })();
+  }, [client]);
 
   const runDiagnostics = async () => {
     try {
@@ -605,6 +618,10 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   };
 
   const runSendTestFax = async () => {
+    if (!testNumber) {
+      setError('TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.');
+      return;
+    }
     try {
       setError(null);
       setTestSending(true);
@@ -612,7 +629,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       setTestStatus(null);
       const blob = new Blob(["Faxbot test"], { type: 'text/plain' });
       const file = new File([blob], 'test.txt', { type: 'text/plain' });
-      const result = await client.sendFax('+15555550123', file);
+      const result = await client.sendFax(testNumber, file);
       setTestJobId(result.id);
       setTestStatus(result.status);
       
@@ -642,6 +659,10 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
 
   // Send Test TXT (simple text → backend converts to PDF)
   const runSendTestTxtFax = async () => {
+    if (!testNumber) {
+      setError('TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.');
+      return;
+    }
     try {
       setError(null);
       setTestSendingTxt(true);
@@ -649,7 +670,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       setTestStatus(null);
       const blob = new Blob(["Faxbot test TXT\nHello from Admin Console"], { type: 'text/plain' });
       const file = new File([blob], 'faxbot_test.txt', { type: 'text/plain' });
-      const result = await client.sendFax('+15555550123', file);
+      const result = await client.sendFax(testNumber, file);
       setTestJobId(result.id);
       setTestStatus(result.status);
       let attempts = 0;
@@ -716,6 +737,10 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
 
   // Send Test Image (PDF) — generates a simple PDF with text to exercise raster path
   const runSendTestImageFax = async () => {
+    if (!testNumber) {
+      setError('TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.');
+      return;
+    }
     try {
       setError(null);
       setTestSendingImg(true);
@@ -727,7 +752,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
       new Uint8Array(ab).set(bytes);
       const blob = new Blob([ab], { type: 'application/pdf' });
       const file = new File([blob], 'faxbot_test_image.pdf', { type: 'application/pdf' });
-      const result = await client.sendFax('+15555550123', file);
+      const result = await client.sendFax(testNumber, file);
       setTestJobId(result.id);
       setTestStatus(result.status);
       let attempts = 0;
@@ -895,7 +920,9 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
                     )}
                   </Box>
                   <Typography variant="caption" color="text.secondary">
-                    Uses your current backend settings. For cloud backends without valid credentials this will fail fast with an error.
+                    {testNumber 
+                      ? `Test destination: ${testNumber} (configured via TEST_FAX_NUMBER). Uses your current backend settings.`
+                      : 'Set TEST_FAX_NUMBER in .env to your own fax-capable number to enable tests. Fake numbers do not work with real providers.'}
                   </Typography>
                 </Stack>
               </ResponsiveFormSection>

@@ -1273,6 +1273,7 @@ def get_admin_config():
             "sip_ami_password_default": (settings.ami_password == "changeme"),
         },
         "public_api_url": settings.public_api_url,
+        "test_fax_number": settings.test_fax_number or "",
     }
     # v3 plugins status (feature-gated)
     if settings.feature_v3_plugins:

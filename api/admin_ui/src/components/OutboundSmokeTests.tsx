@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -74,9 +74,22 @@ export default function OutboundSmokeTests({ client, canSend = true }: OutboundS
   const [testJobs, setTestJobs] = useState<TestJob[]>([]);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+  const [testNumber, setTestNumber] = useState<string>('');
 
   const activeOutbound = active?.outbound || '';
   const providerName = getProviderDisplayName(activeOutbound);
+
+  // Load test fax number from config
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await client.getConfig();
+        setTestNumber(cfg?.test_fax_number || '');
+      } catch {
+        // ignore
+      }
+    })();
+  }, [client]);
 
   const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'info' | 'default' => {
     switch (status.toLowerCase()) {
@@ -199,11 +212,23 @@ export default function OutboundSmokeTests({ client, canSend = true }: OutboundS
   };
 
   const runSmokeTest = async (testType: 'txt' | 'pdf' | 'image') => {
+    if (!testNumber) {
+      const errorJob: TestJob = {
+        id: `error-${Date.now()}`,
+        type: testType,
+        status: 'failed',
+        error: 'TEST_FAX_NUMBER not configured. Set it in .env to your own fax-capable number.',
+        created_at: new Date().toISOString(),
+      };
+      setTestJobs(prev => [errorJob, ...prev.slice(0, 9)]);
+      return;
+    }
+    
     try {
       setLoading(prev => ({ ...prev, [testType]: true }));
       
       const testFile = createTestFile(testType);
-      const result = await client.sendFax('+15555550123', testFile);
+      const result = await client.sendFax(testNumber, testFile);
       
       const newJob: TestJob = {
         id: result.id,
@@ -339,7 +364,9 @@ export default function OutboundSmokeTests({ client, canSend = true }: OutboundS
             </Typography>
           </Box>
           <Typography variant="body2">
-            Tests use destination +15555550123 (safe test number)
+            {testNumber 
+              ? `Test destination: ${testNumber} (configured via TEST_FAX_NUMBER)`
+              : 'Configure TEST_FAX_NUMBER in .env to enable tests'}
           </Typography>
         </Alert>
 

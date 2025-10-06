@@ -2,19 +2,19 @@
   <img src="assets/faxbot_full_logo.png" alt="Faxbot logo" width="100%" />
 </p>
 <p align="center">
-  <a href="https://dmontgomery40.github.io/Faxbot/">
+  <a href="https://docs.faxbot.net/">
     <img alt="View the Documentation" src="https://img.shields.io/badge/Docs-Faxbot-2b5fff?style=for-the-badge">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://faxbot.net">
+  <a href="https://faxbot.net/">
     <img alt="Visit the Website" src="https://img.shields.io/badge/Website-faxbot.net-00c853?style=for-the-badge">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://faxbot.net/admin-demo">
+  <a href="https://faxbot.net/admin-demo/">
     <img alt="UI Demo" src="https://img.shields.io/badge/UI%20Demo-Admin%20Console-ff9800?style=for-the-badge">
   </a>
 </p>
@@ -68,7 +68,7 @@ The iOS companion lets you send faxes and check status from your phone. Email da
 ## SDKs
 - Python: `pip install faxbot`
 - Node.js: `npm install faxbot`
-→ [SDK Usage](docs/SDKS.md)
+→ [SDK Usage](https://github.com/dmontgomery40/faxbot/blob/auto-tunnel/docs/SDKS.md)
 
 ## Architecture highlights
 - Traits‑first capabilities: `/admin/providers` and `/admin/config` expose active providers + traits; UI and API gate features by traits.
@@ -76,9 +76,9 @@ The iOS companion lets you send faxes and check status from your phone. Email da
 - Provider adapters: clean boundaries for verify_webhook/parse_inbound/send/status/cancel.
 
 Docs:
-- [Canonical Events](docs/api/canonical_events.md)
-- [MCP Integration](docs/MCP_INTEGRATION.md)
-- [API Reference](docs/API_REFERENCE.md)
+- [Canonical Events](https://github.com/dmontgomery40/faxbot/blob/auto-tunnel/docs/api/canonical_events.md)
+- [MCP Integration](https://github.com/dmontgomery40/faxbot/blob/auto-tunnel/docs/MCP_INTEGRATION.md)
+- [API Reference](https://github.com/dmontgomery40/faxbot/blob/auto-tunnel/docs/API_REFERENCE.md)
 
 ## Security
 - Use `X-API-Key` (multi‑key) for auth.
@@ -86,5 +86,4 @@ Docs:
 - No PHI in logs; only IDs/metadata are surfaced.
 
 ## Contributing
-See [CONTRIBUTING.md](CONTRIBUTING.md). Please open issues/PRs; this project is GUI‑first and traits‑first—avoid backend‑name checks in new code.
-
+See [CONTRIBUTING.md](https://github.com/dmontgomery40/faxbot/blob/auto-tunnel/CONTRIBUTING.md). Please open issues/PRs; this project is GUI‑first and traits‑first—avoid backend‑name checks in new code.
