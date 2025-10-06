@@ -162,9 +162,7 @@
   {
     "version": "530aeb29",
     "title": "530aeb29",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "301a1b1f",
@@ -269,7 +267,7 @@
   {
     "version": "4ee1fb94",
     "title": "4ee1fb94",
-    "aliases": []
+    "aliases": ["latest"]
   },
   {
     "version": "4cc04704",
