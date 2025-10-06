@@ -1214,7 +1214,7 @@ def get_admin_config():
         "phaxio_verify_signature": settings.phaxio_verify_signature,
         "persisted_settings_enabled": (os.getenv("ENABLE_PERSISTED_SETTINGS", "false").lower() in {"1","true","yes"}),
         "branding": {
-            "docs_base": os.getenv("DOCS_BASE_URL", "https://docs.faxbot.net/latest"),
+            "docs_base": os.getenv("DOCS_BASE_URL", "https://docs.faxbot.net/4ee1fb94"),
             "logo_path": "/admin/ui/faxbot_full_logo.png",
         },
         "migration": {
@@ -1681,7 +1681,7 @@ async def admin_ui_config(request: Request):
             "auth_refresh": "/auth/refresh",
         },
         # client can render docs links relative to this base
-        "docs_base": os.getenv("DOCS_BASE_URL", "https://docs.faxbot.net/latest"),
+        "docs_base": os.getenv("DOCS_BASE_URL", "https://docs.faxbot.net/4ee1fb94"),
     }
     body = json.dumps(cfg, sort_keys=True).encode("utf-8")
     etag = hashlib.sha256(body).hexdigest()

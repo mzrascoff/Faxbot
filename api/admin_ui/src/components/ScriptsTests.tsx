@@ -205,7 +205,7 @@ const ScriptsTests: React.FC<Props> = ({ client, docsBase, readOnly = false, can
 
   const theme = useTheme();
 
-  const docsUrl = useMemo(() => `${docsBase || 'https://docs.faxbot.net/latest'}/tools/scripts-and-tests/`, [docsBase]);
+  const docsUrl = useMemo(() => `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/tools/scripts-and-tests/`, [docsBase]);
 
   const pushAuth = (line: string) => setAuthLines((prev) => [...prev, line]);
   const clearAuth = () => setAuthLines([]);
