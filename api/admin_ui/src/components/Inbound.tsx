@@ -67,7 +67,7 @@ function Inbound({ client, docsBase }: InboundProps) {
   const [faxToDelete, setFaxToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   // Precise help anchors (lightweight resolver for inbound failures)
-  const base = docsBase || 'https://docs.faxbot.net/4ee1fb94';
+  const base = docsBase || 'https://docs.faxbot.net/latest';
   const anchors: Record<string,string> = {
     // Our docs pages
     'inbound-overview': `${base}/inbound/`,
@@ -381,7 +381,7 @@ function Inbound({ client, docsBase }: InboundProps) {
           You are not authorized to view inbound faxes. Use an API key with inbound:list and inbound:read.
           <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Button size="small" variant="outlined" onClick={() => window.dispatchEvent(new CustomEvent('faxbot:navigate', { detail: 'settings/keys' }))}>Open API Keys</Button>
-            <Button size="small" href={(docsBase || 'https://docs.faxbot.net/4ee1fb94') + '/admin-console/api-keys/'} target="_blank" rel="noreferrer">Learn more</Button>
+            <Button size="small" href={(docsBase || 'https://docs.faxbot.net/latest') + '/admin-console/api-keys/'} target="_blank" rel="noreferrer">Learn more</Button>
           </Box>
         </Alert>
       )}
@@ -603,7 +603,7 @@ same => n,System(curl -s -X POST -H "Content-Type: application/json" -H "X-Inter
                   </Button>
                   <Button 
                     size="small" 
-                    href={`${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/setup/sip-asterisk/`} 
+                    href={`${docsBase || 'https://docs.faxbot.net/latest'}/setup/sip-asterisk/`} 
                     target="_blank" 
                     rel="noreferrer"
                     fullWidth={isSmallMobile}

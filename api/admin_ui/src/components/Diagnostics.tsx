@@ -183,7 +183,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
   useEffect(() => {
     const loadAnchors = async () => {
       try {
-        const base = docsBase || 'https://docs.faxbot.net/4ee1fb94';
+        const base = docsBase || 'https://docs.faxbot.net/latest';
         const topics: string[] = [ 'security', 'diagnostics', 'inbound', 'storage', 'plugins', 'mcp', 'scripts', 'setup', 'send', 'jobs', 'tunnels', 'keys', 'logs', 'sip', 'signalwire', 'freeswitch', 'documo' ];
         const provs = [active?.outbound, active?.inbound].filter(Boolean) as string[];
         for (const p of provs) { if (!topics.includes(p)) topics.push(p); }
@@ -373,18 +373,18 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
         docs.push({ text: 'FAX_DATA_DIR stores temporary files and fax artifacts.' });
         docs.push({ text: 'Default: /faxdata in container, ./faxdata locally' });
         docs.push({ text: 'Must be writable by the application process.' });
-        docs.push({ text: 'Deployment Guide', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/deployment/` });
+        docs.push({ text: 'Deployment Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/deployment/` });
       }
       else if (key === 'database_connected') {
         docs.push({ text: 'Database stores job records and API keys.' });
         docs.push({ text: 'Default: SQLite at ./faxbot.db' });
         docs.push({ text: 'Production: Use PostgreSQL with DATABASE_URL' });
-        docs.push({ text: 'Database Setup', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/deployment/` });
+        docs.push({ text: 'Database Setup', href: `${docsBase || 'https://docs.faxbot.net/latest'}/deployment/` });
       }
     }
     
     if (t.includes('phaxio')) {
-      docs.push({ text: 'Phaxio Setup Guide', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/setup/phaxio/` });
+      docs.push({ text: 'Phaxio Setup Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/setup/phaxio/` });
       docs.push({ text: 'Phaxio Console', href: 'https://console.phaxio.com' });
       const add = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       add('phaxio-webhook-hmac', 'Verify Phaxio inbound HMAC signatures');
@@ -392,14 +392,14 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
     
     if (t.includes('sip')) {
-      docs.push({ text: 'SIP/Asterisk Setup', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/setup/sip-asterisk/` });
+      docs.push({ text: 'SIP/Asterisk Setup', href: `${docsBase || 'https://docs.faxbot.net/latest'}/setup/sip-asterisk/` });
       if (key === 'ami_password_not_default') {
         docs.push({ text: 'Change AMI password in both Asterisk manager.conf and ASTERISK_AMI_PASSWORD env var.' });
       }
     }
     
     if (t.includes('security')) {
-      docs.push({ text: 'Security Guide', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/security/` });
+      docs.push({ text: 'Security Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/security/` });
       const addSec = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       addSec('enforce-https-phi', 'Enforce HTTPS for PHI (ENFORCE_PUBLIC_HTTPS)');
       addSec('require-api-key-production', 'Require API keys (REQUIRE_API_KEY)');
@@ -407,7 +407,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
 
     if (t.includes('sinch')) {
-      docs.push({ text: 'Faxbot: Sinch Setup', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/setup/sinch/` });
+      docs.push({ text: 'Faxbot: Sinch Setup', href: `${docsBase || 'https://docs.faxbot.net/latest'}/setup/sinch/` });
       docs.push({ text: 'Sinch Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/' });
       docs.push({ text: 'OAuth 2.0 for Fax API', href: 'https://developers.sinch.com/docs/fax/api-reference/authentication/oauth/' });
       docs.push({ text: 'Sinch Customer Dashboard (Access Keys – Build)', href: 'https://dashboard.sinch.com/settings/access-keys' });
@@ -423,7 +423,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
 
     if (t.includes('inbound')) {
-      docs.push({ text: 'Inbound Overview', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/inbound/` });
+      docs.push({ text: 'Inbound Overview', href: `${docsBase || 'https://docs.faxbot.net/latest'}/inbound/` });
       const addI = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       addI('inbound-enable', 'Enable inbound receiving');
       addI('inbound-retention', 'Retention days');
@@ -433,7 +433,7 @@ function Diagnostics({ client, onNavigate, docsBase }: DiagnosticsProps) {
     }
 
     if (t.includes('storage')) {
-      docs.push({ text: 'Storage Guide', href: `${docsBase || 'https://docs.faxbot.net/4ee1fb94'}/operations/` });
+      docs.push({ text: 'Storage Guide', href: `${docsBase || 'https://docs.faxbot.net/latest'}/operations/` });
       const addSt = (topic: string, text: string) => { const href = anchors[topic] || thirdParty[topic]; if (href) docs.push({ text, href }); };
       addSt('storage-local-vs-s3', 'Local vs S3');
       addSt('storage-s3-kms', 'S3 KMS encryption');

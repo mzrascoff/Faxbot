@@ -68,7 +68,7 @@ The iOS companion lets you send faxes and check status from your phone. Email da
 ## SDKs
 - Python: `pip install faxbot`
 - Node.js: `npm install faxbot`
-→ [SDK Usage](https://docs.faxbot.net/4ee1fb94/sdks/)
+→ [SDK Usage](https://docs.faxbot.net/latest/sdks/)
 
 ## Architecture highlights
 - Traits‑first capabilities: `/admin/providers` and `/admin/config` expose active providers + traits; UI and API gate features by traits.
@@ -76,9 +76,9 @@ The iOS companion lets you send faxes and check status from your phone. Email da
 - Provider adapters: clean boundaries for verify_webhook/parse_inbound/send/status/cancel.
 
 Docs:
-- [Canonical Events](https://docs.faxbot.net/4ee1fb94/api/canonical-events/)
-- [MCP Integration](https://docs.faxbot.net/4ee1fb94/mcp/)
-- [Reference Guide](https://docs.faxbot.net/4ee1fb94/reference/)
+- [Canonical Events](https://docs.faxbot.net/latest/api/canonical-events/)
+- [MCP Integration](https://docs.faxbot.net/latest/mcp/)
+- [Reference Guide](https://docs.faxbot.net/latest/reference/)
 
 ## Security
 - Use `X-API-Key` (multi‑key) for auth.
@@ -86,4 +86,4 @@ Docs:
 - No PHI in logs; only IDs/metadata are surfaced.
 
 ## Contributing
-See [Contributing Guide](https://docs.faxbot.net/4ee1fb94/getting-started/contributing/). Please open issues/PRs; this project is GUI‑first and traits‑first—avoid backend‑name checks in new code.
+See [Contributing Guide](https://docs.faxbot.net/latest/getting-started/contributing/). Please open issues/PRs; this project is GUI‑first and traits‑first—avoid backend‑name checks in new code.
