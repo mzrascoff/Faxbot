@@ -1,5 +1,10 @@
 [
   {
+    "version": "latest",
+    "title": "latest",
+    "aliases": []
+  },
+  {
     "version": "f29339c",
     "title": "f29339c",
     "aliases": []
@@ -267,7 +272,7 @@
   {
     "version": "4ee1fb94",
     "title": "4ee1fb94",
-    "aliases": ["latest"]
+    "aliases": []
   },
   {
     "version": "4cc04704",
