@@ -183,3 +183,23 @@ request={"to":[{"phoneNumber":"{{to}}"}]}&attachment={{file}}
 - Manifests are evaluated server‑side; no UI or browser secrets are required  
 - For HIPAA, disable dynamic install and keep manifests under version control  
 - The server also discovers manifests under `config/providers/<id>/manifest.json`
+
+---
+
+## End‑to‑End: Validate → Install → Activate → Send
+
+1) Paste JSON in Admin → Plugins → HTTP Manifest Tester  
+   - Validate: `POST /admin/plugins/http/validate` (api/app/main.py:2556, 2570‑2579)
+   - Dry‑run: same with `render_only:false` (api/app/main.py:2583‑2588)
+2) Install to disk  
+   - Writes `config/providers/<id>/manifest.json` (api/app/main.py:2530‑2538)
+   - Diagnostics list manifests and basic issues (api/app/main.py:3714, 3721‑3756)
+3) Activate backend  
+   - `FEATURE_V3_PLUGINS=true` and `OUTBOUND_BACKEND=<id>` (api/app/config.py:380‑385)
+   - Or `PUT /plugins/{id}/config` (api/app/main.py:6288‑6323), then restart (api/app/main.py:6322)
+4) Runtime  
+   - Send path uses manifest when present (api/app/main.py:4086, 4093‑4153; 5045‑5090)  
+   - Status refresh via `POST /admin/fax-jobs/{job_id}/refresh` (api/app/main.py:3496‑3608)
+
+RAG/MCP: You can ask the code RAG things like “show the manifest schema” or “where is install endpoint” and get citations. See rag‑service docs for MCP setup.
+

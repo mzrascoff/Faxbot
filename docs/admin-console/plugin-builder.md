@@ -82,3 +82,30 @@ Generate a starter outbound plugin with a guided wizard — either code plugins 
 - Plugins (v3): [Overview](../plugins/index.md)  
 - Curated Registry: [Docs](../plugins/registry.md)  
 - HTTP Manifest Providers: [Docs](../plugins/manifest-http.md)
+
+---
+
+## HTTP Manifest: End‑to‑End Flow
+
+This section captures the complete lifecycle from JSON → validation → install → activation → runtime.
+
+1) Prepare JSON manifest (see [HTTP Manifest Providers](../plugins/manifest-http.md))  
+   Schema and runtime live at `api/app/plugins/http_provider.py` (71‑102, 111‑139, 167‑238, 275‑304).
+2) Validate in Console  
+   Plugins → “HTTP Manifest Tester” → Validate (client calls `POST /admin/plugins/http/validate`)  
+   Code: api/admin_ui/src/api/client.ts:623; server: api/app/main.py:2556, 2570‑2579, 2583‑2588.
+3) Dry‑run send (optional)  
+   Same endpoint with `render_only:false` uses the runtime to normalize a send.
+4) Install  
+   “Install” writes `config/providers/<id>/manifest.json` (client: api/admin_ui/src/api/client.ts:631; server: api/app/main.py:2530‑2538).  
+   Diagnostics enumerate installed manifests and basic issues (api/app/main.py:3714, 3721‑3756).
+5) Activate as outbound backend  
+   Set `FEATURE_V3_PLUGINS=true` and `OUTBOUND_BACKEND=<id>` (or legacy `FAX_BACKEND=<id>`).  
+   Alternatively, PUT `/plugins/{id}/config` (api/app/main.py:6288‑6323). Note: persists only; restart to apply (api/app/main.py:6322).
+6) Runtime send path  
+   `POST /fax` → manifest path computed and, when present, dispatches via `_send_via_manifest` (api/app/main.py:4086, 4093‑4153, 5045‑5090).
+7) Status refresh (optional)  
+   `POST /admin/fax-jobs/{job_id}/refresh` polls `get_status` if defined and updates DB (api/app/main.py:3496‑3608).
+
+RAG tip: Use the MCP RAG tools to quickly locate endpoints and paths (e.g., “where is validate endpoint?”). See the rag‑service docs for setup.
+
